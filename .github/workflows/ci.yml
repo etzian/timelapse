@@ -22,9 +22,14 @@ jobs:
     runs-on: macos-latest
     timeout-minutes: 30
     env:
-      # @etzianco/ui comes from GitHub Packages; the workflow token has read
-      # access to the org's packages. Never hard-code a personal token here.
-      NODE_AUTH_TOKEN: ${{ github.token }}
+      # Private @etzianco/ui package lives in GitHub Packages under the etzianco
+      # org. The workflow github.token cannot be used — it lacks read access to
+      # the org's packages (403 "installation does not exist"), which is what
+      # blocked the first two CI runs. Use a Classic/Fine-Grained PAT saved as
+      # the `NPM_TOKEN` repository secret, scoped to read:packages on the
+      # etzianco org. The Makefile already passes NODE_AUTH_TOKEN to npm, so we
+      # only set that here; nothing is hard-coded in this file.
+      NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
     steps:
       - name: Check out
