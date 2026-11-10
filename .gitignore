@@ -1,0 +1,36 @@
+# OS / editor
+.DS_Store
+Thumbs.db
+Desktop.ini
+.idea/
+*.swp
+
+# Session artifacts (opencode/Claude session exports)
+session-ses_*.md
+
+# Node tooling (opencode agent harness + future frontend)
+node_modules/
+.opencode/node_modules/
+.opencode/package.json
+.opencode/package-lock.json
+npm-debug.log*
+yarn-error.log*
+*.tsbuildinfo
+
+# Rust / Tauri build out (Phase 1+)
+target/
+
+# Frontend build out (Svelte/Tauri, once code lands)
+dist/
+build/
+
+# Data & secrets (Phase 1+ will create these)
+*.sqlite
+*.sqlite-*
+*.db
+.env
+.env.*
+!.env.example
+
+# Logs / transient
+*.log
