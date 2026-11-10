@@ -1,0 +1,30 @@
+/* App-local styles. Tokens only: no raw colours, sizes or z-indexes. The --ez-*
+   tokens belong to @etzianco/ui and are never redefined here; this app's own
+   values live in one block, layered on --ez-*, named --app-*. Classes are .app-*. */
+:root {
+  --app-page-gap: var(--ez-space-lg);
+  --app-doc-max-height: 60vh;
+}
+
+/* Dialogs are portaled to <body>, outside .ez-shell (the only rule that sets the
+   font), so their body text would fall back to the browser's serif. Remove when
+   @etzianco/ui sets the font on .ez-modal__body. */
+body {
+  font-family: var(--ez-font-base);
+}
+
+.app-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-page-gap);
+  max-width: var(--ez-content-max-width);
+}
+
+.app-doc {
+  margin: 0;
+  max-height: var(--app-doc-max-height);
+  overflow: auto;
+  white-space: pre-wrap;
+  font-family: inherit;
+  font-size: var(--ez-fs-sm);
+}

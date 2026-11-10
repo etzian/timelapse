@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "additionalDirectories": ["~/etzian/_uidesign", "~/etzian/_foundation"],
+    "deny": [],
+    "allow": [
+      "Bash(make check)",
+      "Bash(make ui-check)",
+      "Bash(make i18n)",
+      "Bash(make legal)",
+      "Bash(make licence)",
+      "Bash(make gate)",
+      "Bash(./scripts/verify.sh)",
+      "Bash(cargo check *)",
+      "Bash(cargo test *)",
+      "Bash(cargo clippy *)",
+      "Bash(cargo fmt *)",
+      "Bash(ez i18n-check *)",
+      "Bash(ez legal check *)",
+      "Bash(ez doctor *)"
+    ]
+  }
+}

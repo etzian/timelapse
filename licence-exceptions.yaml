@@ -1,0 +1,26 @@
+# Approved exceptions to the Etzian licence policy
+# (~/etzian/_foundation/tech/licences/policy.yaml), checked by `ez licence-audit`.
+#
+# An entry without an `approved` date is a DRAFT and is not applied. Only the
+# user approves an exception, per package and per project; Claude never writes
+# one. Tauri 2 links option-ext (MPL-2.0) on every target through
+# tauri -> dirs -> dirs-sys, so a Tauri app cannot pass the audit until it is
+# approved here. Presented to the user by `ez new`.
+targets:
+  - aarch64-apple-darwin
+
+exceptions:
+  - package: option-ext
+    ecosystem: rust
+    licence: MPL-2.0
+    approved: 2026-11-09
+    by: Etienne Germain
+    reason: >-
+      Linked into the app by Tauri 2 -> dirs -> dirs-sys -> option-ext on every
+      target; it cannot be removed without leaving Tauri 2. A small helper
+      crate, used unmodified.
+    conditions: >-
+      Unmodified. MPL-2.0 is file-scoped, so it does not extend to this app's
+      code. Ship its licence notice and where its source is available
+      (https://crates.io/crates/option-ext) in THIRD-PARTY.md with the app.
+      Re-check if the crate version changes or a fork is needed.

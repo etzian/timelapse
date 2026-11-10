@@ -334,11 +334,11 @@ Preserve aspect ratio. Provide fit, crop and letterbox options.
 
 **Codecs**
 
-- H.264.
+- **AV1 (default)** — encoded via SVT-AV1 (BSD-3-Clause) in the bundled LGPL FFmpeg sidecar. Recommended output for all new timelines; modern players (macOS 14+, iOS 17+, Chrome, Firefox, VLC) already support it.
+- H.264 — compatibility profile only, produced via macOS VideoToolbox hardware encoder (no software fallback; below the minimum supported macOS version the job is refused with a clear error rather than silently falling back).
+- H.265/HEVC — compatibility profile for Apple devices that need 10-bit, also via VideoToolbox only.
 
-- H.265/HEVC.
-
-- AV1 if supported by the available encoder.
+Rationale and licence posture recorded in ADR-017 (`docs/DECISIONS.md`) and `docs/FFMPEG_AV1_ANALYSIS.md`. The default choice (AV1) reflects the timelapse workload where AV1's compression efficiency at high quality meaningfully reduces file size versus H.264 at similar visual fidelity, and SVT-AV1 is fast on Apple Silicon for a real encode.
 
 **Container**
 

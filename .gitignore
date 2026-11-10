@@ -19,6 +19,7 @@ yarn-error.log*
 
 # Rust / Tauri build out (Phase 1+)
 target/
+src-tauri/gen/schemas
 
 # Frontend build out (Svelte/Tauri, once code lands)
 dist/
@@ -34,3 +35,6 @@ build/
 
 # Logs / transient
 *.log
+
+# Scaffolding metadata (copier-generated; not part of the deliverable)
+.copier-answers.yml

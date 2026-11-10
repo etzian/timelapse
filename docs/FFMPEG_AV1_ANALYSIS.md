@@ -2,7 +2,7 @@
 
 ## FFmpeg & AV1 — Comparative Analysis (No Decision)
 
-**Status:** Analysis only. **This document makes no technical decision.** It exists to inform D2 (the open FFmpeg/AV1 selection, synthesis roll-up `08_SYNTHESIS.md`). A decision becomes a new ADR (candidate ADR-017) only after this is reviewed and one option chosen.
+**Status:** Adopted as **ADR-017** (2026-11-09) in `docs/DECISIONS.md`. The recommendation in §4 is implemented with one deliberate change at the user's choice: **AV1 (SVT-AV1) is the default output format**; H.264/HEVC via VideoToolbox is the compatibility profile. This file remains the comparative analysis that informed that decision.
 **Policy basis:** `_foundation/tech/licences/policy.yaml` (`ez licence-audit`): allow MIT/Apache-2.0/BSD/ISC/Zlib/CC0/Unlicense; **restricted** LGPL (only if dynamically linked/imported, unmodified, text shipped — requires `licence-exceptions.yaml`); **deny** GPL/AGPL even with an exception. A project-specific exception goes in `licence-exceptions.yaml` (who/when/why/conditions), never here.
 
 ---

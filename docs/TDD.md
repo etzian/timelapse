@@ -304,7 +304,7 @@ Before adopting a dependency:
 
 Particular attention is required for:
 
-- FFmpeg and its build configuration.
+- FFmpeg and its build configuration — see [ADR-017](DECISIONS.md#adr-017---ffmpeg-distribution-path-lgpl-build-svt-av1-default-videotoolbox-for-h264hevc): LGPL-only sidecar, GPL x264/x265 absent (build-time assertion), SVT-AV1 for AV1 as the default codec tier, macOS VideoToolbox for H.264/HEVC (no software fallback).
 
 - EXIF extraction.
 

@@ -1,0 +1,64 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+  packages: read
+
+# Scope: cargo fmt/clippy/test, svelte-check, vitest, vite build, the
+# project invariant checks (scripts/verify.sh) and a Tauri build. The
+# `ez i18n-check` / `ez legal check` / `ez licence-audit` targets are not
+# included because the `ez` CLI lives in `~/etzian/_foundation`, which is
+# not part of this repository's checkout; those three already pass on the
+# dev machine via `make gate` (see CLAUDE.md), and are the canonical place
+# to run them. Do NOT weaken this workflow to "fix" a local-tool gap.
+jobs:
+  build-macos-aarch64:
+    name: Build + check (aarch64-apple-darwin)
+    runs-on: macos-latest
+    timeout-minutes: 30
+    env:
+      # @etzianco/ui comes from GitHub Packages; the workflow token has read
+      # access to the org's packages. Never hard-code a personal token here.
+      NODE_AUTH_TOKEN: ${{ github.token }}
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Install stable Rust (project pins via rust-toolchain.toml)
+        run: rustup component add rustfmt clippy
+
+      - name: Set up Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install the Tauri CLI (cargo binary, pinned to src-tauri's version)
+        run: cargo install tauri-cli --version 2.9.6 --locked
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci --no-audit --no-fund
+
+      - name: Rust workspace check (fmt + clippy -D warnings + test)
+        run: make check
+
+      - name: Frontend check (svelte-check --fail-on-warnings + vitest + vite build)
+        run: make ui-check
+
+      - name: Build the unsigned .app (signing is added once a team_id exists)
+        run: make build
+
+      - name: Upload the built .app for inspection
+        uses: actions/upload-artifact@v4
+        with:
+          name: timelapse-app-aarch64
+          path: target/aarch64-apple-darwin/release/bundle/macos/*.app
+          include-hidden-files: true
+          if-no-files-found: warn

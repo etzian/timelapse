@@ -1,0 +1,55 @@
+# Data map (schema: ~/etzian/_foundation/legal/schema/data-map.schema.yaml).
+# The starting point describes the sample app: everything stays on the device.
+# Change this file in the SAME commit as any change that stores or sends more
+# (a network call, an SDK, an account, analytics, sync), then run
+# `ez legal check .` and `ez legal gen .`. Quote texts that contain commas.
+app:
+  slug: timelapse
+  name: "Timelapse Studio"
+  archetype: standalone
+  store_distribution: [direct]
+policy:
+  effective_date: "2026-11-10"
+  data_leaves_device: false
+  summary:
+    fr-CA: "Transformez d'importants fichiers de photos en vidéos timelapse de haute qualité, localement."
+    en: "Turn large photo collections into high-quality timelapse videos, locally."
+audience:
+  minimum_age: 0
+  directed_at_children: false
+features:
+  account: false
+  analytics: false
+  cookies: false
+  cloud_sync: false
+data:
+  - id: app-settings
+    label: { fr-CA: "Vos choix de langue, de thème et de densité", en: "Your language, theme and density choices" }
+    category: other
+    purpose: { fr-CA: "Afficher l'application comme vous l'avez choisi", en: "Show the app the way you chose" }
+    basis: necessary-for-service
+    storage: { location: device }
+    retention: { fr-CA: "Jusqu'à ce que vous effaciez les données de l'application", en: "Until you erase the app's data" }
+security_measures:
+  - fr-CA: "Vos données restent sur votre appareil et ne sont transmises à personne."
+    en: "Your data stays on your device and is sent to no one."
+  - fr-CA: "L'application ne charge que son propre contenu (politique de sécurité du contenu restrictive)."
+    en: "The app loads only its own content (restrictive content security policy)."
+rights_workflow: { self_service_export: false, self_service_deletion: true, response_days: 30 }
+commercial:
+  # Phase 0: shipping free so the legal gate passes without company.neq (empty
+  # in _foundation/company/etzian.yaml). PRODUCT INTENT is a one-time purchase
+  # (per user decision 2026-11-09) — flip this back to `model: one-time` and
+  # fill `company.neq` via `ez profile` before release. Re-run `ez legal gen .`.
+  # `billing: direct` is the schema's minimum for a user-facing app; free +
+  # direct simply means no checkout, no payment processor.
+  model: free
+  billing: direct
+  refund_days: 0
+apple:
+  tracking: false
+  # Verify against a RELEASE build (Xcode privacy report) before submitting;
+  # add every required-reason API the code or a dependency really calls.
+  required_reason_apis:
+    - category: NSPrivacyAccessedAPICategoryFileTimestamp
+      reasons: [C617.1]

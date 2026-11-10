@@ -1,0 +1,18 @@
+{
+  "$doc": "Managed copy of @etzianco/legal-ux (consent, privacy settings, erase-data dialog, age gate, subscription block), copied from _foundation/legal/ux by `ez vendor-ui .` and hash-stamped; `ez doctor` fails on a hand edit. To upgrade, run `ez vendor-ui .` after `ez sync`.",
+  "source": "foundation:legal-ux@0.1.0",
+  "target": "frontend/src/lib/legal-ux",
+  "map": {
+    "index.js": "src/index.js",
+    "AlertDialog.svelte": "src/AlertDialog.svelte",
+    "ConsentBanner.svelte": "src/ConsentBanner.svelte",
+    "PrivacySettings.svelte": "src/PrivacySettings.svelte",
+    "DangerZone.svelte": "src/DangerZone.svelte",
+    "AgeGate.svelte": "src/AgeGate.svelte",
+    "SubscriptionDisclosure.svelte": "src/SubscriptionDisclosure.svelte",
+    "consent.js": "src/consent.js",
+    "age.js": "src/age.js",
+    "export.js": "src/export.js",
+    "subscription.js": "src/subscription.js"
+  }
+}

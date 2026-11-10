@@ -141,6 +141,25 @@ The application ships in two locales, fr-CA and en (BCP 47 tags), managed as Flu
 
 **Consequences applied:** `PRD.md` §6 Localization NFR added; §9 portability question closed (related to ADR-015); `TDD.md` §9 i18n dependency and `locales/` layout recorded.
 
+## ADR-017 — FFmpeg distribution path: LGPL build, SVT-AV1 default, VideoToolbox for H.264/HEVC
+
+**Status:** Accepted (2026-11-09)
+
+We ship a self-contained FFmpeg sidecar built on the **LGPLv2.1+** licence path with every GPL-only encoder disabled (`--disable-gpl`; `x264` and `x265` absent from the shipped binary). **AV1 encoding uses SVT-AV1 (BSD-3-Clause) as the default output codec**; H.264/HEVC is available as a compatibility profile, produced exclusively via the macOS **VideoToolbox** hardware encoder — no software fallback. FFmpeg runs as a controlled subprocess with an explicit, recorded argument list; it is never statically linked into the Rust binary.
+
+A build-time assertion (`strings` + `lipo` + symbol scan on the shipped binary) gates Phase 0 exit: **no `libx264`/`libx265`/GPL-only symbol may be present**. FFmpeg's LGPL notice text and modification list ship in the app bundle under `LICENSES/`, satisfying the *restricted* class conditions of `_foundation/tech/licences/policy.yaml`.
+
+**Reason:** Closes synthesis finding **C2 / D2** (`docs/audit/08_SYNTHESIS.md`), which blocked Phase 0 exit as a legal/licence gate. The default Homebrew `ffmpeg` build (Option A) links `x264/x265` → denied class. Pointing at the user's system `ffmpeg` (Option C) violates ADR-008 + `TDD.md:318/346/444` self-containment and reproducibility intent. Option B keeps every *required* codec in the allow list, uses the restricted class only under its conditions (dynamic, unmodified, text shipped), matches the controlled-subprocess model of ADR-008/TDD, and gives us a fast multi-threaded AV1 encoder for the timelapse workload. SVT-AV1 is chosen over libaom because timelapse encode times at 30–60 fps × minutes-long timeline scale, not seconds; a slow AV1 default would push users to the compatibility (H.264) path and defeat the purpose of offering AV1.
+
+**Consequences applied:**
+- `docs/DECISIONS.md` — this ADR; open FFmpeg sub-decisions below (lines § "## Open decisions" → **FFmpeg**) now point at it.
+- `TDD.md` §9 (dependencies / FFmpeg distribution) — updated to cite this ADR, SVT-AV1, and VideoToolbox, and to keep its rule that "not every build has identical codec support" (`TDD.md:318`).
+- `PRD.md` §5.7 supported codecs / default output — **AV1 (SVT-AV1) is now the default output format**; H.264/HEVC (VideoToolbox) is listed as the compatibility profile for players that do not yet support AV1.
+- `docs/FFMPEG_AV1_ANALYSIS.md` header — status line updated to point at ADR-017; the document's recommendation is adopted as-is with one deliberate change (AV1 is **default**, not opt-in).
+- Phase 5 exit criteria (`docs/DEVELOPMENT_ROADMAP.md`) now include the GPL-symbol build-time assertion and LGPL-notice placement inside the packaged bundle.
+
+**Open items carried to Phase 5:** (a) exact provenance, version pin, and build script (`tools/build-ffmpeg/`) for the shipped FFmpeg; (b) VideoToolbox availability guard per minimum supported macOS version — below that, refuse AV1-tier jobs with a clear error rather than silently falling back; (c) final placement of the LGPL notice text inside the packaged bundle.
+
 ---
 
 ## Open decisions
@@ -163,15 +182,7 @@ The following decisions must be investigated and presented for approval before i
 
 ### FFmpeg
 
-- Bundled versus separately installed.
-
-- Static versus dynamic build.
-
-- Codec licensing implications.
-
-- Apple VideoToolbox availability.
-
-- AV1 support and distribution.
+- **Resolved (ADR-017):** bundled LGPL-only sidecar; SVT-AV1 for AV1 as the default codec tier; macOS VideoToolbox for H.264/HEVC as a compatibility profile, no x264/x265 fallback. See `docs/FFMPEG_AV1_ANALYSIS.md` and ADR-017 for the full justification.
 
 ### Image processing
 
