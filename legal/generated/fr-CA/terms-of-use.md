@@ -2,6 +2,7 @@
 
 > **Version provisoire.** Ce document a été produit à partir d'un gabarit qui n'a pas encore été révisé par un juriste. Ne pas publier tel quel.
 
+
 # Conditions d'utilisation — Timelapse Studio
 
 Dernière mise à jour : 2026-11-10
@@ -14,17 +15,25 @@ Ces conditions sont rédigées en français; une traduction anglaise est fournie
 
 ## Le service
 
+
 Transformez d'importants fichiers de photos en vidéos timelapse de haute qualité, localement.
 
+
 Nous pouvons faire évoluer Timelapse Studio, y ajouter, en modifier ou en retirer des fonctions. 
+
+
 
 ## Utilisation acceptable
 
 Vous vous engagez à utiliser Timelapse Studio conformément à la loi et à ne pas : tenter d'en contourner les mesures de sécurité, y accéder par des moyens non autorisés, en perturber le fonctionnement, ni l'utiliser pour porter atteinte aux droits d'autrui.
 
+
+
+
 ## Licence
 
 L'installation et l'utilisation du logiciel sont régies par le contrat de licence d'utilisateur final.
+
 
 ## Propriété intellectuelle
 

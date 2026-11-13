@@ -2,6 +2,7 @@
 
 > **Draft.** This document was produced from a template that has not yet been reviewed by a lawyer. Do not publish as is.
 
+
 # Terms of use — Timelapse Studio
 
 Last updated: 2026-11-10
@@ -14,17 +15,25 @@ These terms are written in French; an English translation is provided for your c
 
 ## The service
 
+
 Turn large photo collections into high-quality timelapse videos, locally.
 
+
 We may evolve Timelapse Studio, adding, changing or removing features. 
+
+
 
 ## Acceptable use
 
 You agree to use Timelapse Studio lawfully and not to: attempt to bypass its security measures, access it by unauthorized means, disrupt its operation, or use it to infringe the rights of others.
 
+
+
+
 ## Licence
 
 Installing and using the software is governed by the end-user licence agreement.
+
 
 ## Intellectual property
 

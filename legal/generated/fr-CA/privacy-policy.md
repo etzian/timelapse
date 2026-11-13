@@ -2,11 +2,14 @@
 
 > **Version provisoire.** Ce document a été produit à partir d'un gabarit qui n'a pas encore été révisé par un juriste. Ne pas publier tel quel.
 
+
 # Politique de confidentialité — Timelapse Studio
 
 Dernière mise à jour : 2026-11-10
 
+
 Transformez d'importants fichiers de photos en vidéos timelapse de haute qualité, localement.
+
 
 ## 1. Qui sommes-nous
 
@@ -16,38 +19,70 @@ Responsable de la protection des renseignements personnels : Etienne Germain, pr
 
 ## 2. Renseignements personnels que nous recueillons
 
+
 Timelapse Studio ne transmet aucun renseignement hors de votre appareil et nous n'y avons pas accès. Nous ne recueillons donc aucun renseignement personnel.
+
+
+
 
 Voici ce que l'application conserve sur votre appareil :
 
+
 | Renseignement | Catégorie | Pourquoi nous l'utilisons | Fondement | Où il est conservé | Durée de conservation |
 | --- | --- | --- | --- | --- | --- |
+
 | Vos choix de langue, de thème et de densité | Autre | Afficher l'application comme vous l'avez choisi | Nécessaire pour fournir le service demandé | Sur votre appareil | Jusqu'à ce que vous effaciez les données de l'application |
+
+| L'inventaire de vos photographies (chemins, tailles, hachage SHA-256 et statut d'import) | Autre | Indexer, dédoublonner et retrouver vos photographies entre les séances de travail | Nécessaire pour fournir le service demandé | Sur votre appareil | Jusqu'à ce que vous supprimiez la base de données du projet (dossier .timelapse/) |
+
+
+
+
+
 
 ## 3. Consentement
 
+
 Comme nous ne recueillons aucun renseignement personnel, nous n'avons aucun consentement à vous demander. Si cela devait changer, nous vous le demanderions clairement avant de recueillir quoi que ce soit.
+
+
 
 ## 4. Communication à des tiers
 
+
+
 Nous ne communiquons vos renseignements personnels à aucun tiers. Nous ne les vendons pas.
+
+
 
 ## 5. Transferts à l'extérieur du Québec
 
+
+
 Nous ne transférons aucun renseignement personnel à l'extérieur du Québec.
+
 
 ## 6. Conservation
 
+
 Ces renseignements demeurent sur votre appareil pour la durée indiquée à la section 2. Vous pouvez les supprimer en tout temps en supprimant les données de l'application de votre appareil. Nous n'en détenons aucune copie.
+
+
 
 ## 7. Sécurité
 
+
 Nous protégeons vos renseignements personnels par les mesures suivantes :
 
+
 - Vos données restent sur votre appareil et ne sont transmises à personne.
+
 - L'application ne charge que son propre contenu (politique de sécurité du contenu restrictive).
 
+
 Aucune mesure n'offre une protection absolue. En cas d'incident de confidentialité présentant un risque de préjudice sérieux, nous avisons la Commission d'accès à l'information et les personnes concernées, et nous tenons un registre de tous les incidents.
+
+
 
 ## 8. Vos droits
 
@@ -58,6 +93,7 @@ Vous pouvez, en tout temps :
 - retirer votre consentement;
 - demander que nous cessions de diffuser vos renseignements ou que nous les supprimions, dans les cas prévus par la loi;
 - obtenir vos renseignements dans un format technologique structuré et couramment utilisé (portabilité);
+
 - nous demander comment nous protégeons vos renseignements.
 
 Pour exercer ces droits, écrivez à privacy@etzian.com. Nous répondons dans un délai de 30 jours.
@@ -68,7 +104,10 @@ Si vous estimez que nous ne respectons pas la présente politique ou la loi, éc
 
 ## 10. Mineurs
 
+
+
 Timelapse Studio ne s'adresse pas aux enfants. 
+
 
 ## 11. Modifications
 

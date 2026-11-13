@@ -3,18 +3,18 @@
 ## Current Development Status
 
 **Version:** 0.1  
-**Last updated:** 2026-11-09  
-**Development status:** Pre-implementation
+**Last updated:** 2026-11-11  
+**Development status:** Phase 0 complete (2026-11-10); Phase 1 pending definition and user approval
 
 ---
 
 ## 1. Project status
 
-The product concept and initial architecture have been defined.
+The product concept and initial architecture are defined, and implementation has begun.
 
-The project has not yet entered implementation.
+**Phase 0 — Baseline is complete (2026-11-10).** The generated application builds and its verification gate passes: `make gate` is green locally and CI (`ci.yml`) is green on main. See `.claude/plan/STATE.md` for the authoritative record.
 
-The immediate objective is to validate the technical documentation and prepare the development environment before writing application features.
+**Phase 1 — First feature is pending.** Its scope requires user approval before implementation (see §6).
 
 ## 2. Confirmed technology direction
 
@@ -76,69 +76,35 @@ Advanced capabilities:
 
 ## 5. Development roadmap
 
-**Canonical planning document:** `docs/DEVELOPMENT_ROADMAP.md` — per-phase scope, entry/exit criteria, dependency order, and the cross-phase release gate (locale, licence audit, Apple signing, ADR consistency). Phase 5 is gated on the pending FFmpeg/AV1 decision (see `docs/FFMPEG_AV1_ANALYSIS.md`).
+**Authoritative planning and status:** the current development sequence is governed by `.claude/plan/PHASES.md` (frozen phase specification) and `.claude/plan/STATE.md` (authoritative development status). Consult those two documents first; this file is a supporting summary only.
 
-Status of record (updated at each session end per §9): all phases **Not started**.
+**Supporting technical analysis:** `docs/DEVELOPMENT_ROADMAP.md` — per-phase scope, entry/exit criteria, dependency order, and the cross-phase release gate (locale, licence audit, Apple signing, ADR consistency). It is retained as technical context; it is no longer the canonical sequencing document.
+
+The FFmpeg/AV1 licensing decision is settled: **ADR-017** (adopted 2026-11-09) — LGPL-only FFmpeg sidecar, SVT-AV1 (BSD-3-Clause) default, VideoToolbox for H.264/HEVC compatibility. See `docs/DECISIONS.md` (ADR-017) and `docs/FFMPEG_AV1_ANALYSIS.md`. ADR-017 remains adopted and is not reopened by this reconciliation; three open *technical implementation* items are carried forward as pre-Phase-5 prerequisites (see `docs/FFMPEG_AV1_ANALYSIS.md` §4).
+
+Status of record: per `.claude/plan/STATE.md` — Phase 0 **done (2026-11-10)**, Phase 1 **pending**.
 
 ## 6. Immediate next actions
 
-Before implementation:
+The Phase 0 documentation review is complete; its findings are recorded in `docs/audit/`. The immediate objective before any Phase 1 work is to define the first real feature and obtain user approval:
 
-- Review PRD.md.
+- Propose a concrete Phase 1 feature scope (core logic in `crates/core` with tests, a Tauri command, a frontend page, strings in both locales, and a `legal/data-map.yaml` update if it stores or sends anything) per `.claude/plan/PHASES.md`.
 
-- Review TDD.md.
+- Identify its dependencies, risks, and affected components.
 
-- Review ARCHITECTURE.md.
-
-- Review DATABASE_SCHEMA.md.
-
-- Review PROCESSING_PIPELINE.md.
-
-- Review DEVELOPMENT_ROADMAP.md.
-
-- Review DECISIONS.md.
-
-- Identify contradictions and missing requirements.
-
-- Evaluate dependencies and licensing.
-
-- Propose the initial database schema.
-
-- Propose the initial repository structure.
-
-- Identify technical risks.
+- Present the proposed scope for user approval before implementation (per AGENTS.md §4).
 
 ## 7. Current milestone
 
-**Milestone:** Phase 0 — Technical review and foundation.
+**Milestone:** Phase 1 — First feature (definition pending).
 
-The implementation agent must first produce a review report containing:
-
-1. Understanding of the product.
-
-2. Architecture assessment.
-
-3. Identified inconsistencies.
-
-4. Missing technical decisions.
-
-5. Dependency recommendations.
-
-6. Licensing considerations.
-
-7. Proposed initial database schema.
-
-8. Proposed repository structure.
-
-9. Development risks.
-
-10. Recommended Phase 0 implementation plan.
+Phase 0 — Baseline was completed on 2026-11-10: the generated application builds and `make gate` passes locally and in CI (see `.claude/plan/STATE.md`). The Phase 0 documentation review required by this file's former §7 produced the reports in `docs/audit/` and is considered satisfied.
 
 ## 8. Implementation restriction
 
-**Do not start implementing the application until the Phase 0 review has been presented and approved.**
+The implementation gate formerly stated here — "do not start implementing until the Phase 0 review has been presented and approved" — is **satisfied**; Phase 0 is complete as recorded in `.claude/plan/STATE.md`.
 
-The agent must not create a large application skeleton or begin feature implementation before approval.
+The governing rule going forward: **Phase 1 feature implementation requires an approved scope.** An agent must not begin Phase 1 feature work, or edit the frozen phase specification (`.claude/plan/PHASES.md`), to accommodate convenience.
 
 ## 9. Session continuity
 
@@ -160,6 +126,6 @@ At the end of every development session, update this file with:
 
 - Recommended next task.
 
-This file is the primary reference for resuming work in a new agent session.
+**Authoritative status record:** `.claude/plan/STATE.md` is the canonical development-status and session-handoff record (per AGENTS.md). Update it whenever development progress changes; treat this file as a supporting summary rather than the status of record.
 
 Do not assume that an undocumented implementation decision has been approved.

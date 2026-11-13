@@ -30,6 +30,13 @@ data:
     basis: necessary-for-service
     storage: { location: device }
     retention: { fr-CA: "Jusqu'à ce que vous effaciez les données de l'application", en: "Until you erase the app's data" }
+  - id: images-inventory
+    label: { fr-CA: "L'inventaire de vos photographies (chemins, tailles, hachage SHA-256 et statut d'import)", en: "Your photograph inventory (paths, sizes, SHA-256 hash and import status)" }
+    category: other
+    purpose: { fr-CA: "Indexer, dédoublonner et retrouver vos photographies entre les séances de travail", en: "Index, deduplicate and find your photographs across working sessions" }
+    basis: necessary-for-service
+    storage: { location: device }
+    retention: { fr-CA: "Jusqu'à ce que vous supprimiez la base de données du projet (dossier .timelapse/)", en: "Until you delete the project's database (.timelapse/ folder)" }
 security_measures:
   - fr-CA: "Vos données restent sur votre appareil et ne sont transmises à personne."
     en: "Your data stays on your device and is sent to no one."

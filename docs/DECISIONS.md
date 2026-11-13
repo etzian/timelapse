@@ -160,6 +160,19 @@ A build-time assertion (`strings` + `lipo` + symbol scan on the shipped binary) 
 
 **Open items carried to Phase 5:** (a) exact provenance, version pin, and build script (`tools/build-ffmpeg/`) for the shipped FFmpeg; (b) VideoToolbox availability guard per minimum supported macOS version — below that, refuse AV1-tier jobs with a clear error rather than silently falling back; (c) final placement of the LGPL notice text inside the packaged bundle.
 
+## ADR-018 — Rust libraries: `rusqlite` (bundled) and `sha2` for the Phase 1 store and content hashing
+
+**Status:** Accepted (2026-11-12, approved by user on request per AGENTS.md §5)
+
+Two library choices introduced with the Phase 1 import pipeline are locked in:
+
+- **Project database — `rusqlite` 0.32** (dependency feature `bundled`). Synchronous binding to SQLite; `bundled` compiles the SQLite C source into our binary so there is no runtime dependency on a system-provided `libsqlite3`. Fits the synchronous, local-first core in `crates/core` without an async runtime.
+- **Content hashing — `sha2` 0.10** (RustCrypto). Canonical pure-Rust SHA-256; used for exact-duplicate detection in `crates/core/src/import/dedup.rs`. Streaming-safe via the `Digest` trait.
+
+**Reason:** Both are pure Rust, well-audited, minimal-dependency, and dual-licensed (MIT/Apache-2.0) with SQLite itself in the public domain — no licence exceptions and no runtime/system library coupling, matching AGENTS.md §5 ("Keep Tauri capabilities narrow", "Do not introduce dependencies without approval"). `rusqlite` avoids the `tokio`-driven weight of `sqlx`, which would conflict with our synchronous core API; `sha2` avoids the heavier `ring` dependency for a job that is only SHA-256. These were previously listed under "Open decisions → Technical dependencies" (the SQLite library) and have now been investigated, compared, and approved.
+
+**Consequences applied:** `crates/core/Cargo.toml` records both dependencies; the previously open "SQLite Rust library" line under Open decisions now points at this ADR. The remaining EXIF / image-processing Rust libraries stay **open** (Phase 2+, not yet introduced).
+
 ---
 
 ## Open decisions
@@ -168,7 +181,7 @@ The following decisions must be investigated and presented for approval before i
 
 ### Technical dependencies
 
-- SQLite Rust library.
+- **Resolved (ADR-018):** `rusqlite` 0.32 (bundled) for SQLite persistence; `sha2` 0.10 for content hashing in the import pipeline. See ADR-018.
 
 - EXIF extraction library.
 

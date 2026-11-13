@@ -2,6 +2,7 @@
 
 > **Draft.** This document was produced from a template that has not yet been reviewed by a lawyer. Do not publish as is.
 
+
 # End-user licence agreement — Timelapse Studio
 
 Last updated: 2026-11-10
@@ -27,6 +28,7 @@ Timelapse Studio includes third-party components governed by their own licences,
 ## Updates
 
 We may offer updates. They are governed by this agreement unless stated otherwise. We are not required to offer any.
+
 
 ## Warranties and liability
 

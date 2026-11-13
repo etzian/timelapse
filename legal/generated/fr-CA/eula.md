@@ -2,6 +2,7 @@
 
 > **Version provisoire.** Ce document a été produit à partir d'un gabarit qui n'a pas encore été révisé par un juriste. Ne pas publier tel quel.
 
+
 # Contrat de licence d'utilisateur final — Timelapse Studio
 
 Dernière mise à jour : 2026-11-10
@@ -27,6 +28,7 @@ Timelapse Studio comprend des composants de tiers régis par leurs propres licen
 ## Mises à jour
 
 Nous pouvons offrir des mises à jour. Celles-ci sont régies par le présent contrat, sauf indication contraire. Nous ne sommes pas tenus d'en offrir.
+
 
 ## Garanties et responsabilité
 

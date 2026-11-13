@@ -1,11 +1,11 @@
 # Timelapse Studio
 
-## Development Roadmap (Canonical)
+## Development Roadmap (technical analysis)
 
-**Status:** Canonical planning document (approved 2026-11-09). Supersedes the inline Phase 0–8 table formerly at `CURRENT_STATUS.md` §5, which now points here as the status of record. Phases and order are unchanged from `CURRENT_STATUS.md`; what this adds is per-phase scope, entry/exit criteria, and explicit dependency ordering so no phase starts on unresolved upstream state.
-**Governing docs:** `PRD.md`, `TDD.md`, `ARCHITECTURE.md`, `DATABASE_SCHEMA.md`, `PROCESSING_PIPELINE.md`, `DECISIONS.md`. This roadmap does not change any of those; it sequences work against them.
+**Status:** This document is a supporting technical analysis, **not** the canonical planning document. The current development sequence is governed by `.claude/plan/PHASES.md` (frozen phase specification) and its status is recorded in `.claude/plan/STATE.md`. This roadmap was approved on 2026-11-09 as the canonical sequencing document; it superseded the inline Phase 0–8 table formerly at `CURRENT_STATUS.md` §5, and it is now retained for its per-phase scope, entry/exit criteria, dependency ordering, release gate, and phase descriptions so no phase starts on unresolved upstream state.
+**Governing docs:** `.claude/plan/PHASES.md` (authoritative sequence), `PRD.md`, `TDD.md`, `ARCHITECTURE.md`, `DATABASE_SCHEMA.md`, `PROCESSING_PIPELINE.md`, `DECISIONS.md`. This roadmap does not change any of those; it records technical dependencies and constraints against them.
 
-**Global gate:** Per `CURRENT_STATUS.md` §8 (Implementation restriction) — do **not** begin application implementation until the Phase 0 review has been presented and approved. Every phase below is downstream of that gate.
+**Global gate (historical):** The Phase 0 approval gate formerly stated in `CURRENT_STATUS.md` §8 — do not begin application implementation until the Phase 0 review had been presented and approved — was **satisfied on 2026-11-10**; Phase 0 is complete per `.claude/plan/STATE.md`. Implementation gates from that point on are per `.claude/plan/PHASES.md` (each phase's `make gate`).
 
 ---
 
@@ -25,7 +25,7 @@ Phase 0 Foundation ──────────────┬─► Phase 1 I
                                  │        │        │        │        └─► Phase 7 Advanced UI + Contact Sheets
                                  │        │        │        └──────────► Phase 8 Flicker + Stabilization
                                  │        └────────────────────────────► (Phase 6 Consolidation/File Mgmt feeds Phases 3–9)
-                                 └─────────────────────────────────────► (Phase 5 blocked until ADR-017 / FFmpeg-AV1 resolved)
+                                  └─────────────────────────────────────► (ADR-017 adopted — Phase 5 licensing decision settled; open technical items (a)–(c) remain pre-Phase-5 prerequisites)
 ```
 
 Read: Phases 2→4 are strictly sequential (each consumes the prior stage's SQLite output per `PROCESSING_PIPELINE.md`). Phase 6 is a cross-cutting safety concern that must exist before any phase that moves/deletes files. Phase 5 is *explicitly* gated on the FFmpeg/AV1 decision. Phase 8's flicker-reduction gains are stored in SQLite (`flicker_runs`, D5), feeding Phase 5's export input.
@@ -60,7 +60,7 @@ Read: Phases 2→4 are strictly sequential (each consumes the prior stage's SQLi
 
 ## Phase 5 — FFmpeg video generation
 **Scope:** Sequence → MP4 (H.264/HEVC hardware path; AV1 tier per selected option); duration calculation; FFmpeg safety (explicit args, no shell interpolation). (Pipeline §10.)
-**Entry:** **ADR-017 / D2 resolved** (FFmpeg build + AV1 encoder fixed) — hard gate, not skippable. Phases 4 exit.
+**Entry:** The FFmpeg distribution/licensing decision is settled by **ADR-017 (adopted)** — this part of the gate is satisfied and ADR-017 is not reopened. Remaining **pre-Phase-5 prerequisites**: the open technical items **(a)–(c)** recorded in ADR-017 (`docs/DECISIONS.md`) — FFmpeg provenance/version pin/build script, VideoToolbox availability guard per minimum supported macOS version, and placement of the LGPL notice text — must be resolved before Phase 5 begins. Phases 4 exit.
 **Exit:** A valid MP4 is produced from a sampled sequence; encode uses the committed encoder path (hardware H.264/HEVC; SVT-AV1 if AV1 tier enabled); no GPL/denied-licence encoder linked in the shipped binary.
 
 ## Phase 6 — Consolidation & file management  *(cross-cutting; pull forward)*
@@ -89,4 +89,4 @@ Read: Phases 2→4 are strictly sequential (each consumes the prior stage's SQLi
 
 ## Maintenance of this document
 
-Update the status column (or a per-phase "Last verified" date) at each session end, consistent with `CURRENT_STATUS.md` §9 session-continuity rule. Do not silently drop a phase: if scope changes, record the reason against the relevant ADR or open item and note it here.
+Update the status column (or a per-phase "Last verified" date) at each session end, consistent with `CURRENT_STATUS.md` §9; keep phase-status descriptions in sync with `.claude/plan/STATE.md`, which is the authoritative status record. Do not silently drop a phase: if scope changes, record the reason against the relevant ADR or open item and note it here.

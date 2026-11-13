@@ -1,6 +1,6 @@
 # Timelapse Studio
 
-## FFmpeg & AV1 — Comparative Analysis (No Decision)
+## FFmpeg & AV1 — Comparative Analysis (adopted as ADR-017)
 
 **Status:** Adopted as **ADR-017** (2026-11-09) in `docs/DECISIONS.md`. The recommendation in §4 is implemented with one deliberate change at the user's choice: **AV1 (SVT-AV1) is the default output format**; H.264/HEVC via VideoToolbox is the compatibility profile. This file remains the comparative analysis that informed that decision.
 **Policy basis:** `_foundation/tech/licences/policy.yaml` (`ez licence-audit`): allow MIT/Apache-2.0/BSD/ISC/Zlib/CC0/Unlicense; **restricted** LGPL (only if dynamically linked/imported, unmodified, text shipped — requires `licence-exceptions.yaml`); **deny** GPL/AGPL even with an exception. A project-specific exception goes in `licence-exceptions.yaml` (who/when/why/conditions), never here.
@@ -38,16 +38,27 @@ Key point: an **LGPL FFmpeg build** that omits x264/x265 and uses the system's h
 | **B. LGPL FFmpeg + BSD AV1 encoder (libaom or SVT-AV1) + hardware H.264/HEVC** | libaom / SVT-AV1 (BSD) | VideoToolbox hardware (no GPL x264) | **LGPLv2.1+** with GPL-only libs off | **Compliant**: restricted LGPL satisfied *if* dynamically linked, unmodified, and FFmpeg's LGPL text + modification list shipped; BSD codecs are allowed. x264/x265 absent from binary (verify). | Preferred path. Must verify at build time that no GPL encoder is statically linked (`strings`/`lipo`/symbol check); must ship LGPL text and a notice in the app. libaom is slow on CPU; SVT-AV1 is far faster — recommend **SVT-AV1** for the AV1 tier. |
 | **C. System-`ffmpeg` (user installs, e.g. via Homebrew) referenced at runtime** | whatever user's build has | whatever | We ship *no* FFmpeg binary; we ship an *integration test* that exercises it | **Compliant with policy on shipped bytes**, but **violates ADR-008/TDD:346/444 intent** (self-contained, controlled, reproducible process; no assumption of the user's codec set per `TDD.md:318`). | Acceptable only as a debug/dev convenience, never as the shipping mode. Conflicts with the "controlled and understandable workflow" and the reproducibility requirement (`PROCESSING_PIPELINE.md` §13). |
 
-## 4. Recommendation (to feed ADR-017, not adopted here)
+## 4. Recommendation (adopted as ADR-017, 2026-11-09)
 
 Choose **Option B** — distribute an **LGPLv2.1+ FFmpeg** built with GPL-only encoders disabled, use **SVT-AV1** for the AV1 tier and the macOS **hardware encoder** (VideoToolbox) for the H.264/HEVC tier, and add a build-time assertion that no GPL/x264/x265 symbols are linked in the shipped binary. Ship FFmpeg's LGPL notice + modification list with the app to keep the *restricted* class within its conditions. This satisfies `policy.yaml`, matches ADR-008's "controlled, reproducible FFmpeg process," and keeps AV1 fast enough for a real timelapse workload.
 
-Open items ADR-017 must close before Phase 5: (a) exact provenance/build of the shipped FFmpeg (static vs dynamic, version); (b) confirmation that H.264/HEVC uses hardware path only and never falls back to x264; (c) where the LGPL notice text lives in the packaged app; (d) whether AV1 is a default or opt-in profile (it affects "default output format" in `PRD.md` §5.7).
+This recommendation was adopted as **ADR-017** (2026-11-09), with one deliberate change made at the user's choice: **AV1 (SVT-AV1) is the default output format**, not an opt-in profile. ADR-017 is adopted and must not be reopened by this reconciliation; it may only be superseded by a future, explicitly approved reassessment of the licensing/distribution strategy.
+
+**Licensing decision — settled.** The distribution/licensing posture (LGPL-only FFmpeg sidecar, BSD-licensed AV1 encoder via SVT-AV1, VideoToolbox H.264/HEVC compatibility, no x264/x265) is adopted and not under reconsideration.
+
+**Pre-Phase-5 technical prerequisites (implementation details, not licensing).** The following open *technical* items must still be resolved before entering Phase 5; they are implementation details of the already-adopted approach, not a re-opening of its licensing:
+(a) exact provenance, version pin, and build of the shipped FFmpeg (static vs dynamic);
+(b) confirmation that H.264/HEVC uses the hardware path only and never falls back to x264;
+(c) where the LGPL notice text lives in the packaged app.
+
+**Resolved by ADR-017:** (d) whether AV1 is a default or opt-in profile — **AV1 is the default output format** (`PRD.md` §5.7). This item is closed and is not carried forward.
 
 ## 5. What this document does NOT decide
 
-- It does not pick an encoder, build, or distribution mode.
-- It does not amend `DECISIONS.md`, `TDD.md` or `policy.yaml`.
-- It records no exception in `licence-exceptions.yaml`.
+This section records the scope of the comparative analysis as written, before adoption. The recommendation it produced was subsequently adopted as **ADR-017** (2026-11-09), so the licensing/distribution question it frames is now decided and governed by ADR-017. At the time of writing, this document:
 
-On approval of the recommendation, the selected option becomes **ADR-017** and its consequences are applied to `TDD.md` §9 (dependencies/FFmpeg distribution) and `PRD.md` §5.7 (supported codecs / default output).
+- Did not itself pick an encoder, build, or distribution mode (the recommendation it offered was adopted as ADR-017).
+- Did not amend `DECISIONS.md`, `TDD.md` or `policy.yaml` (those updates follow from ADR-017's adoption).
+- Records no exception in `licence-exceptions.yaml`.
+
+The recommendation above was approved and adopted as **ADR-017** (2026-11-09); its consequences were applied to `TDD.md` §9 (dependencies/FFmpeg distribution) and `PRD.md` §5.7 (supported codecs / default output), with the deliberate change that AV1 is the **default** output format. ADR-017 now governs this area; this file remains the comparative analysis that informed the decision and the record of the pre-Phase-5 technical prerequisites (items a–c) in §4.

@@ -3,5 +3,5 @@
   "identifier": "default",
   "description": "Narrowest scope that works. Widening a capability (shell, http, fs) is the user's decision, recorded in an ADR.",
   "windows": ["main"],
-  "permissions": ["core:default", "window-state:default"]
+  "permissions": ["core:default", "window-state:default", "dialog:default"]
 }
