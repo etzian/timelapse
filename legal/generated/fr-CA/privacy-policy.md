@@ -37,6 +37,12 @@ Voici ce que l'application conserve sur votre appareil :
 
 | Les dates de prise de vue de vos photographies (dates EXIF, date lue dans le nom du fichier, date du fichier, fuseau horaire consigné) | Autre | Classer vos photographies en ordre chronologique et repérer les intervalles dans la prise de vue | Nécessaire pour fournir le service demandé | Sur votre appareil | Jusqu'à ce que vous supprimiez la base de données du projet (dossier .timelapse/) |
 
+| Les mesures de luminosité de vos photographies, la cote Lightroom lue dans leurs métadonnées XMP, vos seuils et vos décisions (conserver, rejeter) | Autre | Repérer les photographies trop sombres ou rejetées et garder une trace reproductible de chaque décision de nettoyage | Nécessaire pour fournir le service demandé | Sur votre appareil | Jusqu'à ce que vous supprimiez la base de données du projet (dossier .timelapse/) |
+
+| Les photographies que vous mettez en quarantaine (déplacées dans .timelapse/quarantine/) et le journal de chaque déplacement et restauration (chemins, empreinte, statut) | Autre | Permettre de restaurer en tout temps une photographie mise en quarantaine, sans perte de données | Nécessaire pour fournir le service demandé | Sur votre appareil | Jusqu'à ce que vous restauriez la photographie ou supprimiez vous-même le dossier .timelapse/ du projet; rien n'est supprimé automatiquement |
+
+| Des vignettes de vos photographies (dossier .timelapse/thumbs/) | Autre | Afficher rapidement les photographies à examiner | Nécessaire pour fournir le service demandé | Sur votre appareil | Jusqu'à ce que vous supprimiez la base de données du projet (dossier .timelapse/) |
+
 
 
 

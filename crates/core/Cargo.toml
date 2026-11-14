@@ -19,3 +19,8 @@ sha2 = "0.10"
 # MIT/Apache-2.0; both on the licence allow-list, no exception entry required.
 kamadak-exif = "0.5"
 time = "0.3"
+
+# Phase 3 — brightness analysis & cleaning (ADR-020). Both MIT OR Apache-2.0; only the
+# formats we import are compiled in.
+image = { version = "0.25", default-features = false, features = ["jpeg", "png", "tiff"] }
+rayon = "1"

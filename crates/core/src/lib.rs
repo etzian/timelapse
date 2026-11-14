@@ -4,6 +4,8 @@
 //! `crates/core` independent of Tauri"). The UI and the Tauri shell are thin
 //! adapters over this module's API.
 
+pub mod clean;
+pub mod files;
 pub mod import;
 
 /// Errors that can cross the IPC boundary into the UI. Every variant maps to a stable
@@ -21,6 +23,12 @@ pub enum Error {
 
     #[error("import transaction failed")]
     StoreTransaction,
+
+    #[error("image could not be decoded: {path}")]
+    ImageUndecodable { path: String },
+
+    #[error("no image with id {id}")]
+    UnknownImage { id: i64 },
 }
 
 impl Error {
@@ -30,6 +38,8 @@ impl Error {
             Self::ImageUnreadable { .. } => "image-unreadable",
             Self::DbMessage { .. } => "database",
             Self::StoreTransaction => "store-transaction",
+            Self::ImageUndecodable { .. } => "image-undecodable",
+            Self::UnknownImage { .. } => "unknown-image",
         }
     }
 
@@ -39,7 +49,9 @@ impl Error {
         match self {
             Self::ImportRootUnreadable { path }
             | Self::ImageUnreadable { path }
-            | Self::DbMessage { path } => serde_json::json!({ "path": path }),
+            | Self::DbMessage { path }
+            | Self::ImageUndecodable { path } => serde_json::json!({ "path": path }),
+            Self::UnknownImage { id } => serde_json::json!({ "id": id }),
             Self::StoreTransaction => serde_json::json!({}),
         }
     }

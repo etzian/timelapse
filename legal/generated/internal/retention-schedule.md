@@ -17,6 +17,12 @@ Law 25: personal information is destroyed or anonymized once the purpose is achi
 
 | Your photographs' capture dates (EXIF dates, date read from the file name, file date, recorded time zone) | Other | On your device | Until you delete the project's database (.timelapse/ folder) | _to complete_ | _date_ |
 
+| Your photographs' brightness measurements, the Lightroom rating read from their XMP metadata, your thresholds and your decisions (keep, reject) | Other | On your device | Until you delete the project's database (.timelapse/ folder) | _to complete_ | _date_ |
+
+| The photographs you quarantine (moved into .timelapse/quarantine/) and the journal of every move and restore (paths, hash, status) | Other | On your device | Until you restore the photograph or delete the project's .timelapse/ folder yourself; nothing is deleted automatically | _to complete_ | _date_ |
+
+| Thumbnails of your photographs (.timelapse/thumbs/ folder) | Other | On your device | Until you delete the project's database (.timelapse/ folder) | _to complete_ | _date_ |
+
 
 
 

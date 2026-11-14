@@ -103,6 +103,111 @@ fn detect_timeline_gaps(
     Ok(timelapse_core::import::gaps_for_root(&root, opts)?)
 }
 
+// ---- Phase 3: brightness analysis & cleaning (ADR-020) -------------------------------
+//
+// The long-running commands (analysis, moves, thumbnails) are `async` and run their work on
+// the blocking pool, so the window never freezes; the others are quick SQLite reads.
+
+use timelapse_core::clean;
+
+/// Run blocking core work off the main thread and flatten the join error.
+async fn blocking<T: Send + 'static>(
+    f: impl FnOnce() -> timelapse_core::Result<T> + Send + 'static,
+) -> std::result::Result<T, IpcError> {
+    match tauri::async_runtime::spawn_blocking(f).await {
+        Ok(r) => Ok(r?),
+        Err(_) => Err(IpcError { kind: "generic", args: serde_json::json!({}) }),
+    }
+}
+
+/// Measure every image not yet measured, reporting progress on `on_progress`, then classify.
+#[tauri::command]
+async fn analyze_images(
+    root: PathBuf,
+    on_progress: tauri::ipc::Channel<clean::AnalyzeProgress>,
+) -> std::result::Result<clean::AnalyzeReport, IpcError> {
+    blocking(move || {
+        clean::analyze_for_root(&root, |p| {
+            let _ = on_progress.send(p);
+        })
+    })
+    .await
+}
+
+#[tauri::command]
+fn get_clean_settings(root: PathBuf) -> std::result::Result<clean::Thresholds, IpcError> {
+    Ok(clean::thresholds_for_root(&root)?)
+}
+
+/// Store thresholds and re-propose every undecided image.
+#[tauri::command]
+fn set_clean_settings(
+    root: PathBuf,
+    thresholds: clean::Thresholds,
+) -> std::result::Result<clean::ThresholdsApplied, IpcError> {
+    Ok(clean::set_thresholds_for_root(&root, thresholds)?)
+}
+
+#[tauri::command]
+fn classify_images(root: PathBuf) -> std::result::Result<clean::StatusCounts, IpcError> {
+    Ok(clean::classify_for_root(&root)?)
+}
+
+/// Images whose status is in `statuses` (every image when empty), chronological.
+#[tauri::command]
+fn get_review(
+    root: PathBuf,
+    statuses: Vec<String>,
+) -> std::result::Result<Vec<clean::ReviewItem>, IpcError> {
+    Ok(clean::review_for_root(&root, &statuses)?)
+}
+
+#[tauri::command]
+fn set_decision(
+    root: PathBuf,
+    ids: Vec<i64>,
+    decision: clean::Decision,
+) -> std::result::Result<clean::StatusCounts, IpcError> {
+    Ok(clean::decide_for_root(&root, &ids, decision)?)
+}
+
+/// Move rejected originals into `<root>/.timelapse/quarantine/` (journaled, hash-verified).
+#[tauri::command]
+async fn quarantine_images(
+    root: PathBuf,
+    ids: Vec<i64>,
+) -> std::result::Result<Vec<timelapse_core::files::OpOutcome>, IpcError> {
+    blocking(move || clean::quarantine_for_root(&root, &ids)).await
+}
+
+#[tauri::command]
+async fn restore_images(
+    root: PathBuf,
+    ids: Vec<i64>,
+) -> std::result::Result<Vec<timelapse_core::files::OpOutcome>, IpcError> {
+    blocking(move || clean::restore_for_root(&root, &ids)).await
+}
+
+/// JPEG bytes of a review thumbnail, sent raw (an `ArrayBuffer` on the JS side).
+#[tauri::command]
+async fn get_thumbnail(
+    root: PathBuf,
+    id: i64,
+    size: u32,
+) -> std::result::Result<tauri::ipc::Response, IpcError> {
+    blocking(move || clean::thumbnail_for_root(&root, id, size))
+        .await
+        .map(tauri::ipc::Response::new)
+}
+
+#[tauri::command]
+fn list_file_operations(
+    root: PathBuf,
+    limit: usize,
+) -> std::result::Result<Vec<timelapse_core::files::FileOperation>, IpcError> {
+    Ok(clean::operations_for_root(&root, limit)?)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     // Dialog is used by the frontend for folder picking on every platform; the
@@ -127,7 +232,17 @@ pub fn run() {
             backfill_metadata,
             get_timeline,
             timeline_distribution,
-            detect_timeline_gaps
+            detect_timeline_gaps,
+            analyze_images,
+            get_clean_settings,
+            set_clean_settings,
+            classify_images,
+            get_review,
+            set_decision,
+            quarantine_images,
+            restore_images,
+            get_thumbnail,
+            list_file_operations
         ])
         .run(tauri::generate_context!())
         .expect("error while running Timelapse Studio");

@@ -15,7 +15,7 @@ use super::scan::Candidate;
 use crate::Error;
 
 /// Current schema version, tracked in `PRAGMA user_version` (docs/DATABASE_SCHEMA.md §6).
-pub const SCHEMA_VERSION: i64 = 2;
+pub const SCHEMA_VERSION: i64 = 3;
 
 /// v1: the Phase 1 tables. Phase 1 databases were created with `user_version = 0` and
 /// these exact statements, so `IF NOT EXISTS` makes the step a no-op for them.
@@ -69,6 +69,52 @@ const MIGRATION_V2: &str = r#"
     ALTER TABLE images ADD COLUMN timestamp_offset_minutes INTEGER;
 "#;
 
+/// v3 (Phase 3 cleaning, ADR-020): luma measurements, one status row per image, the
+/// file-operation journal, and where an original currently is (`NULL` = at `original_path`).
+const MIGRATION_V3: &str = r#"
+    CREATE TABLE IF NOT EXISTS image_analysis (
+        image_id INTEGER PRIMARY KEY REFERENCES images (id) ON DELETE CASCADE,
+        algorithm_version INTEGER NOT NULL,
+        source_hash TEXT,
+        width INTEGER,
+        height INTEGER,
+        mean_luma REAL,
+        median_luma INTEGER,
+        histogram_json TEXT,
+        failure TEXT,
+        xmp_rating INTEGER,
+        analyzed_at INTEGER NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS image_status (
+        id INTEGER PRIMARY KEY,
+        image_id INTEGER NOT NULL UNIQUE REFERENCES images (id) ON DELETE CASCADE,
+        status TEXT NOT NULL CHECK (status IN ('eligible', 'flagged', 'rejected', 'quarantined')),
+        reason TEXT,
+        user_override INTEGER NOT NULL DEFAULT 0,
+        updated_at INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_image_status_status ON image_status (status);
+
+    CREATE TABLE IF NOT EXISTS file_operations (
+        id INTEGER PRIMARY KEY,
+        job_id INTEGER,
+        image_id INTEGER REFERENCES images (id),
+        operation_type TEXT NOT NULL CHECK (operation_type IN ('quarantine', 'restore')),
+        source_path TEXT NOT NULL,
+        destination_path TEXT NOT NULL,
+        status TEXT NOT NULL CHECK (status IN ('pending', 'completed', 'failed')),
+        checksum TEXT,
+        failure TEXT,
+        created_at INTEGER NOT NULL,
+        completed_at INTEGER
+    );
+    CREATE INDEX IF NOT EXISTS idx_file_operations_job ON file_operations (job_id);
+    CREATE INDEX IF NOT EXISTS idx_file_operations_status ON file_operations (status);
+
+    ALTER TABLE images ADD COLUMN current_path TEXT;
+"#;
+
 /// Apply every outstanding step in order, each in its own transaction together with its
 /// `user_version` bump, so a failed step leaves the database at the previous version.
 /// A database from a newer build (`user_version > SCHEMA_VERSION`) is refused, not touched.
@@ -77,13 +123,12 @@ const MIGRATION_V2: &str = r#"
 /// (`BEGIN IMMEDIATE`, waiting up to the busy timeout) and re-reads the version inside the
 /// transaction, so a step another connection already applied is skipped, not re-run.
 fn migrate(conn: &Connection) -> rusqlite::Result<()> {
-    conn.busy_timeout(std::time::Duration::from_secs(5))?;
     let read = |c: &Connection| c.query_row("PRAGMA user_version", [], |r| r.get::<_, i64>(0));
     let version = read(conn)?;
     if version > SCHEMA_VERSION {
         return Err(rusqlite::Error::InvalidQuery);
     }
-    for (target, sql) in [(1, MIGRATION_V1), (2, MIGRATION_V2)] {
+    for (target, sql) in [(1, MIGRATION_V1), (2, MIGRATION_V2), (3, MIGRATION_V3)] {
         if version < target {
             let tx = rusqlite::Transaction::new_unchecked(
                 conn,
@@ -115,10 +160,28 @@ pub fn open(
 ) -> Result<Connection, Error> {
     fs::create_dir_all(db_dir).map_err(|_| db_err(db_dir))?;
     let conn = Connection::open(db_path(db_dir)).map_err(|_| db_err(db_dir))?;
-    conn.execute_batch("PRAGMA foreign_keys = ON; PRAGMA journal_mode = WAL;")
-        .map_err(|_| db_err(db_dir))?;
+    // Before anything that takes a lock (switching to WAL does): concurrent commands wait
+    // for each other instead of failing with SQLITE_BUSY.
+    conn.busy_timeout(std::time::Duration::from_secs(5)).map_err(|_| db_err(db_dir))?;
+    // Switching a brand-new database to WAL can report SQLITE_BUSY without consulting the
+    // busy handler when another connection is opening it at the same moment: retry briefly.
+    let mut attempt = 0;
+    loop {
+        match conn.execute_batch("PRAGMA foreign_keys = ON; PRAGMA journal_mode = WAL;") {
+            Ok(()) => break,
+            Err(rusqlite::Error::SqliteFailure(e, _))
+                if e.code == rusqlite::ErrorCode::DatabaseBusy && attempt < 100 =>
+            {
+                attempt += 1;
+                std::thread::sleep(std::time::Duration::from_millis(20));
+            }
+            Err(_) => return Err(db_err(db_dir)),
+        }
+    }
 
     migrate(&conn).map_err(|_| db_err(db_dir))?;
+    // Settle any file operation a crash left half-done before anything reads locations.
+    crate::files::reconcile_if_idle(&conn).map_err(|_| db_err(db_dir))?;
 
     let now = now_unix();
     let _ = conn
@@ -248,9 +311,11 @@ pub fn integrity_check(conn: &Connection) -> Result<IntegrityResult, Error> {
         .query_row("SELECT COUNT(*) FROM images", params![], |r| r.get::<_, i64>(0))
         .map_err(|_| Error::StoreTransaction)? as usize;
 
-    // Missing files: rows whose original_path no longer exists on disk.
-    let mut stmt =
-        conn.prepare("SELECT original_path FROM images").map_err(|_| Error::StoreTransaction)?;
+    // Missing files: rows whose current location (the original path, or the quarantine
+    // path while quarantined) no longer exists on disk.
+    let mut stmt = conn
+        .prepare("SELECT COALESCE(current_path, original_path) FROM images")
+        .map_err(|_| Error::StoreTransaction)?;
     let paths: Vec<String> = {
         let it =
             stmt.query_map([], |r| r.get::<_, String>(0)).map_err(|_| Error::StoreTransaction)?;
@@ -821,7 +886,9 @@ mod tests {
             })
             .collect();
         for h in handles {
-            assert!(h.join().unwrap().is_ok(), "every concurrent open succeeds");
+            if let Err(e) = h.join().unwrap() {
+                panic!("a concurrent open failed: {e:?}");
+            }
         }
     }
 

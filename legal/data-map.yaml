@@ -44,6 +44,27 @@ data:
     basis: necessary-for-service
     storage: { location: device }
     retention: { fr-CA: "Jusqu'à ce que vous supprimiez la base de données du projet (dossier .timelapse/)", en: "Until you delete the project's database (.timelapse/ folder)" }
+  - id: cleaning-analysis
+    label: { fr-CA: "Les mesures de luminosité de vos photographies, la cote Lightroom lue dans leurs métadonnées XMP, vos seuils et vos décisions (conserver, rejeter)", en: "Your photographs' brightness measurements, the Lightroom rating read from their XMP metadata, your thresholds and your decisions (keep, reject)" }
+    category: other
+    purpose: { fr-CA: "Repérer les photographies trop sombres ou rejetées et garder une trace reproductible de chaque décision de nettoyage", en: "Find photographs that are too dark or were rejected, and keep a reproducible record of every cleaning decision" }
+    basis: necessary-for-service
+    storage: { location: device }
+    retention: { fr-CA: "Jusqu'à ce que vous supprimiez la base de données du projet (dossier .timelapse/)", en: "Until you delete the project's database (.timelapse/ folder)" }
+  - id: quarantine-journal
+    label: { fr-CA: "Les photographies que vous mettez en quarantaine (déplacées dans .timelapse/quarantine/) et le journal de chaque déplacement et restauration (chemins, empreinte, statut)", en: "The photographs you quarantine (moved into .timelapse/quarantine/) and the journal of every move and restore (paths, hash, status)" }
+    category: other
+    purpose: { fr-CA: "Permettre de restaurer en tout temps une photographie mise en quarantaine, sans perte de données", en: "Let you restore a quarantined photograph at any time, without data loss" }
+    basis: necessary-for-service
+    storage: { location: device }
+    retention: { fr-CA: "Jusqu'à ce que vous restauriez la photographie ou supprimiez vous-même le dossier .timelapse/ du projet; rien n'est supprimé automatiquement", en: "Until you restore the photograph or delete the project's .timelapse/ folder yourself; nothing is deleted automatically" }
+  - id: review-thumbnails
+    label: { fr-CA: "Des vignettes de vos photographies (dossier .timelapse/thumbs/)", en: "Thumbnails of your photographs (.timelapse/thumbs/ folder)" }
+    category: other
+    purpose: { fr-CA: "Afficher rapidement les photographies à examiner", en: "Show the photographs to review quickly" }
+    basis: necessary-for-service
+    storage: { location: device }
+    retention: { fr-CA: "Jusqu'à ce que vous supprimiez la base de données du projet (dossier .timelapse/)", en: "Until you delete the project's database (.timelapse/ folder)" }
 security_measures:
   - fr-CA: "Vos données restent sur votre appareil et ne sont transmises à personne."
     en: "Your data stays on your device and is sent to no one."

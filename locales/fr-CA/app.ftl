@@ -8,6 +8,7 @@ app-tagline = Transformez d’importants fichiers de photos en vidéos timelapse
 company-name = Etzian inc.
 
 nav-home = Accueil
+nav-cleaning = Nettoyage
 nav-settings = Réglages
 
 home-title = Importer une collection
@@ -76,8 +77,122 @@ timeline-show-more = Afficher plus
 timeline-loading = Construction de la chronologie…
 timeline-retry = Réessayer
 
+## Phase 3 — nettoyage
+clean-title = Nettoyage
+clean-intro = Timelapse Studio mesure la luminosité de chaque photographie et signale celles qui semblent trop sombres ou que Lightroom a marquées comme rejetées. Rien n’est retiré automatiquement : vous décidez, et une photo rejetée ne va dans la quarantaine du projet que lorsque vous le confirmez.
+clean-no-project-title = Aucune collection ouverte
+clean-no-project-description = Importez d’abord un dossier; ses photographies pourront ensuite être analysées et nettoyées ici.
+clean-go-import = Aller à l’importation
+clean-thresholds-title = Seuils
+clean-threshold-min-mean = Luminosité moyenne minimale (0–255)
+clean-threshold-dark-level = Niveau d’un pixel sombre (0–255)
+clean-threshold-max-dark = Proportion maximale de pixels sombres (%)
+clean-threshold-xmp = Signaler les photos rejetées dans Lightroom
+clean-thresholds-invalid = Entrez des nombres entiers ou décimaux dans les plages indiquées (le niveau sombre doit être un nombre entier).
+clean-thresholds-note = Modifier un seuil réévalue les photos sur lesquelles vous ne vous êtes pas prononcé; vos propres décisions sont conservées.
+clean-apply = Appliquer les seuils
+clean-applying = Application…
+clean-analysis-title = Analyse
+clean-analyze = Analyser les photographies
+clean-analyzing = Analyse en cours…
+clean-progress = { $done } sur { $total }
+clean-loading = Chargement…
+clean-no-preview = Aucun aperçu
+clean-retry = Réessayer
+clean-dismiss = Fermer
+clean-status-eligible = Conservée
+clean-status-flagged = À examiner
+clean-status-rejected = Rejetée
+clean-status-quarantined = En quarantaine
+clean-status-unanalyzed = Non analysée
+clean-filter-label = Afficher
+clean-filter-flagged = À examiner
+clean-filter-rejected = Rejetées
+clean-filter-quarantined = Quarantaine
+clean-filter-all = Toutes
+clean-filter-empty-flagged = Rien à examiner
+clean-filter-empty-rejected = Aucune photographie rejetée
+clean-filter-empty-quarantined = La quarantaine est vide
+clean-filter-empty-all = Aucune photographie
+clean-filter-empty-description = Les autres photographies se trouvent sous les autres onglets.
+clean-show-all = Tout afficher
+clean-empty-title = Aucune photographie dans cette collection
+clean-empty-description = Importez un dossier qui contient des fichiers JPG, PNG ou TIFF.
+clean-unanalyzed-title = Pas encore analysée
+clean-unanalyzed-description = Analysez la collection pour mesurer la luminosité de chaque photographie.
+clean-inspect = Examiner { $path }
+clean-user-decision = Votre décision
+clean-metrics = Moyenne { $mean } · { $dark } sombre
+clean-accept = Conserver
+clean-reject = Rejeter
+clean-clear = Annuler la décision
+clean-restore = Restaurer
+clean-shown = { $shown } affichées sur { $total }.
+clean-show-more = Afficher plus
+clean-quarantine-action = { $count ->
+    [one] Mettre { $count } photo rejetée en quarantaine…
+   *[other] Mettre { $count } photos rejetées en quarantaine…
+}
+clean-confirm-title = Mettre en quarantaine?
+clean-confirm-body = { $count ->
+    [one] { $count } photographie sera déplacée vers { $path }.
+   *[other] { $count } photographies seront déplacées vers { $path }.
+}
+clean-confirm-safety = Chaque fichier est vérifié avant et après le déplacement et peut être restauré en tout temps depuis l’onglet Quarantaine. Rien n’est supprimé.
+clean-confirm-action = { $count ->
+    [one] Déplacer { $count } photo
+   *[other] Déplacer { $count } photos
+}
+clean-cancel = Annuler
+clean-moving = Déplacement…
+clean-quarantined-result = { $ok ->
+    [one] { $ok } photographie mise en quarantaine
+   *[other] { $ok } photographies mises en quarantaine
+}{ $failed ->
+    [0] .
+    [one] ; { $failed } n’a pas pu être déplacée :
+   *[other] ; { $failed } n’ont pas pu être déplacées :
+}
+clean-restored-result = { $ok ->
+    [one] { $ok } photographie restaurée
+   *[other] { $ok } photographies restaurées
+}{ $failed ->
+    [0] .
+    [one] ; { $failed } n’a pas pu être restaurée :
+   *[other] ; { $failed } n’ont pas pu être restaurées :
+}
+clean-detail-status = Statut
+clean-detail-mean = Luminosité moyenne
+clean-detail-median = Luminosité médiane
+clean-detail-dark = Pixels sombres
+clean-detail-xmp = Cote Lightroom
+clean-detail-location = En quarantaine à
+clean-detail-histogram = Histogramme de luminosité
+clean-reason-mean-below = Luminosité moyenne de { $mean }, sous le seuil de { $min }
+clean-reason-too-many-dark-pixels = { $fraction } des pixels sont sombres (limite : { $max })
+clean-reason-xmp-rejected = Rejetée dans Lightroom
+clean-reason-analysis-failed = Analyse impossible : { $failure }
+clean-failure-unreadable = le fichier n’a pas pu être lu
+clean-failure-undecodable = le fichier n’est pas une image lisible
+files-failure-unknown-image = cette photographie ne fait plus partie du projet
+files-failure-not-rejected = seules les photographies rejetées peuvent être mises en quarantaine
+files-failure-not-quarantined = cette photographie n’est pas en quarantaine
+files-failure-unsafe-path = son chemin n’a pas pu être placé de façon sûre dans la quarantaine
+files-failure-source-unreadable = le fichier n’a pas pu être lu
+files-failure-changed-since-import = le fichier a changé depuis son importation; il n’a donc pas été déplacé
+files-failure-destination-exists = un fichier existe déjà à la destination; rien n’a été écrasé
+files-failure-move-failed = le fichier n’a pas pu être déplacé; il est toujours au même endroit
+files-failure-source-in-use = le fichier est en cours d’utilisation ou en lecture seule; il est toujours au même endroit
+files-failure-record-failed = le fichier a été déplacé, mais pas encore consigné; l’application règle cela automatiquement
+files-failure-verify-failed = la copie ne correspondait pas à l’original et a été écartée; l’original est toujours au même endroit
+files-failure-interrupted = le déplacement a été interrompu et annulé; le fichier est toujours au même endroit
+files-failure-inconsistent = le déplacement a été interrompu dans un état inattendu; aucun fichier n’a été touché
+files-failure-other = l’opération a échoué
+
 ## Erreurs (rendues via i18n/errors.ts → t(`error-${kind}`, args)).
 error-import-root-unreadable = Le dossier « { $path } » n’a pas pu être lu.
-error-image-unreadable = Une photographie située à « { $path } » n’a pas pu être hachée.
+error-image-unreadable = La photographie située à « { $path } » n’a pas pu être lue.
 error-database = La base de données du projet n’a pas pu être ouverte ou écrite à l’emplacement « { $path } ».
-error-store-transaction = L’enregistrement de l’import dans la base de données du projet a échoué.
+error-store-transaction = L’enregistrement dans la base de données du projet a échoué.
+error-image-undecodable = La photographie située à « { $path } » n’est pas une image lisible.
+error-unknown-image = Cette photographie ne fait plus partie du projet.

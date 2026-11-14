@@ -1,3 +1,4 @@
+import { Channel } from '@tauri-apps/api/core';
 import { open } from '@tauri-apps/plugin-dialog';
 
 import { invoke } from './invoke';
@@ -130,3 +131,120 @@ export const detectTimelineGaps = (root: string, options: GapOptions = {}) =>
     factor: options.factor ?? null,
     minSeconds: options.minSeconds ?? null
   });
+
+// ---- Phase 3 — brightness analysis & cleaning ---------------------------------------
+
+export type ImageStatus = 'eligible' | 'flagged' | 'rejected' | 'quarantined';
+export type Decision = 'accept' | 'reject' | 'clear';
+
+export interface Thresholds {
+  /** Flag when mean luma (0–255) is below this. */
+  min_mean_luma: number;
+  /** A pixel is dark at or below this luma (0–255)… */
+  dark_level: number;
+  /** …and an image is flagged when more than this fraction (0–1) is dark. */
+  max_dark_fraction: number;
+  flag_xmp_rejected: boolean;
+}
+
+export interface StatusCounts {
+  eligible: number;
+  flagged: number;
+  rejected: number;
+  quarantined: number;
+  unanalyzed: number;
+}
+
+export interface AnalyzeProgress {
+  done: number;
+  total: number;
+}
+
+export interface AnalyzeReport {
+  analyzed: number;
+  failed: number;
+  counts: StatusCounts;
+}
+
+export interface ThresholdsApplied {
+  thresholds: Thresholds;
+  counts: StatusCounts;
+}
+
+export type Reason =
+  | { kind: 'mean-below'; mean: number; min: number }
+  | { kind: 'too-many-dark-pixels'; fraction: number; max: number; level: number }
+  | { kind: 'xmp-rejected' }
+  | { kind: 'analysis-failed'; failure: string };
+
+export interface ReviewItem {
+  id: number;
+  relative_path: string;
+  normalized_datetime: string | null;
+  status: ImageStatus | null;
+  user_override: boolean;
+  reasons: Reason[];
+  mean_luma: number | null;
+  median_luma: number | null;
+  dark_fraction: number | null;
+  /** 32 bins of the luma histogram. */
+  histogram: number[];
+  xmp_rating: number | null;
+  failure: string | null;
+  /** Where the original is now while quarantined (null = at its original path). */
+  current_path: string | null;
+}
+
+export interface OpOutcome {
+  image_id: number;
+  operation_id: number | null;
+  /** Stable kind, shown via `files-failure-<kind>`. */
+  failure: string | null;
+}
+
+export interface FileOperation {
+  id: number;
+  image_id: number | null;
+  operation_type: 'quarantine' | 'restore';
+  source_path: string;
+  destination_path: string;
+  status: 'pending' | 'completed' | 'failed';
+  failure: string | null;
+  created_at: number;
+  completed_at: number | null;
+}
+
+/** Decoding a large collection takes minutes; progress arrives on the channel meanwhile. */
+const ANALYZE_TIMEOUT_MS = 30 * 60_000;
+const MOVE_TIMEOUT_MS = 10 * 60_000;
+
+export function analyzeImages(root: string, onProgress: (p: AnalyzeProgress) => void): Promise<AnalyzeReport> {
+  const channel = new Channel<AnalyzeProgress>();
+  channel.onmessage = onProgress;
+  return invoke<AnalyzeReport>('analyze_images', { root, onProgress: channel }, ANALYZE_TIMEOUT_MS);
+}
+
+export const getCleanSettings = (root: string) => invoke<Thresholds>('get_clean_settings', { root });
+export const setCleanSettings = (root: string, thresholds: Thresholds) =>
+  invoke<ThresholdsApplied>('set_clean_settings', { root, thresholds });
+export const classifyImages = (root: string) => invoke<StatusCounts>('classify_images', { root });
+export const getReview = (root: string, statuses: ImageStatus[] = []) => invoke<ReviewItem[]>('get_review', { root, statuses });
+export const setDecision = (root: string, ids: number[], decision: Decision) =>
+  invoke<StatusCounts>('set_decision', { root, ids, decision });
+export const quarantineImages = (root: string, ids: number[]) =>
+  invoke<OpOutcome[]>('quarantine_images', { root, ids }, MOVE_TIMEOUT_MS);
+export const restoreImages = (root: string, ids: number[]) => invoke<OpOutcome[]>('restore_images', { root, ids }, MOVE_TIMEOUT_MS);
+export const listFileOperations = (root: string, limit = 100) => invoke<FileOperation[]>('list_file_operations', { root, limit });
+
+/** A thumbnail as a `data:` URL (the CSP allows `data:` images, not `blob:`). */
+export async function getThumbnail(root: string, id: number, size: 256 | 1024 = 256): Promise<string> {
+  const buf = await invoke<ArrayBuffer>('get_thumbnail', { root, id, size }, 30_000);
+  return `data:image/jpeg;base64,${toBase64(new Uint8Array(buf))}`;
+}
+
+export function toBase64(bytes: Uint8Array): string {
+  let binary = '';
+  const step = 0x8000;
+  for (let i = 0; i < bytes.length; i += step) binary += String.fromCharCode(...bytes.subarray(i, i + step));
+  return btoa(binary);
+}

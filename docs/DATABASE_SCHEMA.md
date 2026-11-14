@@ -300,6 +300,7 @@ whose version is newer than the build (left untouched, never recreated).
 | --- | --- |
 | 1 | `projects`, `images` (columns of §2), `idx_images_hash`, `idx_images_relative`. Phase 1 databases carry `user_version = 0` with exactly this schema; step 1 is a no-op for them (`IF NOT EXISTS`). |
 | 2 | `idx_images_normalized_datetime` on `images(normalized_datetime)`; new column `images.timestamp_offset_minutes INTEGER` — the UTC offset applied when resolving, `NULL` when the source recorded no zone and UTC was assumed (ADR-019). |
+| 3 | Phase 3 cleaning (ADR-020): `image_analysis`, `image_status`, `file_operations` (below), indexes `idx_image_status_status`, `idx_file_operations_job`, `idx_file_operations_status`; new column `images.current_path` — where the original is now (`NULL` = at `original_path`; the quarantine path while quarantined). `original_path` stays the path of record and is never rewritten. |
 
 **Timestamp columns as written by the Phase 2 backfill** (rows with `timestamp_source IS NULL` only — idempotent):
 
@@ -313,6 +314,16 @@ whose version is newer than the build (left untouched, never recreated).
 | `timestamp_source` | `exif_datetime_original` · `exif_datetime_digitized` · `filename` · `filesystem`; `NULL` = unresolved (retried next run) |
 | `timestamp_confidence` | `high` (EXIF original) · `medium` (EXIF digitized, filename) · `low` (filesystem) |
 | `timestamp_offset_minutes` | See version 2 above; `0` for the filesystem time (a true instant) |
+
+**Phase 3 tables (v3):**
+
+| Table | Columns | Notes |
+| --- | --- | --- |
+| `image_analysis` | `image_id` (PK, FK), `algorithm_version`, `source_hash`, `width`, `height`, `mean_luma`, `median_luma`, `histogram_json` (256 luma counts), `failure` (`unreadable` · `undecodable`), `xmp_rating`, `analyzed_at` | One row per image. Re-measured when `algorithm_version` changes or the import hash (`images.file_hash`) differs from `source_hash`; quarantined images keep their measurement. The dark fraction at any level and the 32-bin display histogram are derived from `histogram_json`, so changing the dark level needs no new pass. |
+| `image_status` | `id`, `image_id` (unique FK), `status` (`eligible` · `flagged` · `rejected` · `quarantined`, CHECK), `reason` (JSON `{ thresholds, reasons[] }`), `user_override`, `updated_at` | Automatic proposals are only ever `eligible` / `flagged`. `rejected` comes from a user decision; `quarantined` comes from a completed move. Rows with `user_override = 1` are never reclassified. |
+| `file_operations` | `id`, `job_id`, `image_id`, `operation_type` (`quarantine` · `restore`), `source_path`, `destination_path`, `status` (`pending` · `completed` · `failed`), `checksum` (SHA-256), `failure`, `created_at`, `completed_at` | Written *before* the file is touched. `pending` rows are reconciled from the disk state when a project is opened while no file operation is running (ADR-020). Updates only ever apply to rows still `pending`. |
+
+**Cleaning queries (Phase 3):** `pending_analysis`: images without a current-version row for their current hash. `classify_all`: recomputes proposals from `image_analysis` and the thresholds in `projects.settings_json` → `clean`, a pure function, so it is reproducible from SQLite alone. `review`: images joined with status and analysis, chronological.
 
 **Read queries (Phase 2):**
 

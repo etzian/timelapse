@@ -16,6 +16,7 @@ pub mod store;
 
 use crate::{Error, Result};
 
+pub(crate) use dedup::hash_file as dedup_hash;
 pub use scan::{Candidate, SUPPORTED_EXTENSIONS as IMAGE_EXTENSIONS};
 
 /// Standard location of the project's database: `<root>/.timelapse/db`. Keeping it inside
@@ -23,7 +24,13 @@ pub use scan::{Candidate, SUPPORTED_EXTENSIONS as IMAGE_EXTENSIONS};
 /// dir is required (ADR-011). The only public function with a `db_dir` parameter —
 /// internal callers in this crate use `default_db_dir`, so the shell never has to.
 pub fn default_db_dir(root: &Path) -> PathBuf {
-    root.join(".timelapse").join("db")
+    project_dir(root).join("db")
+}
+
+/// `<root>/.timelapse`: everything the app writes for this project (database, thumbnails,
+/// quarantine). The import scan never descends into it.
+pub fn project_dir(root: &Path) -> PathBuf {
+    root.join(scan::PROJECT_DIR)
 }
 
 /// Display name for a source root when no explicit name is given: the folder's own name,
@@ -122,7 +129,7 @@ pub fn integrity_for_root(root: &Path) -> Result<store::IntegrityResult> {
     store::integrity_check(&conn)
 }
 
-fn open_root(root: &Path) -> Result<rusqlite::Connection> {
+pub(crate) fn open_root(root: &Path) -> Result<rusqlite::Connection> {
     store::open(default_db_dir(root).as_path(), &derive_name(root), root, Some(root))
 }
 
@@ -212,6 +219,25 @@ mod tests {
 
         let report = import_folder(&root).unwrap();
         assert_eq!(report.scanned_count, 1, "only .jpg should be imported");
+    }
+
+    #[test]
+    fn the_project_directory_is_never_imported() {
+        let root = tmp("projdir");
+        let _ = std::fs::remove_dir_all(project_dir(&root));
+        std::fs::write(root.join("keep.jpg"), b"a").unwrap();
+        let q = project_dir(&root).join("quarantine");
+        std::fs::create_dir_all(&q).unwrap();
+        std::fs::write(q.join("moved.jpg"), b"b").unwrap();
+        // A sub-folder that merely shares the name is still part of the collection.
+        let nested = root.join("trip").join(".timelapse");
+        std::fs::create_dir_all(&nested).unwrap();
+        std::fs::write(nested.join("x.jpg"), b"c").unwrap();
+
+        let report = import_folder(&root).unwrap();
+        assert_eq!(report.scanned_count, 2, "keep.jpg and trip/.timelapse/x.jpg only");
+        let rows = list_for_root(&root).unwrap();
+        assert!(rows.iter().all(|r| !r.relative_path.contains("moved")));
     }
 
     #[test]

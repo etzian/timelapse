@@ -1,16 +1,17 @@
 <script lang="ts">
   import { AppShell, Sidebar, TabBar } from '@etzianco/ui';
 
+  import Cleaning from './lib/pages/Cleaning.svelte';
   import Home from './lib/pages/Home.svelte';
   import Settings from './lib/pages/Settings.svelte';
   import { t } from './lib/i18n';
 
-  type Page = 'home' | 'settings';
+  type Page = 'home' | 'cleaning' | 'settings';
   let active = $state<Page>('home');
 
   // A `$derived` so the labels re-render through t() when the language changes.
   const items = $derived(
-    (['home', 'settings'] as const).map((id) => ({ id, label: t(`nav-${id}`), href: `#${id}`, onclick: () => (active = id) }))
+    (['home', 'cleaning', 'settings'] as const).map((id) => ({ id, label: t(`nav-${id}`), href: `#${id}`, onclick: () => (active = id) }))
   );
   const activeHref = $derived(`#${active}`);
 </script>
@@ -25,6 +26,8 @@
 
   {#if active === 'home'}
     <Home />
+  {:else if active === 'cleaning'}
+    <Cleaning ongohome={() => (active = 'home')} />
   {:else}
     <Settings />
   {/if}

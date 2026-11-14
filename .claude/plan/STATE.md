@@ -16,35 +16,81 @@ STATUS: DONE
 | # | Phase | Status |
 | --- | --- | --- |
 | 0 | Baseline | done (2026-11-10) |
-| 1 | First feature (Import) | done (2026-11-12) — full `make gate` green, committed `421f2d0`, pushed to `origin/main` |
-| 2 | EXIF & timeline | **done (2026-11-14)** — full `make gate` green, reviewer sign-off (with notes, all actionable ones fixed); committed and pushed (see handoff log) |
+| 1 | Import & inventory | done (2026-11-12), `421f2d0` |
+| 2 | EXIF & timeline | done (2026-11-14), `7528260` + `2aeab8d` |
+| 3 | Brightness analysis & cleaning | **done (2026-11-14)**: full gate green; independent review BLOCK → fixed → SIGN-OFF WITH NOTES (notes fixed); committed and pushed (see log) |
 
-## Slice status (Phase 2)
+## Slice status (Phase 3)
 
-| Slice | Status | Gate run this slice |
+| Slice | Status | Gate |
 | --- | --- | --- |
-| P2.1 Deps + ADR wiring | done | GATE-FAST green |
-| P2.2 EXIF + filename + priority unit & tests | done | GATE-FAST green |
-| P2.3 Resolution + UTC-normalisation & tests | done | GATE-FAST green |
-| P2.4 Store backfill + 3 queries, migration v2 | done | GATE-FULL green |
-| P2.5 Tauri commands + IPC wrappers | done | GATE-UI green |
-| P2.6 Timeline UI, both locales | done | GATE-UI green |
-| P2.7 Exit-criterion integration tests + reviewer pass | done | reviewer: SIGN-OFF WITH NOTES; GATE-FULL green after fixes |
-| P2.8 Final gate + status record + commit/push | done | GATE-FULL green |
+| P3.1 Deps, ADR-020, scan exclusion | done | GATE-FAST + licence-audit green |
+| P3.2 Luminance analysis | done | GATE-FAST green |
+| P3.3 XMP reader | done | GATE-FAST green |
+| P3.4 Store v3 + classification | done | GATE-FULL green |
+| P3.5 Quarantine primitive | done | GATE-FAST green (see deviation below) |
+| P3.6 Thumbnails | done | GATE-FAST green |
+| P3.7 Commands + IPC | done | GATE-UI green |
+| P3.8 Cleaning UI | done | GATE-UI green |
+| P3.9 Exit tests + review | done | reviewer sign-off (2nd pass); GATE-FULL green |
+| P3.10 Final gate + commit/push | done | GATE-FULL green |
 
 ## Handoff log
 
-- **2026-11-14 — Phase 2 DONE.**
-  - **Recovered start state:** the 2026-11-12 session left `crates/core/src/import/metadata/` as non-compiling drafts (not wired into the crate; invalid syntax in `filename.rs`, a non-existent `test_support` module). Rewritten from scratch.
-  - **Core** (`crates/core/src/import/`): `metadata/{mod,exif,filename,resolver}.rs` — EXIF `DateTimeOriginal` / `DateTimeDigitized` with `SubSecTime*` and `OffsetTime*` (JPEG/TIFF only), filename dates (compact and separated shapes, boundary-anchored, calendar-validated), priority EXIF original (high) → EXIF digitized (medium) → filename (medium) → filesystem (low); normalised to fixed-width UTC `YYYY-MM-DDTHH:MM:SS.mmmZ`; explicit offsets applied, otherwise UTC assumed and recorded. `metadata/fixture.rs` (test only) builds real decodable JPEG/TIFF bytes with controlled EXIF. `store.rs`: migrations on `PRAGMA user_version` (v1 = Phase 1 schema, v2 = `idx_images_normalized_datetime` + `images.timestamp_offset_minutes`), `BEGIN IMMEDIATE` + re-read for concurrent first opens; idempotent `backfill_timestamps`; `timeline`, `distribution` (hour/day/month, optional `[from, to)`), `gaps` (`max(min_seconds, factor × median)`, `source_changed` flag, options clamped); `timeline_summary`. Facade: `backfill_for_root`, `timeline_for_root`, `distribution_for_root`, `gaps_for_root`.
-  - **Scope note:** the plan's migration v2 named only the index; `timestamp_offset_minutes` was added in the same step because the exit criterion's "mixed tz" case and DATABASE_SCHEMA.md ("preserve … timezone uncertainty") need the zone basis persisted. Documented in ADR-019 and DATABASE_SCHEMA.md §6a.
-  - **ADR-019 correction:** `kamadak-exif` is BSD-2-Clause (not MIT/Apache-2.0); still on the allow-list. `time` declared with default features (the `formatting` feature was unnecessary).
-  - **Shell:** `backfill_metadata`, `get_timeline`, `timeline_distribution`, `detect_timeline_gaps` — thin adapters, no new capability.
-  - **Frontend:** `ipc/app.ts` types + wrappers; `lib/timeline.ts` (+ tests); `pages/TimelineSection.svelte` (summary stats, per-source counts, distribution bars with hour/day/month tabs, gaps, paged chronological list with source / confidence / zone badges, loading / empty / error-with-retry states); `Home.svelte` runs the backfill after import. 37 new keys in both `app.ftl` catalogs; no new error kinds.
-  - **Data map:** new `capture-timeline` item; `ez legal gen .` regenerated `legal/generated/**`.
-  - **Exit criterion:** `crates/core/src/import/mod.rs` `timeline_exit_tests` — import → backfill → queries on real files: mixed sources and zones (monotonic, +05:00 offset vs assumed UTC), missing-EXIF fallback with originals preserved, the `0000:00:00` placeholder falling through, unresolved images kept, burst sub-seconds kept exactly (including a tie), idempotency, distribution and gaps. 52 Rust tests, 7 vitest.
-  - **Reviewer pass (independent agent):** SIGN-OFF WITH NOTES. Fixed: Import re-clickable during backfill (+ stale-root result), concurrent-first-open migration race, gap-option overflow, hour bucket keys not usable as bounds, fr-CA non-breaking space before `:`, 12/14-digit names with an impossible time losing the date, gap defaults moved into core.
-  - **Decided by the user (2026-11-14):** (1) Mixed ordering accepted: naive EXIF/filename times stay assumed-UTC while filesystem times are true instants, so in a non-UTC locale they may interleave by the local offset; disclosed via `tz_assumed` / `source_changed` and the UI note. Phase 3+ may rely on the timeline order as is. (2) A row is never re-dated once resolved, even if its original is later edited or replaced: the first-read (original) EXIF data is what is wanted. Recorded in ADR-019.
-  - **Gate (this host, Windows):** run step by step (no GNU make): cargo fmt/clippy `-D warnings`/test, `npm --prefix frontend run check|test|build` (from PowerShell; under Git Bash vitest fails on `d:` vs `D:` drive-letter casing — environmental, pre-existing tests fail identically), `bash scripts/verify.sh` (Git Bash), `ez i18n-check .` (fr-CA 174/174), `ez legal check .` (ok, the two known lawyer-review warnings), `ez legal gen .`, `ez licence-audit .` — all exit 0.
-- **2026-11-12 — Phase 2 kicked off.** Phase 0 & 1 archive moved into `archive/`. ADR-019 written; 8 slices defined in `PHASES.md`.
-- **Phase 0 & 1 history:** see [archive/STATE-phase0-1-import-inventory.md](./archive/STATE-phase0-1-import-inventory.md).
+- **2026-11-14 — Phase 3 DONE.**
+  - **Core:**
+    - `crates/core/src/clean/`:
+      - `analysis` (Rec. 709 luma, 256-bin histogram, ≤ 512 px, decode limits);
+      - `xmp` (Lightroom rating, sidecar first, read-only);
+      - `classify` (a pure function of the metrics, rating and thresholds);
+      - `store` (measurements, proposals, `user_override` decisions, thresholds in `projects.settings_json`, review query);
+      - `thumbs` (cached JPEG 256/1024);
+      - facade (parallel analysis on ≤ 3 threads with progress).
+    - `crates/core/src/files/`: the quarantine/restore journal.
+    - Schema v3: `image_analysis`, `image_status`, `file_operations`, `images.current_path`.
+    - The import scan skips `<root>/.timelapse/`. Two new error kinds (`image-undecodable`, `unknown-image`).
+  - **Shell:** 10 thin commands. Analysis, moves and thumbnails are async on the blocking pool; analysis progress goes over a `Channel`; thumbnails are raw bytes shown as `data:` URLs (the CSP already allowed them). No capability change.
+  - **UI:** a new Cleaning page (nav item) with:
+    - thresholds;
+    - an analysis run with progress;
+    - filter tabs;
+    - a thumbnail grid with metrics, reasons and keep/reject/undo;
+    - an inspect modal with a histogram;
+    - a confirm-before-move dialog;
+    - restore;
+    - all GUIDELINES §4 states.
+
+    The project root is shared with Home in memory only. All strings are in en and fr-CA (264 keys at parity).
+  - **Data map:** `cleaning-analysis`, `quarantine-journal`, `review-thumbnails`; legal docs regenerated.
+  - **Deviation from the frozen P3.5 text:** P3.5 says the move is a `rename`. The review found that `std::fs::rename` replaces an existing destination on Windows and Unix, so the move is instead a hard link (or a `create_new` copy on FAT/exFAT), then verify, then source removal. This keeps the slice's intent (never overwrite, hash-verified, recoverable). Recorded in ADR-020; `PHASES.md` left untouched.
+  - **Review:**
+    - **First pass: BLOCK** on (1) reconcile running on every open and racing live moves, and (2) check-then-act over a clobbering rename. Both fixed, together with 12 notes:
+      - process-wide file-op lock, with reconcile only when idle;
+      - journal updates guarded by `status = 'pending'`;
+      - per-item `record-failed`;
+      - NULL-hash rule documented;
+      - Clear on an unanalysed image;
+      - quarantined images not re-analysed;
+      - decode limits;
+      - Svelte stale-root guards and failed-thumbnail state;
+      - copy and fr-CA typography;
+      - the `current_path` rename;
+      - docs.
+    - **Second pass: SIGN-OFF WITH NOTES.** Fixed as well:
+      - a failed source removal never discards the copy unless the source provably remains;
+      - reconcile refuses to delete when both paths resolve to the same entry;
+      - a partial copy left by a crash is cleared.
+  - **Flake found and fixed during the final gate:** concurrent first opens could fail because `PRAGMA journal_mode = WAL` ran before the busy timeout and can return SQLITE_BUSY without the handler. The busy timeout is now set first, with a bounded retry. Verified 30/30 on the race test and 5/5 on the full suite.
+  - **Gate (Windows host):**
+    - cargo fmt, clippy `-D warnings`, test (89);
+    - svelte-check, vitest (12), vite build (from PowerShell);
+    - `verify.sh` (Git Bash; one `verify:allow` on the XMP namespace literal in a test fixture, which is not a host);
+    - `ez i18n-check` (264/264), `ez legal check` (ok, the two known lawyer-review warnings), `ez legal gen`, `ez licence-audit`.
+
+    All exit 0.
+  - **For the user:**
+    - quarantine on FAT/exFAT drives uses the copy fallback (slower, still verified);
+    - a Lightroom `.xmp` sidecar stays in the collection when its photo is quarantined;
+    - Home's import report is not kept when you switch pages (the root is).
+- **2026-11-14 — Phase 3 kicked off.** Phase 2 plan/state archived. The user approved: Phase 3 + the minimal Phase 6 primitive; `image` + `rayon`; a physical quarantine move into `.timelapse/quarantine/`; read-only Lightroom XMP.
+- **Earlier phases:** see [archive/](./archive/).

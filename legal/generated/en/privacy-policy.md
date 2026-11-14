@@ -37,6 +37,12 @@ Here is what the app keeps on your device:
 
 | Your photographs' capture dates (EXIF dates, date read from the file name, file date, recorded time zone) | Other | Put your photographs in chronological order and find gaps in the shooting | Necessary to provide the service you asked for | On your device | Until you delete the project's database (.timelapse/ folder) |
 
+| Your photographs' brightness measurements, the Lightroom rating read from their XMP metadata, your thresholds and your decisions (keep, reject) | Other | Find photographs that are too dark or were rejected, and keep a reproducible record of every cleaning decision | Necessary to provide the service you asked for | On your device | Until you delete the project's database (.timelapse/ folder) |
+
+| The photographs you quarantine (moved into .timelapse/quarantine/) and the journal of every move and restore (paths, hash, status) | Other | Let you restore a quarantined photograph at any time, without data loss | Necessary to provide the service you asked for | On your device | Until you restore the photograph or delete the project's .timelapse/ folder yourself; nothing is deleted automatically |
+
+| Thumbnails of your photographs (.timelapse/thumbs/ folder) | Other | Show the photographs to review quickly | Necessary to provide the service you asked for | On your device | Until you delete the project's database (.timelapse/ folder) |
+
 
 
 

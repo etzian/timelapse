@@ -198,6 +198,33 @@ Two library choices underpin the Phase 2 EXIF capture and chronological-timeline
 - `open-decisions → Technical dependencies → EXIF extraction library` now points at this ADR; it is resolved for Phase 2.
 - The timeline feature stores `normalized_datetime` as ISO-8601 TEXT and buckets it with SQLite `strftime()` (no new time-zone machinery, per the reason above).
 
+## ADR-020 — Phase 3 cleaning: `image` + `rayon`, luma analysis, journaled quarantine move
+
+**Status:** Accepted (2026-11-14, approved by the user: dependencies, sequencing, quarantine model and XMP reading)
+
+**Libraries.**
+- **`image` 0.25** (MIT OR Apache-2.0), built with `default-features = false` and only `jpeg` (zune-jpeg), `png` and `tiff`, the formats Phase 1 imports. It decodes for analysis and encodes the review thumbnails. The transitive crates (zune-jpeg/zune-core, png, fdeflate, flate2, tiff, weezl, half, moxcms, pxfm, byteorder-lite, fax, quick-error, crunchy) are all MIT, Apache-2.0, BSD-3-Clause, Zlib or Unlicense alternatives on the allow-list, checked by `ez licence-audit`.
+- **`rayon` 1** (MIT OR Apache-2.0) parallelises per-image analysis (TDD: "use parallel processing for independent image tasks"). SQLite writes stay on one connection, in chunked transactions.
+
+**Analysis.** Each image is decoded and reduced so its longest side is at most 512 px. We then compute Rec. 709 *luma* (`0.2126 R + 0.7152 G + 0.0722 B` on the encoded 8-bit values, not linear-light luminance), plus the mean, median, the fraction of pixels at or below a dark threshold, and a 32-bin histogram. Each stored result carries an `algorithm_version`. A version bump re-analyses; old values are never mixed with new ones.
+
+**Classification is a pure function** of the stored metrics, the stored XMP rating and the thresholds. The thresholds are persisted in `projects.settings_json` and copied into each decision's reason, so a decision can be reproduced from SQLite alone. A user decision (`user_override`) is never changed by reclassification.
+
+**Lightroom XMP** is read only, from a `<stem>.xmp` sidecar (which takes precedence) or the XMP packet embedded in the file. `xmp:Rating = -1` (Lightroom's reject flag) becomes a review reason. No XML library: only the `Rating` attribute or element is extracted, with bounded reads.
+
+**Quarantine (the minimal Phase 6 primitive pulled forward).** It runs only after explicit confirmation, and only for images the user rejected. The original goes to `<root>/.timelapse/quarantine/<relative path>`. Every step is designed so that nothing can be overwritten and the source is never lost before its copy is verified:
+
+1. Verify the source has the import hash.
+2. Journal a `pending` `file_operations` row.
+3. Create the destination atomically *without replacing*: a hard link, or a `create_new` copy that keeps the mtime where the filesystem has no links (FAT/exFAT). Either fails if anything exists there, so there is no check-then-act window. (`std::fs::rename` is deliberately **not** used: it replaces an existing destination on Windows and Unix.)
+4. Verify the destination hash; on a mismatch, remove only the copy we just created.
+5. Remove the source name; if the file is in use, undo step 3 instead.
+6. In one transaction, complete the row and set `images.current_path` and the status.
+
+Restore runs the same steps in reverse. All file operations of the process share one lock. Reconciliation of `pending` rows runs when a project is opened, but only while no operation holds that lock, so it only ever settles rows left by a crashed process. Journal updates only touch rows that are still `pending`. An image whose import could not hash it has no reference to check in step 1; its move is still verified byte-for-byte in step 4. A Lightroom `.xmp` sidecar stays in the collection when its photo is quarantined; quarantined images are therefore not re-analysed, and keep the rating already read. Decoding is bounded at 30 000 px a side and 768 MiB per image, with at most three images decoded at once. Nothing is ever deleted except the duplicate this process itself created (ADR-011), and no byte of an original is written (ADR-006). The import scan skips `<root>/.timelapse/`, so a quarantined file is never re-imported.
+
+**Out of scope here:** consolidation, copy and link policy (Phase 6), contact sheets (Phase 7), HEIC/RAW decoding.
+
 ---
 
 ## Open decisions
@@ -210,7 +237,7 @@ The following decisions must be investigated and presented for approval before i
 
 - **Resolved (ADR-019):** `kamadak-exif` 0.5 for EXIF timestamp reads and `time` 0.3 (feature `formatting`) for date-string normalisation into ISO-8601; both on the licence allow-list, EXIF stamped-as-UTC assumption recorded with an explicit confidence field (see ADR-019). HEIC EXIF resolution is **not** in scope for Phase 2 and would be a separately approved effort.
 
-- Image-processing library.
+- **Resolved (ADR-020):** image-processing library: `image` 0.25 (jpeg/png/tiff only) with `rayon` for parallel analysis.
 
 - Async runtime and task coordination.
 

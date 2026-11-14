@@ -10,6 +10,9 @@ use std::path::{Path, PathBuf};
 use crate::Error;
 
 /// Extensions treated as supported images in Phase 1 (PRD §9: jpg, jpeg, png, tiff).
+/// Name of the project-data directory inside a source root (see `import::default_db_dir`).
+pub const PROJECT_DIR: &str = ".timelapse";
+
 pub const SUPPORTED_EXTENSIONS: &[&str] = &["jpg", "jpeg", "png", "tiff"];
 
 #[derive(Debug, Clone)]
@@ -44,6 +47,12 @@ fn walk(dir: &Path, root: &Path, is_root: bool, out: &mut Vec<Candidate>) -> Res
     for entry in entries.flatten() {
         let path = entry.path();
         if path.is_dir() {
+            // The project's own data (database, thumbnails, quarantine) lives in
+            // `<root>/.timelapse/` (ADR-007) and is never part of the collection: a
+            // quarantined original must not come back as a new import.
+            if is_root && entry.file_name() == PROJECT_DIR {
+                continue;
+            }
             walk(&path, root, false, out)?;
             continue;
         }

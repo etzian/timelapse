@@ -1,82 +1,86 @@
 # PHASES
 
-Phase 0 and Phase 1 are **complete** and archived at [archive/PHASES-phase0-1-import-inventory.md](./archive/PHASES-phase0-1-import-inventory.md). This file tracks the milestone in work: **Phase 2 — EXIF & timeline**. The canonical scope entry and exit criteria for Phase 2 remain unchanged at [docs/DEVELOPMENT_ROADMAP.md#L46-L49](../../docs/DEVELOPMENT_ROADMAP.md), quoted below. Phases are **not** re-scoped in this file; the slices under "Slices" implement that scope and its exit criteria, and nothing more.
+Phases 0–2 are **complete** and archived in [archive/](./archive/). This file tracks the milestone in work: **Phase 3 — Brightness analysis & cleaning**. The canonical scope and exit criteria stay in [docs/DEVELOPMENT_ROADMAP.md](../../docs/DEVELOPMENT_ROADMAP.md), quoted below. This file does **not** re-scope the phase: the slices implement that scope and its exit criterion, nothing more.
 
-> ## Phase 2 — EXIF & timeline
->
-> **Scope:** Timestamp/tz normalization, chronology table, the "distribution over a period" query used downstream. (Stage [`PROCESSING_PIPELINE.md` §3](../../docs/PROCESSING_PIPELINE.md).)
->
-> **Entry:** Phase 1 exit. **(satisfied — see STATE.md)**
->
-> **Exit:** For any imported set, `SELECT` produces a monotonic timeline with per-image capture time resolved to a single normalized epoch; edge cases (mixed tz, missing EXIF, burst offsets) covered by tests.
+> ## Phase 3 — Brightness analysis & cleaning
+> **Scope:** Lightroom-sidecar / brightness heuristics, clean/quarantine policy, `image_quality` state in SQLite. (Pipeline §4.)
+> **Entry:** Phase 2 exit; **Phase 6 file-management safety primitives landed** (quarantine must be recoverable).
+> **Exit:** Cleaning decisions are reproducible from SQLite + original files; quarantined images are recoverable without data loss.
 
-**Governing decisions for this phase:**
+**User decisions, 2026-11-14 (recorded here and in ADR-020):**
 
-- [ADR-019](../../docs/DECISIONS.md#adr-019---phase-2-timestamping-kamadak-exif-for-exif-reads-and-a-time-based-normalizer) — `kamadak-exif` 0.5 (EXIF timestamp reads, JPEG/TIFF only) and `time` 0.3 (`formatting`; no IANA tzdb). Both MIT/Apache-2.0, on the licence allow-list; approved by the user.
-- [ADRs-010 & 011](../../docs/DECISIONS.md#adr-010---timestamp-based-sampling) — chronological timestamps are authoritative when present; a flagged value is **not** silently corrected (camera clock drift stays visible as low confidence, never reconciled).
-- Phase 2 is a **read-side** feature only: it resolves and persists *normalised* capture times for images already imported in Phase 1. It does **not** import new files, move or mutate originals, and adds no new Tauri capabilities (no plugin, no host access) — the four existing shell commands are reused, and Phase 2's four new commands open short-lived write connections for the backfill only per ADR-007.
+1. **Entry criterion:** Phase 3 lands the *minimal* Phase 6 safety primitive that quarantine needs: a `file_operations` journal, a hash-verified move, restore, and crash reconciliation. Consolidation, copy and hardlink/symlink policy stay in Phase 6.
+2. **Dependencies:** `image` 0.25 (default features off; `jpeg`, `png`, `tiff` only) and `rayon` 1. Both are MIT OR Apache-2.0; every transitive licence is checked by `ez licence-audit`.
+3. **Quarantine** physically moves the original to `<root>/.timelapse/quarantine/<relative path>`, only after explicit confirmation. Each move is hash-verified and journaled, restore is one click, and nothing is ever overwritten.
+4. **Lightroom:** XMP is read only, from a `<stem>.xmp` sidecar or the packet embedded in the file. A reject flag (`xmp:Rating = -1`) becomes a review reason. Nothing is ever written. No XML dependency.
+
+**Invariants for this phase:** originals are never written (ADR-006). A flagged image is never moved without confirmation (ADR-011). No new Tauri capability or plugin. The CSP already allows `data:` images, so thumbnails cross IPC as small JPEG bytes. Each derived value records its algorithm version (DATABASE_SCHEMA.md §5).
 
 ---
 
 ## Slices
 
-Work proceeds one slice at a time. A slice is *done* only when its gate (below) has actually been executed and passed — "implemented" never means "gated". `GATE-FAST` = `cargo fmt --all -- --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test --workspace` (equivalent to the `check` target of [Makefile](../../Makefile), run directly because GNU `make` is not required on this Windows host). `GATE-UI` = everything in `GATE-FAST` plus `npm --prefix frontend run check|test|build`, `MSYS2 bash scripts/verify.sh`, and any new-string i18n parity (`ez i18n-check .`). **`GATE-FULL`** = a complete `make gate`: the above plus `ez legal check .`, `ez legal gen .`, and `ez licence-audit .`.
+A slice is *done* only when its gate has actually run and passed. The gate names are the same as in Phase 2: `GATE-FAST` = `cargo fmt --check`, `clippy -D warnings`, `cargo test --workspace`. `GATE-UI` = GATE-FAST + `npm --prefix frontend run check|test|build` (from PowerShell on this host) + `scripts/verify.sh` (Git Bash) + `ez i18n-check .`. `GATE-FULL` = GATE-UI + `ez legal check .` + `ez legal gen .` + `ez licence-audit .`.
 
-### P2.1 — Dependencies + ADR-019 wiring
-Add `kamadak-exif = "0.5"` and `time = { version = "0.3", features = ["formatting"] }` to [crates/core/Cargo.toml](../../crates/core/Cargo.toml); `Cargo.lock` updates; confirm `deny.toml`'s existing licence policy accepts both (they should — see ADR-019) with no `licences/exceptions` entry added.
+### P3.1 — Dependencies, ADR-020, scan exclusion
+Add `image` (no default features; `jpeg`, `png`, `tiff`) and `rayon` to `crates/core`. Write ADR-020, covering the libraries, the quarantine model and the decisions above. Make the Phase 1 scan skip `<root>/.timelapse/`, so quarantined files and thumbnails are never re-imported, and add a test for it.
+**Gate:** GATE-FAST + `ez licence-audit .`.
 
-**Gate:** `GATE-FAST`.
+### P3.2 — Luminance analysis unit
+`crates/core/src/clean/analysis.rs`: decode each image at analysis resolution (longest side ≤ 512 px) and compute Rec. 709 luma on the 8-bit encoded values. The measurements are mean, median, the fraction of pixels at or below a dark threshold, and a 32-bin histogram. Each result carries `ANALYSIS_VERSION` and the analysed size. A decode failure is a per-image outcome, not an error for the run. Unit tests use synthetic images (black, white, gradient, half-dark) in each format.
+**Gate:** GATE-FAST.
 
-### P2.2 — EXIF + filename + priority-resolution unit, with tests
-New sub-tree under [crates/core/src/import/mod.rs](../../crates/core/src/import/mod.rs):
+### P3.3 — XMP (Lightroom) reader
+`crates/core/src/clean/xmp.rs`: read `xmp:Rating` (attribute or element form) from `<stem>.xmp` / `<stem>.XMP`, or from the XMP APP1 packet embedded in a JPEG (bounded read). Read-only. Tests cover the attribute form, the element form, a sidecar taking precedence over the embedded packet, a malformed packet and an absent one.
+**Gate:** GATE-FAST.
 
-- **EXIF read** (`metadata/exif.rs`): `Option<String>` raw `DateTimeOriginal`, then fall back to `DateTimeDigitized` (same calendar format), JPEG/TIFF only — never assume a tag absent on one format exists on the other.
-- **Filename date** (`metadata/filename.rs`): recognise common camera naming patterns in the bare filename (without extension) — `\d{8}` and `\d{14}` digit runs at a word boundary, optional `HHMM` / `HHMMSS` suffix — and parse them as `YYYY[-. ]MM[-. ]DD[ HH[:]MM[:SS]]?`, no timezone implied.
-- **Priority + confidence** (`metadata/mod.rs`): EXIF → filename → filesystem `modified_at` (already captured at import time in Phase 1); each source emits an explicit `TimestampSource` and `Confidence` (high / medium / low), never a silent default.
+### P3.4 — Store v3: analysis, status, classification
+Migration v3 adds `image_analysis` (one row per image, algorithm version, metrics, XMP rating, failure kind), `image_status` (one row per image: `eligible | flagged | rejected | quarantined`, a reason as JSON, `user_override`, `updated_at`), `file_operations`, and `images.current_path`. Also:
+- `analyze_for_root(root, progress)`: analyses images with no current-version row, in parallel with rayon, written in chunked transactions, idempotent.
+- `classify(conn, thresholds)`: a pure function of the stored metrics and the given thresholds, so the result is reproducible. It stores the thresholds used in each reason and never overrides a user decision. The thresholds themselves are persisted in `projects.settings_json`.
+- A review query: images with metrics, status, reasons and current location.
+- User decisions (`accept` / `reject`), recorded as `user_override`.
 
-Unit tests must cover: a real JPEG with valid `Exif::DateTimeOriginal`; a file with no EXIF at all; a filename that parses to a different day than the EXIF value (filename must lose — EXIF priority); a burst of 5+ files whose EXIF seconds are non-monotonic but sub-second apart (confidence recorded, no reordering attempted); and a mixed-source folder.
+**Gate:** GATE-FULL (the data map gains the analysis and decision items).
 
-**Gate:** `GATE-FAST`.
+### P3.5 — Quarantine primitive (the minimal Phase 6 subset)
+`crates/core/src/files/`: `quarantine(ids)` and `restore(ids)`. For each file: (1) journal a `pending` operation; (2) verify the source hash against the import hash; (3) refuse if the destination exists; (4) `rename`; (5) verify the destination hash; (6) complete the journal entry and update `current_path` and the status in one transaction. A failure leaves the file where it was and records the reason. `reconcile_operations` runs on open and settles any `pending` entry from the state on disk. The Phase 1 integrity check reads `current_path`. Tests cover the round trip with byte-identical files, a hash mismatch refused, an occupied destination refused, a crash between rename and commit reconciled, restore when the original path is occupied refused, and a quarantined file not re-imported.
+**Gate:** GATE-FAST.
 
-### P2.3 — Resolution + normalisation to ISO-8601 (UTC-assumed), with tests
-`metadata/resolver.rs`: given the EXIF / filename / filesystem candidate values collected per file in P2.2, pick the winning value and its source per the priority above, then normalise it with `time` 0.3 into an explicit-format UTC ISO-8601 string (no tzdb lookup — we never resolve a user's local zone in Phase 2; [ADR-019](../../docs/DECISIONS.md)). The same resolver must handle the "mixed source" case: EXIF on some images, filename-on-others, filesystem-only on the rest — and the mixed output still sorts monotonically by resolved value.
+### P3.6 — Thumbnails
+`thumbnail(root, id, size ∈ {256, 1024})`: produce a JPEG cached at `<root>/.timelapse/thumbs/<id>-<size>.jpg`, regenerated when the source hash changes. Data map: thumbnails stored on the device.
+**Gate:** GATE-FAST.
 
-**Gate:** `GATE-FAST`.
+### P3.7 — Tauri commands + IPC wrappers
+Thin commands: `analyze_images` (async, with progress over a `Channel`), `get_clean_settings`, `set_clean_settings`, `classify_images`, `get_review`, `set_decision`, `quarantine_images`, `restore_images`, `get_thumbnail` and `list_file_operations`. Errors cross IPC as `{ kind, args }`, and each per-item failure carries a `kind`. No new capability. Matching TS types and wrappers.
+**Gate:** GATE-UI.
 
-### P2.4 — Store backfill + timeline / distribution / gap queries, migration v2
-[crates/core/src/import/store.rs](../../crates/core/src/import/store.rs):
-1. Migration v2 (via `PRAGMA user_version`, not a new `schema_migrations` table) that adds the index required for the chronology query below (`CREATE INDEX IF NOT EXISTS idx_images_normalized_datetime ON images(normalized_datetime)`).
-2. `backfill_timestamps(conn, &candidates)`: one transaction; for each row it can resolve, writes `exif_datetime_original`, `filename_datetime`, `filesystem_datetime`, `normalized_datetime`, `timestamp_source`, `timestamp_confidence`; idempotent — an already-populated row (from a prior run) is left untouched.
-3. The three read queries the exit criterion and Phase 3/4/7 depend on:
-   - **Monotonic timeline**: rows ordered by `normalized_datetime` (then `original_path`) with source + confidence carried through; images where resolution failed are still returned, marked absent, so callers can see the gap instead of silently dropping them.
-   - **Distribution / bucketing** over a period (`strftime()` on `normalized_datetime` at hour/day/month granularity — the "distribution over a period" query named in the Phase 2 scope).
-   - **Gaps**: interval boundaries where the gap between consecutive resolved timestamps is unusually large; reported as data, never used to *correct* adjacent values (ADR-010 / ADR-011 — camera-clock drift must stay visible, not smoothed over).
+### P3.8 — Cleaning UI (both locales)
+A new "Cleaning" page sharing the current project root with Home. It has:
+- threshold controls;
+- an analysis run with progress;
+- a flagged gallery with thumbnails, metrics, reasons (dark, mean, XMP reject) and accept/reject;
+- an inspect view at 1024 px;
+- a preview of the consequences ("N photos will move to …") behind an explicit confirmation dialog;
+- a quarantine list with restore;
+- every state from GUIDELINES §4.
 
-**Gate:** `GATE-FULL`.
+Every string is in both catalogs, and every new error or failure kind has a key.
+**Gate:** GATE-UI.
 
-### P2.5 — Tauri shell commands + frontend IPC wrappers
-[src-tauri/src/lib.rs](../../src-tauri/src/lib.rs): four new thin commands (`backfill_metadata`, `get_timeline`, `timeline_distribution`, `detect_timeline_gaps`) mapping to the core functions in P2.4, using the same `root: PathBuf` parameter pattern and the existing `IpcError { kind, args }` shape — **no prose**, no new capabilities, no shell-side logic (shell stays a thin adapter per CLAUDE.md). [frontend/src/lib/ipc/app.ts](../../frontend/src/lib/ipc/app.ts): matching TS types + wrappers for all four.
+### P3.9 — Exit-criterion tests + independent review
+Integration tests on real files: import → analyse → classify → reject → quarantine → restore, with byte-identical originals. Reclassifying from SQLite alone gives the same decisions. A changed threshold changes only non-overridden rows. A crash is reconciled. An independent reviewer pass checks licences, i18n parity, error kinds, core purity, docs (DATABASE_SCHEMA v3) and correctness.
+**Gate:** reviewer sign-off in STATE.md; GATE-FULL.
 
-**Gate:** `GATE-UI`.
-
-### P2.6 — Timeline UI in Svelte (both locales)
-[Home.svelte](../../frontend/src/lib/pages/Home.svelte): after a successful import (+ its integrity snapshot), surface the backfill result (how many images had to resolve to which source, how many are low-confidence / unresolved) and render a timeline section: monotonic list with per-row source + confidence badge, the distribution-over-period bar view, and the flagged gap boundaries. **Every new user-visible string goes into both [locales/fr-CA/app.ftl](../../locales/fr-CA/app.ftl) and [locales/en/app.ftl](../../locales/en/app.ftl)** (never inlined), and any *new* `Error::kind()` introduced by P2.2–P2.4 gets a matching `error-<kind>` key in both catalogs.
-
-**Gate:** `GATE-UI`.
-
-### P2.7 — Exit-criterion tests + independent verification pass
-Add integration tests in [crates/core/src/import/mod.rs](../../crates/core/src/import/mod.rs)'s test module that exercise the *full* path on a real temp folder with real `.jpg` bytes: import → backfill → timeline / distribution / gap queries, covering **all three** named exit conditions — resolved-and-monotonic output under mixed sources, missing-EXIF fallback actually used (not silently dropped), burst/edge offsets recorded without silent reconciliation. Then a full [reviewer](../../.opencode/agents) pass over the diffs: licence scope, i18n parity across both catalogs (no key missing on either side), error-kind strings vs. fluent keys, `crates/core` still free of `tauri`, and [DATABASE_SCHEMA.md](../../docs/DATABASE_SCHEMA.md) updated to document the v2 index + the timeline/distribution/gap query shapes if they are new.
-
-**Gate:** reviewer sign-off recorded in STATE.md; `GATE-FULL`.
-
-### P2.8 — Final gate, status record, commit, push
-`make gate` (all five targets: `check`, `ui-check`, `i18n`, `legal`, `licence`) run in order and green on this host. Update [STATE.md](./STATE.md) handoff log + the phase table; [docs/CURRENT_STATUS.md](../../docs/CURRENT_STATUS.md) if it names Phase 2 as "next"; confirm [docs/DEVELOPMENT_ROADMAP.md](../../docs/DEVELOPMENT_ROADMAP.md)'s Phase 2 entry and exit criteria are *met as written* (do not edit the roadmap to fit the implementation). Commit (Conventional Commits, one logical change, staged paths only) and push.
-
-**Gate:** `GATE-FULL` green + commit & push to `origin/main`.
+### P3.10 — Final gate, status, commit, push
+Full gate green, then update STATE.md and CURRENT_STATUS.md. Commit (Conventional Commits, staged paths only) and push.
+**Gate:** GATE-FULL + push to `origin/main`.
 
 ---
 
-## Out of scope for Phase 2 (explicitly)
-- HEIC/HEIX reading (`kamadak-exif`'s TIFF-based segment model does not cover HEIC's container; flagged as a known limitation in ADR-019 — if HEIC import lands later it needs its own, separately-approved resolution pass).
-- Actual time-zone resolution for user-local clocks (the UTC-assumed + confidence-flagging model in ADR-019 is deliberately chosen; named-zone conversion is a future, explicitly-scoped decision, not silently inferred here).
-- Any file moves/copies/quarantine/rename of originals — that belongs to Phase 3/6 territory and its own safety model (ADR-011), not the timeline's read-side queries.
+## Out of scope for Phase 3
+- Contact sheets and side-by-side comparison (Phase 7, ADR-014).
+- Consolidation, copy, hardlink/symlink policy (Phase 6, beyond the quarantine subset).
+- Permanent deletion of anything (ADR-011: never automatic; no delete action in this phase).
+- Writing XMP or any metadata back to originals (ADR-006).
+- HEIC and RAW decoding.

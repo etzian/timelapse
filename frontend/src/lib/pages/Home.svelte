@@ -6,9 +6,11 @@
   import { backfillMetadata, pickFolder, importRoot, integrityCheck } from '../ipc/app';
   import type { IpcError } from '../ipc/invoke';
   import type { BackfillReport, ImportReport, IntegrityResult } from '../ipc/app';
+  import { project } from '../stores/project.svelte';
   import TimelineSection from './TimelineSection.svelte';
 
-  let root = $state('');
+  // The folder picked here is the project Cleaning works on too.
+  let root = $state(project.root);
   let busy = $state(false);
   let error = $state('');
   let report = $state<ImportReport | null>(null);
@@ -38,6 +40,7 @@
     const picked = await pickFolder();
     if (!picked) return; // cancelled — a no-op, not an error
     root = picked;
+    project.root = picked;
     busy = true;
     error = '';
     report = null;
