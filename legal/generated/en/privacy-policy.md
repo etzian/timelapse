@@ -35,6 +35,8 @@ Here is what the app keeps on your device:
 
 | Your photograph inventory (paths, sizes, SHA-256 hash and import status) | Other | Index, deduplicate and find your photographs across working sessions | Necessary to provide the service you asked for | On your device | Until you delete the project's database (.timelapse/ folder) |
 
+| Your photographs' capture dates (EXIF dates, date read from the file name, file date, recorded time zone) | Other | Put your photographs in chronological order and find gaps in the shooting | Necessary to provide the service you asked for | On your device | Until you delete the project's database (.timelapse/ folder) |
+
 
 
 

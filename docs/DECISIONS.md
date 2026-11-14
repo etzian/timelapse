@@ -171,7 +171,28 @@ Two library choices introduced with the Phase 1 import pipeline are locked in:
 
 **Reason:** Both are pure Rust, well-audited, minimal-dependency, and dual-licensed (MIT/Apache-2.0) with SQLite itself in the public domain — no licence exceptions and no runtime/system library coupling, matching AGENTS.md §5 ("Keep Tauri capabilities narrow", "Do not introduce dependencies without approval"). `rusqlite` avoids the `tokio`-driven weight of `sqlx`, which would conflict with our synchronous core API; `sha2` avoids the heavier `ring` dependency for a job that is only SHA-256. These were previously listed under "Open decisions → Technical dependencies" (the SQLite library) and have now been investigated, compared, and approved.
 
-**Consequences applied:** `crates/core/Cargo.toml` records both dependencies; the previously open "SQLite Rust library" line under Open decisions now points at this ADR. The remaining EXIF / image-processing Rust libraries stay **open** (Phase 2+, not yet introduced).
+**Consequences applied:** `crates/core/Cargo.toml` records both dependencies; the previously open "SQLite Rust library" line under Open decisions now points at this ADR. The EXIF extraction library is resolved by ADR-019 (Phase 2). Image-processing libraries remain **open** (later phases, not yet introduced).
+
+## ADR-019 — Phase 2 timestamping: `kamadak-exif` for EXIF reads and a `time`-based normalizer
+
+**Status:** Accepted (2026-11-12, approved by user on request per AGENTS.md §5)
+
+Two library choices underpin the Phase 2 EXIF capture and chronological-timeline feature:
+
+- **EXIF extraction — `kamadak-exif` 0.5.** Pure-Rust reader for the EXIF segments inside JPEG/TIFF (the extensions we support in Phase 1). We only need the two timestamp tags — `DateTimeOriginal` (when the picture was taken) and, as a fallback, `DateTimeDigitized` — plus camera make/model where present. It reads from in-memory bytes, so it fits the synchronous core and needs no async runtime; it does not depend on image-decoding stacks we would otherwise pull in for thumbnail work later.
+- **Date/time normalisation — `time` 0.3** (default features only; see *Correction* below). EXIF timestamp tags carry a wall-clock stamp with **no timezone**; we parse those stamps and record them as UTC-normalised ISO-8601 text with an explicit `timestamp_source` and `timestamp_confidence`, per ADR-010. `time` 0.3 is a small, well-tested formatter/parser chosen for stable ISO-8601 output without pulling in a full IANA time-zone database (we do not resolve named zones in Phase 2 — we assume UTC and record confidence), keeping the dependency surface minimal.
+
+**Reason:** Both are pure Rust and on the licence allow-list (`_foundation/tech/licences/policy.yaml`) — no licence exceptions, matching AGENTS.md §5. `kamadak-exif` gives tag-level access (all we need) without the weight of a full image decoder; `time` 0.3's `formatting` feature is the lightest path to deterministic ISO-8601 output for SQLite `strftime()` bucketing of the timeline.
+
+**Correction (2026-11-14, during implementation):** `kamadak-exif` 0.5.5 is licensed **BSD-2-Clause**, not MIT/Apache-2.0 as first written here; BSD-2-Clause is on the same allow-list, so the decision and the "no exception" conclusion are unchanged (`time` 0.3 is MIT/Apache-2.0). Its only dependency, `mutate_once`, is BSD-2-Clause too. The `formatting` feature of `time` turned out to be unnecessary — the fixed-width normalised string is written directly from `time`'s validated fields — so the dependency is declared with default features only. Explicit EXIF `OffsetTime*` offsets are applied when present (a fixed offset, not a named-zone lookup); their absence is recorded in `images.timestamp_offset_minutes = NULL` (schema v2).
+
+**Known limitation (recorded, accepted):** HEIX/HEIC EXIF layout differs from JPEG/TIFF and Rust-side readers have historically been weaker there. Phase 2 scopes `kamadak-exif` to the supported extensions (JPEG/TIFF). If we later add HEIC import, EXIF timestamp resolution must be re-validated as a separate, explicitly-approved effort — it is **not** assumed to work in Phase 2.
+
+**Consequences applied:**
+- `crates/core/Cargo.toml` records both dependencies (see ADR-019 above and the Phase 2 plan).
+- Schema v2 (`PRAGMA user_version`): `idx_images_normalized_datetime` and `images.timestamp_offset_minutes` (docs/DATABASE_SCHEMA.md §6a).
+- `open-decisions → Technical dependencies → EXIF extraction library` now points at this ADR; it is resolved for Phase 2.
+- The timeline feature stores `normalized_datetime` as ISO-8601 TEXT and buckets it with SQLite `strftime()` (no new time-zone machinery, per the reason above).
 
 ---
 
@@ -183,7 +204,7 @@ The following decisions must be investigated and presented for approval before i
 
 - **Resolved (ADR-018):** `rusqlite` 0.32 (bundled) for SQLite persistence; `sha2` 0.10 for content hashing in the import pipeline. See ADR-018.
 
-- EXIF extraction library.
+- **Resolved (ADR-019):** `kamadak-exif` 0.5 for EXIF timestamp reads and `time` 0.3 (feature `formatting`) for date-string normalisation into ISO-8601; both on the licence allow-list, EXIF stamped-as-UTC assumption recorded with an explicit confidence field (see ADR-019). HEIC EXIF resolution is **not** in scope for Phase 2 and would be a separately approved effort.
 
 - Image-processing library.
 

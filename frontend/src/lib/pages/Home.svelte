@@ -3,18 +3,38 @@
 
   import { t } from '../i18n';
   import { errorText } from '../i18n/errors';
-  import { pickFolder, importRoot, integrityCheck } from '../ipc/app';
+  import { backfillMetadata, pickFolder, importRoot, integrityCheck } from '../ipc/app';
   import type { IpcError } from '../ipc/invoke';
-  import type { ImportReport, IntegrityResult } from '../ipc/app';
+  import type { BackfillReport, ImportReport, IntegrityResult } from '../ipc/app';
+  import TimelineSection from './TimelineSection.svelte';
 
   let root = $state('');
   let busy = $state(false);
   let error = $state('');
   let report = $state<ImportReport | null>(null);
   let integrity = $state<IntegrityResult | null>(null);
+  let backfill = $state<BackfillReport | null>(null);
+  let backfillError = $state('');
+  let dating = $state(false);
+
+  /** Phase 2: resolve capture times once the import is in. Its failure never hides the import report. */
+  async function doBackfill(): Promise<void> {
+    if (dating) return;
+    const forRoot = root;
+    dating = true;
+    backfillError = '';
+    try {
+      const result = await backfillMetadata(forRoot);
+      if (forRoot === root) backfill = result; // never show one folder's dates under another
+    } catch (err) {
+      if (forRoot === root) backfillError = errorText(err as IpcError);
+    } finally {
+      dating = false;
+    }
+  }
 
   async function doImport(): Promise<void> {
-    if (busy) return;
+    if (busy || dating) return;
     const picked = await pickFolder();
     if (!picked) return; // cancelled — a no-op, not an error
     root = picked;
@@ -22,6 +42,8 @@
     error = '';
     report = null;
     integrity = null;
+    backfill = null;
+    backfillError = '';
     try {
       report = await importRoot(root);
       integrity = await integrityCheck(root);
@@ -31,6 +53,7 @@
     } finally {
       busy = false;
     }
+    if (report) await doBackfill();
   }
 </script>
 
@@ -40,7 +63,7 @@
 
   <Card>
     <p class="intro">{t('home-intro')}</p>
-    <Button onclick={doImport} disabled={busy}>{busy ? t('home-importing') : t('home-import-action')}</Button>
+    <Button onclick={doImport} disabled={busy || dating}>{busy ? t('home-importing') : t('home-import-action')}</Button>
   </Card>
 
   {#if report}
@@ -91,6 +114,20 @@
     </Card>
   {/if}
 
+  {#if dating}
+    <p class="progress" aria-live="polite">{t('timeline-dating')}</p>
+  {:else if backfillError}
+    <div role="alert" class="error">
+      <p>{backfillError}</p>
+      <Button onclick={doBackfill}>{t('timeline-retry')}</Button>
+    </div>
+  {:else if backfill}
+    <p class="intro">
+      {t('timeline-backfill-result', { resolved: backfill.newly_resolved, unresolved: backfill.unresolved_this_run })}
+    </p>
+    <TimelineSection {root} {backfill} />
+  {/if}
+
   {#if error}<p role="alert" class="error">{error}</p>{/if}
 
   {#if root}<p class="root-note" title={root}>{t('home-root', { path: root })}</p>{/if}
@@ -115,5 +152,6 @@
   .note { font-size: 0.9em; color: var(--ez-color-warning); }
   .integrity h3 { font-size: 1em; margin: 0.75rem 0 0.25rem; }
   .error { color: var(--ez-color-error); }
+  .progress { color: var(--ez-color-text-muted); }
   .root-note { font-size: 0.85em; color: var(--ez-color-text-muted); word-break: break-all; }
 </style>

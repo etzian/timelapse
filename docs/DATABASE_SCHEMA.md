@@ -290,6 +290,36 @@ The application must:
 
 - Never silently recreate an incompatible project database.
 
+## 6a. Implemented versions (Phase 1–2)
+
+The version lives in `PRAGMA user_version`; `crates/core/src/import/store.rs` applies each
+step in order, in its own transaction together with the version bump, and refuses a database
+whose version is newer than the build (left untouched, never recreated).
+
+| Version | Change |
+| --- | --- |
+| 1 | `projects`, `images` (columns of §2), `idx_images_hash`, `idx_images_relative`. Phase 1 databases carry `user_version = 0` with exactly this schema; step 1 is a no-op for them (`IF NOT EXISTS`). |
+| 2 | `idx_images_normalized_datetime` on `images(normalized_datetime)`; new column `images.timestamp_offset_minutes INTEGER` — the UTC offset applied when resolving, `NULL` when the source recorded no zone and UTC was assumed (ADR-019). |
+
+**Timestamp columns as written by the Phase 2 backfill** (rows with `timestamp_source IS NULL` only — idempotent):
+
+| Column | Content |
+| --- | --- |
+| `exif_datetime_original` | EXIF `DateTimeOriginal` text, verbatim (even an unusable `0000:00:00 00:00:00`) |
+| `exif_create_date` | EXIF `DateTimeDigitized` text, verbatim |
+| `filename_datetime` | The date/time substring matched in the file name, verbatim |
+| `filesystem_datetime` | `modified_at` in the normalised format |
+| `normalized_datetime` | Winning value as fixed-width UTC `YYYY-MM-DDTHH:MM:SS.mmmZ` (text order = time order) |
+| `timestamp_source` | `exif_datetime_original` · `exif_datetime_digitized` · `filename` · `filesystem`; `NULL` = unresolved (retried next run) |
+| `timestamp_confidence` | `high` (EXIF original) · `medium` (EXIF digitized, filename) · `low` (filesystem) |
+| `timestamp_offset_minutes` | See version 2 above; `0` for the filesystem time (a true instant) |
+
+**Read queries (Phase 2):**
+
+- *Timeline* — every image `ORDER BY normalized_datetime IS NULL, normalized_datetime, original_path`, with `unixepoch(normalized_datetime, 'subsec')` as epoch milliseconds; unresolved images last, never dropped.
+- *Distribution over a period* — `strftime('%Y-%m-%dT%H' | '%Y-%m-%d' | '%Y-%m', normalized_datetime)` (each key is a prefix of the values it counts, so it can be passed back as a bound) with `COUNT(*)`, optionally bounded by `from <= normalized_datetime < to`.
+- *Gaps* — computed over the resolved timeline: consecutive intervals longer than `max(min_seconds, factor × median interval)` (defaults 3600 s, ×10; caller values clamped to `[0, 1e6]` and `[0, 100 years]`), each flagged `source_changed` when its two sides differ in source or zone assumption. Reported only; no value is adjusted.
+
 ## 7. Open design questions
 
 - Whether file metadata should be stored in one table or separated further.

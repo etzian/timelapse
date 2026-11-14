@@ -15,6 +15,8 @@ Law 25: personal information is destroyed or anonymized once the purpose is achi
 
 | Your photograph inventory (paths, sizes, SHA-256 hash and import status) | Other | On your device | Until you delete the project's database (.timelapse/ folder) | _to complete_ | _date_ |
 
+| Your photographs' capture dates (EXIF dates, date read from the file name, file date, recorded time zone) | Other | On your device | Until you delete the project's database (.timelapse/ folder) | _to complete_ | _date_ |
+
 
 
 

@@ -10,6 +10,7 @@
 use std::path::{Path, PathBuf};
 
 mod dedup;
+pub mod metadata;
 mod scan;
 pub mod store;
 
@@ -121,6 +122,57 @@ pub fn integrity_for_root(root: &Path) -> Result<store::IntegrityResult> {
     store::integrity_check(&conn)
 }
 
+fn open_root(root: &Path) -> Result<rusqlite::Connection> {
+    store::open(default_db_dir(root).as_path(), &derive_name(root), root, Some(root))
+}
+
+/// Result of [`backfill_for_root`]: what this run did, and the state of the whole timeline.
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct BackfillReport {
+    /// Images that received a capture time in this run.
+    pub newly_resolved: usize,
+    /// Images examined in this run for which no source held a usable value.
+    pub unresolved_this_run: usize,
+    pub summary: store::TimelineSummary,
+}
+
+/// Phase 2 backfill: for every imported image without a capture time, read its EXIF /
+/// filename / filesystem candidates, resolve and persist them (one transaction). Reads
+/// originals only; never writes, moves or renames them. Idempotent.
+pub fn backfill_for_root(root: &Path) -> Result<BackfillReport> {
+    let conn = open_root(root)?;
+    let items: Vec<(i64, metadata::Candidates)> = store::pending_timestamps(&conn)?
+        .into_iter()
+        .map(|p| (p.id, metadata::collect(Path::new(&p.original_path), p.modified_at)))
+        .collect();
+    let counts = store::backfill_timestamps(&conn, &items)?;
+    Ok(BackfillReport {
+        newly_resolved: counts.resolved,
+        unresolved_this_run: counts.unresolved,
+        summary: store::timeline_summary(&conn)?,
+    })
+}
+
+/// The chronological timeline of `root` (unresolved images last, never dropped).
+pub fn timeline_for_root(root: &Path) -> Result<Vec<store::TimelineEntry>> {
+    store::timeline(&open_root(root)?)
+}
+
+/// Image counts per hour / day / month over an optional `[from, to)` period.
+pub fn distribution_for_root(
+    root: &Path,
+    granularity: store::Granularity,
+    from: Option<&str>,
+    to: Option<&str>,
+) -> Result<Vec<store::DistributionBucket>> {
+    store::distribution(&open_root(root)?, granularity, from, to)
+}
+
+/// Unusually long intervals on the resolved timeline of `root`.
+pub fn gaps_for_root(root: &Path, opts: store::GapOptions) -> Result<store::GapReport> {
+    store::gaps(&open_root(root)?, opts)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -183,5 +235,287 @@ mod tests {
 
         let res = integrity_for_root(&root).unwrap();
         assert_eq!(res.missing_files.len(), 1);
+    }
+}
+
+/// Phase 2 exit criterion (DEVELOPMENT_ROADMAP.md): for an imported set, the timeline is
+/// monotonic with one normalised instant per image; mixed time zones, missing EXIF and
+/// burst offsets are covered. Full path on real files: import → backfill → queries.
+#[cfg(test)]
+mod timeline_exit_tests {
+    use std::time::{Duration, SystemTime};
+
+    use super::metadata::fixture::{ExifSpec, TempDir, write_jpeg};
+    use super::store::{GapOptions, Granularity, TimelineEntry};
+    use super::*;
+
+    fn set_mtime(path: &Path, unix: u64) {
+        let f = std::fs::File::options().write(true).open(path).unwrap();
+        f.set_modified(SystemTime::UNIX_EPOCH + Duration::from_secs(unix)).unwrap();
+    }
+
+    fn by_path<'a>(t: &'a [TimelineEntry], p: &str) -> &'a TimelineEntry {
+        t.iter().find(|e| e.relative_path == p).unwrap_or_else(|| panic!("{p} on the timeline"))
+    }
+
+    fn assert_monotonic(t: &[TimelineEntry]) {
+        let resolved: Vec<i64> = t.iter().map_while(|e| e.epoch_ms).collect();
+        assert!(resolved.windows(2).all(|w| w[0] <= w[1]), "timeline must be monotonic: {t:#?}");
+        assert!(t[resolved.len()..].iter().all(|e| e.normalized_datetime.is_none()));
+    }
+
+    /// 2024-01-15T09:00:00Z
+    const FS_0900Z: u64 = 1_705_309_200;
+
+    fn mixed_folder() -> TempDir {
+        let dir = TempDir::new("exit-mixed");
+        let r = dir.path();
+        // EXIF with an explicit +05:00 offset: 10:00 local → 05:00Z.
+        let tz = ExifSpec {
+            original: Some("2024:01:15 10:00:00"),
+            offset_original: Some("+05:00"),
+            ..ExifSpec::default()
+        };
+        write_jpeg(&r.join("tz_east.jpg"), &tz);
+        // EXIF with no zone (assumed UTC) whose filename says another day: EXIF must win.
+        write_jpeg(&r.join("IMG_20190704_b.jpg"), &ExifSpec::original("2024:01:15 07:00:00"));
+        // Only DateTimeDigitized.
+        let dig = ExifSpec { digitized: Some("2024:01:15 06:00:00"), ..ExifSpec::default() };
+        write_jpeg(&r.join("digitized.jpg"), &dig);
+        // No EXIF at all → filename.
+        write_jpeg(&r.join("IMG_20240115_080000.jpg"), &ExifSpec::none());
+        // A placeholder EXIF value and nothing in the name → filesystem time.
+        let png = r.join("scan.png");
+        std::fs::write(&png, b"\x89PNG\r\n\x1a\n").unwrap();
+        set_mtime(&png, FS_0900Z);
+        let zero = r.join("zeroed.jpg");
+        write_jpeg(&zero, &ExifSpec::original("0000:00:00 00:00:00"));
+        set_mtime(&zero, FS_0900Z + 60);
+        dir
+    }
+
+    #[test]
+    fn mixed_sources_and_zones_resolve_to_one_monotonic_timeline() {
+        let dir = mixed_folder();
+        let root = dir.path();
+        import_folder(root).unwrap();
+        let report = backfill_for_root(root).unwrap();
+        assert_eq!(report.newly_resolved, 6);
+        assert_eq!(report.summary.unresolved, 0);
+        assert_eq!(report.summary.by_source.exif_datetime_original, 2);
+        assert_eq!(report.summary.by_source.exif_datetime_digitized, 1);
+        assert_eq!(report.summary.by_source.filename, 1);
+        assert_eq!(report.summary.by_source.filesystem, 2);
+        assert_eq!(report.summary.low_confidence, 2);
+        assert_eq!(report.summary.tz_assumed, 3, "IMG_…_b, digitized, IMG_…_080000");
+
+        let t = timeline_for_root(root).unwrap();
+        assert_monotonic(&t);
+        let order: Vec<&str> = t.iter().map(|e| e.relative_path.as_str()).collect();
+        assert_eq!(
+            order,
+            [
+                "tz_east.jpg",
+                "digitized.jpg",
+                "IMG_20190704_b.jpg",
+                "IMG_20240115_080000.jpg",
+                "scan.png",
+                "zeroed.jpg"
+            ]
+        );
+        let east = by_path(&t, "tz_east.jpg");
+        assert_eq!(east.normalized_datetime.as_deref(), Some("2024-01-15T05:00:00.000Z"));
+        assert_eq!((east.offset_minutes, east.tz_assumed), (Some(300), false));
+        let b = by_path(&t, "IMG_20190704_b.jpg");
+        assert_eq!(b.source.as_deref(), Some("exif_datetime_original"));
+        assert_eq!(b.confidence.as_deref(), Some("high"));
+        assert!(b.tz_assumed);
+        assert_eq!(by_path(&t, "digitized.jpg").confidence.as_deref(), Some("medium"));
+        let zeroed = by_path(&t, "zeroed.jpg");
+        assert_eq!(zeroed.source.as_deref(), Some("filesystem"));
+        assert_eq!(zeroed.epoch_ms, Some((FS_0900Z as i64 + 60) * 1000));
+    }
+
+    #[test]
+    fn missing_exif_falls_back_and_the_original_values_are_preserved() {
+        let dir = mixed_folder();
+        let root = dir.path();
+        import_folder(root).unwrap();
+        backfill_for_root(root).unwrap();
+
+        let conn = open_root(root).unwrap();
+        let row = |name: &str| -> (Option<String>, Option<String>, Option<String>, Option<String>) {
+            conn.query_row(
+                "SELECT exif_datetime_original, filename_datetime, filesystem_datetime, timestamp_source
+                 FROM images WHERE relative_path = ?1",
+                [name],
+                |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)),
+            )
+            .unwrap()
+        };
+        let (exif, name, fs, src) = row("IMG_20240115_080000.jpg");
+        assert_eq!(exif, None);
+        assert_eq!(name.as_deref(), Some("20240115_080000"));
+        assert!(fs.is_some(), "filesystem candidate recorded even when it loses");
+        assert_eq!(src.as_deref(), Some("filename"));
+
+        let (exif, _, fs, src) = row("zeroed.jpg");
+        assert_eq!(exif.as_deref(), Some("0000:00:00 00:00:00"), "kept verbatim, not repaired");
+        assert_eq!(fs.as_deref(), Some("2024-01-15T09:01:00.000Z"));
+        assert_eq!(src.as_deref(), Some("filesystem"));
+
+        let (exif, name, _, src) = row("IMG_20190704_b.jpg");
+        assert_eq!(exif.as_deref(), Some("2024:01:15 07:00:00"));
+        assert_eq!(name.as_deref(), Some("20190704"), "losing filename value kept");
+        assert_eq!(src.as_deref(), Some("exif_datetime_original"));
+    }
+
+    #[test]
+    fn an_image_with_no_usable_source_stays_on_the_timeline_marked_unresolved() {
+        let dir = TempDir::new("exit-unresolved");
+        let root = dir.path();
+        write_jpeg(&root.join("a.jpg"), &ExifSpec::original("2024:01:15 10:00:00"));
+        write_jpeg(&root.join("lost.jpg"), &ExifSpec::none());
+        import_folder(root).unwrap();
+        // Simulate an unknown filesystem time (the scan's 0) on the file with nothing else.
+        open_root(root)
+            .unwrap()
+            .execute("UPDATE images SET modified_at = 0 WHERE relative_path = 'lost.jpg'", [])
+            .unwrap();
+        let report = backfill_for_root(root).unwrap();
+        assert_eq!((report.newly_resolved, report.unresolved_this_run), (1, 1));
+        assert_eq!(report.summary.unresolved, 1);
+        let t = timeline_for_root(root).unwrap();
+        assert_eq!(t.len(), 2, "never dropped");
+        assert_monotonic(&t);
+        let lost = &t[1];
+        assert_eq!(lost.relative_path, "lost.jpg");
+        assert_eq!((lost.normalized_datetime.as_ref(), lost.source.as_ref()), (None, None));
+        assert!(!lost.tz_assumed);
+    }
+
+    #[test]
+    fn burst_offsets_are_recorded_exactly_and_never_reconciled() {
+        let dir = TempDir::new("exit-burst");
+        let root = dir.path();
+        // Six frames in one second; sub-second values are out of order w.r.t. the file
+        // names, and two frames share the very same instant.
+        let subsecs = ["50", "10", "90", "30", "70", "30"];
+        for (i, ss) in subsecs.iter().enumerate() {
+            let spec = ExifSpec {
+                original: Some("2024:01:15 10:30:00"),
+                subsec_original: Some(ss),
+                ..ExifSpec::default()
+            };
+            write_jpeg(&root.join(format!("burst_{}.jpg", i + 1)), &spec);
+        }
+        import_folder(root).unwrap();
+        backfill_for_root(root).unwrap();
+        let t = timeline_for_root(root).unwrap();
+        assert_monotonic(&t);
+        // Each value is exactly what its camera recorded — nothing spread out or snapped.
+        for (i, ss) in subsecs.iter().enumerate() {
+            let e = by_path(&t, &format!("burst_{}.jpg", i + 1));
+            assert_eq!(
+                e.normalized_datetime.as_deref(),
+                Some(format!("2024-01-15T10:30:00.{ss}0Z").as_str())
+            );
+            assert_eq!(e.confidence.as_deref(), Some("high"));
+        }
+        let order: Vec<&str> = t.iter().map(|e| e.relative_path.as_str()).collect();
+        // Sorted by recorded instant; the tie (burst_4 / burst_6) is broken by path.
+        assert_eq!(
+            order,
+            [
+                "burst_2.jpg",
+                "burst_4.jpg",
+                "burst_6.jpg",
+                "burst_1.jpg",
+                "burst_5.jpg",
+                "burst_3.jpg"
+            ]
+        );
+        assert!(gaps_for_root(root, GapOptions::default()).unwrap().gaps.is_empty());
+    }
+
+    #[test]
+    fn backfill_is_idempotent_and_picks_up_newly_imported_files() {
+        let dir = TempDir::new("exit-idem");
+        let root = dir.path();
+        write_jpeg(&root.join("a.jpg"), &ExifSpec::original("2024:01:15 10:00:00"));
+        import_folder(root).unwrap();
+        assert_eq!(backfill_for_root(root).unwrap().newly_resolved, 1);
+        let before = timeline_for_root(root).unwrap();
+
+        write_jpeg(&root.join("b.jpg"), &ExifSpec::original("2024:01:15 11:00:00"));
+        import_folder(root).unwrap();
+        let again = backfill_for_root(root).unwrap();
+        assert_eq!(again.newly_resolved, 1, "only the new file");
+        assert_eq!(backfill_for_root(root).unwrap().newly_resolved, 0);
+        let after = timeline_for_root(root).unwrap();
+        assert_eq!(after[0], before[0], "already-resolved row untouched");
+        assert_eq!(after.len(), 2);
+    }
+
+    #[test]
+    fn distribution_and_gaps_over_a_real_folder() {
+        let dir = TempDir::new("exit-dist");
+        let root = dir.path();
+        let shots: [&'static str; 5] = [
+            "2024:01:15 10:00:00",
+            "2024:01:15 10:10:00",
+            "2024:01:15 10:20:00",
+            "2024:01:15 11:30:00",
+            "2024:01:18 09:00:00",
+        ];
+        for (i, s) in shots.iter().enumerate() {
+            write_jpeg(&root.join(format!("p{i}.jpg")), &ExifSpec::original(s));
+        }
+        // A filename-dated frame inside the last stretch.
+        write_jpeg(&root.join("IMG_20240118_091000.jpg"), &ExifSpec::none());
+        import_folder(root).unwrap();
+        backfill_for_root(root).unwrap();
+
+        let days = distribution_for_root(root, Granularity::Day, None, None).unwrap();
+        let days: Vec<(&str, usize)> = days.iter().map(|b| (b.bucket.as_str(), b.count)).collect();
+        assert_eq!(days, [("2024-01-15", 4), ("2024-01-18", 2)]);
+        let hours = distribution_for_root(root, Granularity::Hour, None, None).unwrap();
+        assert_eq!(hours[0].bucket, "2024-01-15T10");
+        // A bucket key is a valid `from` bound: drilling into that hour keeps the 10:00:00.000 shot.
+        let drill = distribution_for_root(
+            root,
+            Granularity::Hour,
+            Some(&hours[0].bucket),
+            Some("2024-01-15T11"),
+        )
+        .unwrap();
+        assert_eq!(drill.len(), 1);
+        assert_eq!(drill[0].count, 3);
+        assert_eq!(hours[0].count, 3);
+        let month = distribution_for_root(root, Granularity::Month, None, None).unwrap();
+        assert_eq!(month.len(), 1);
+        assert_eq!(month[0].count, 6);
+        let period =
+            distribution_for_root(root, Granularity::Day, Some("2024-01-16"), Some("2024-02"))
+                .unwrap();
+        assert_eq!(period.len(), 1);
+        assert_eq!(period[0].bucket, "2024-01-18");
+
+        // Intervals: 10m, 10m, 70m, ~3 days, 10m → median 10m; threshold max(1h, 100m).
+        let report = gaps_for_root(root, GapOptions::default()).unwrap();
+        assert_eq!(report.median_interval_seconds, Some(600.0));
+        assert_eq!(report.threshold_seconds, 6000);
+        assert_eq!(report.gaps.len(), 1);
+        let g = &report.gaps[0];
+        assert_eq!(g.before.relative_path, "p3.jpg");
+        assert_eq!(g.after.relative_path, "p4.jpg");
+        assert_eq!(g.seconds, 69 * 3600 + 30 * 60, "Jan 15 11:30 → Jan 18 09:00");
+        assert!(!g.source_changed);
+        // Reporting a gap changes nothing in the data.
+        let t = timeline_for_root(root).unwrap();
+        assert_eq!(
+            by_path(&t, "p4.jpg").normalized_datetime.as_deref(),
+            Some("2024-01-18T09:00:00.000Z")
+        );
     }
 }

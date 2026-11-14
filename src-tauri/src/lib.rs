@@ -59,6 +59,50 @@ fn integrity_check(
     Ok(timelapse_core::import::integrity_for_root(&root)?)
 }
 
+/// Phase 2: resolve and persist capture times for every imported image of `root` that
+/// has none yet (EXIF → filename → filesystem). Reads originals only.
+#[tauri::command]
+fn backfill_metadata(
+    root: PathBuf,
+) -> std::result::Result<timelapse_core::import::BackfillReport, IpcError> {
+    Ok(timelapse_core::import::backfill_for_root(&root)?)
+}
+
+/// Phase 2: the chronological timeline of `root` (unresolved images last).
+#[tauri::command]
+fn get_timeline(
+    root: PathBuf,
+) -> std::result::Result<Vec<timelapse_core::import::store::TimelineEntry>, IpcError> {
+    Ok(timelapse_core::import::timeline_for_root(&root)?)
+}
+
+/// Phase 2: image counts per hour / day / month over an optional `[from, to)` period.
+#[tauri::command]
+fn timeline_distribution(
+    root: PathBuf,
+    granularity: timelapse_core::import::store::Granularity,
+    from: Option<String>,
+    to: Option<String>,
+) -> std::result::Result<Vec<timelapse_core::import::store::DistributionBucket>, IpcError> {
+    Ok(timelapse_core::import::distribution_for_root(
+        &root,
+        granularity,
+        from.as_deref(),
+        to.as_deref(),
+    )?)
+}
+
+/// Phase 2: unusually long intervals on the timeline; omitted options take core's defaults.
+#[tauri::command]
+fn detect_timeline_gaps(
+    root: PathBuf,
+    factor: Option<f64>,
+    min_seconds: Option<i64>,
+) -> std::result::Result<timelapse_core::import::store::GapReport, IpcError> {
+    let opts = timelapse_core::import::store::GapOptions::from_parts(factor, min_seconds);
+    Ok(timelapse_core::import::gaps_for_root(&root, opts)?)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     // Dialog is used by the frontend for folder picking on every platform; the
@@ -79,7 +123,11 @@ pub fn run() {
             app_info,
             import_folder,
             list_images,
-            integrity_check
+            integrity_check,
+            backfill_metadata,
+            get_timeline,
+            timeline_distribution,
+            detect_timeline_gaps
         ])
         .run(tauri::generate_context!())
         .expect("error while running Timelapse Studio");

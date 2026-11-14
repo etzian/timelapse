@@ -35,6 +35,8 @@ Voici ce que l'application conserve sur votre appareil :
 
 | L'inventaire de vos photographies (chemins, tailles, hachage SHA-256 et statut d'import) | Autre | Indexer, dédoublonner et retrouver vos photographies entre les séances de travail | Nécessaire pour fournir le service demandé | Sur votre appareil | Jusqu'à ce que vous supprimiez la base de données du projet (dossier .timelapse/) |
 
+| Les dates de prise de vue de vos photographies (dates EXIF, date lue dans le nom du fichier, date du fichier, fuseau horaire consigné) | Autre | Classer vos photographies en ordre chronologique et repérer les intervalles dans la prise de vue | Nécessaire pour fournir le service demandé | Sur votre appareil | Jusqu'à ce que vous supprimiez la base de données du projet (dossier .timelapse/) |
+
 
 
 
