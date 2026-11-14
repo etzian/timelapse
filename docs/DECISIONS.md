@@ -186,6 +186,10 @@ Two library choices underpin the Phase 2 EXIF capture and chronological-timeline
 
 **Correction (2026-11-14, during implementation):** `kamadak-exif` 0.5.5 is licensed **BSD-2-Clause**, not MIT/Apache-2.0 as first written here; BSD-2-Clause is on the same allow-list, so the decision and the "no exception" conclusion are unchanged (`time` 0.3 is MIT/Apache-2.0). Its only dependency, `mutate_once`, is BSD-2-Clause too. The `formatting` feature of `time` turned out to be unnecessary — the fixed-width normalised string is written directly from `time`'s validated fields — so the dependency is declared with default features only. Explicit EXIF `OffsetTime*` offsets are applied when present (a fixed offset, not a named-zone lookup); their absence is recorded in `images.timestamp_offset_minutes = NULL` (schema v2).
 
+**Decisions confirmed by the user (2026-11-14):**
+- *Mixed time bases are accepted.* A wall clock with no recorded zone (EXIF without `OffsetTime*`, filename dates) is read as UTC, while the filesystem time is a true instant. In a non-UTC locale the two kinds can therefore interleave out of order by up to the local offset. This is accepted; it stays visible (`tz_assumed`, gap `source_changed`, the UI note) and is never corrected. Later phases may rely on the timeline order as is.
+- *A resolved capture time is never re-read.* Once a row has a `timestamp_source`, the backfill does not revisit it, even if the original file is later edited or replaced (Phase 1's `ON CONFLICT DO NOTHING` keeps the row): the EXIF data as first read from the original is the record we want.
+
 **Known limitation (recorded, accepted):** HEIX/HEIC EXIF layout differs from JPEG/TIFF and Rust-side readers have historically been weaker there. Phase 2 scopes `kamadak-exif` to the supported extensions (JPEG/TIFF). If we later add HEIC import, EXIF timestamp resolution must be re-validated as a separate, explicitly-approved effort — it is **not** assumed to work in Phase 2.
 
 **Consequences applied:**
