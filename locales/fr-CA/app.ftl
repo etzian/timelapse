@@ -425,6 +425,7 @@ error-export = { $reason ->
     [write-failed] La vidéo n’a pas pu être écrite dans le dossier d’exportation du projet (disque plein ou non accessible en écriture).
     [interrupted] L’application s’est fermée pendant la création de cette vidéo.
     [unknown-export] Cette vidéo n’existe plus.
+    [adjustment-stale] Une photographie de cette sélection a changé depuis l’analyse du scintillement ou de la stabilisation choisie. Analysez-la de nouveau à la page Ajuster.
     [adjustment-mismatch] Une analyse du scintillement ou de la stabilisation choisie appartient à une autre sélection, ou ne couvre pas toutes les photographies de celle-ci.
     [record-write-failed] Le registre n’a pas pu être enregistré dans le dossier des exportations du projet (disque plein ou protégé en écriture).
    *[other] La vidéo n’a pas pu être créée.
@@ -759,6 +760,8 @@ adjust-series-path = Appareil tel que pris
 adjust-series-stabilized = Stabilisée
 adjust-axis-frame = Image
 adjust-show-table = Afficher les valeurs dans un tableau
+chart-value = { $label } : { $value }
+chart-no-value = —
 adjust-stab-title = Stabilisation
 adjust-stab-help = Mesure le déplacement de l’image d’une photographie à l’autre et maintient l’appareil sur une trajectoire régulière. Déplacements seulement (pas de rotation); chaque image est recadrée de la même petite marge pour que les bords ne paraissent jamais.
 adjust-smoothing = Lissage
@@ -792,6 +795,7 @@ error-adjust = { $reason ->
     [empty-run] Cette sélection ne contient aucune photographie.
     [unknown-adjustment] Cette analyse n’existe plus.
     [adjustment-mismatch] Cette analyse appartient à une autre sélection, ou ne couvre pas toutes les photographies de celle-ci. Analysez de nouveau cette sélection.
+    [adjustment-stale] Une photographie de cette sélection a changé depuis son analyse. Analysez de nouveau la sélection.
     [unknown-frame] Cette image ne fait pas partie de la sélection.
    *[other] L’analyse n’a pas pu être effectuée.
 }

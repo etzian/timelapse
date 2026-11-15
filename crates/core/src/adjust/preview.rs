@@ -140,12 +140,11 @@ pub fn frame(
         return Ok(jpeg);
     }
     let adjust: FrameAdjust =
-        crate::export::adjustments(&conn, run, flicker, stabilization, items.len()).map_err(
-            |e| match e {
+        crate::export::adjustment_at(&conn, run, index, flicker, stabilization, items.len())
+            .map_err(|e| match e {
                 Error::Export { reason } => Error::Adjust { reason },
                 other => other,
-            },
-        )?[index];
+            })?;
     let undecodable = || Error::ImageUndecodable { path: location.to_string_lossy().into_owned() };
     let img = image::load_from_memory(&jpeg).map_err(|_| undecodable())?;
     let (w, h) = (img.width(), img.height());

@@ -23,7 +23,9 @@
     formatX,
     formatY,
     tableLabel,
-    xLabel
+    xLabel,
+    valueLabel,
+    noValue
   }: {
     title: string;
     /** One x per point (a frame number), ascending. */
@@ -33,6 +35,10 @@
     formatY: (y: number) => string;
     tableLabel: string;
     xLabel: string;
+    /** "<series>: <value>", translated (the colon differs between locales). */
+    valueLabel: (label: string, value: string) => string;
+    /** Shown where a series has no value. */
+    noValue: string;
   } = $props();
 
   const HEIGHT = 200;
@@ -130,11 +136,12 @@
   }
 
   const tipLeft = $derived(hover === null ? 0 : px(xs[hover]));
+  const show = (v: number | null | undefined) => (v === null || v === undefined || !Number.isFinite(v) ? noValue : formatY(v));
   /** What a screen reader announces as the cursor moves: the frame and every value. */
   const valueText = $derived(
     hover === null
       ? title
-      : [formatX(xs[hover]), ...series.map((s) => `${s.label}: ${s.values[hover!] === null ? '—' : formatY(s.values[hover!] as number)}`)].join(', ')
+      : [formatX(xs[hover]), ...series.map((s) => valueLabel(s.label, show(s.values[hover!])))].join(', ')
   );
 </script>
 
@@ -158,12 +165,13 @@
       aria-label={title}
       aria-valuemin={xs[0] ?? 0}
       aria-valuemax={xs[xs.length - 1] ?? 0}
-      aria-valuenow={hover === null ? undefined : xs[hover]}
+      aria-valuenow={hover === null ? (xs[0] ?? 0) : xs[hover]}
       aria-valuetext={valueText}
       tabindex="0"
       onpointermove={onmove}
       onpointerleave={() => (hover = null)}
       onkeydown={onkey}
+      onfocus={() => (hover ??= xs.length > 0 ? 0 : null)}
       onblur={() => (hover = null)}
     >
       {#each ticks as t (t)}
@@ -193,11 +201,11 @@
       {/if}
     </svg>
     {#if hover !== null}
-      <div class="app-chart__tip" style:left="{Math.min(tipLeft, width - 160)}px" aria-live="polite">
+      <div class="app-chart__tip" style:left="{Math.min(tipLeft, width - 160)}px" aria-hidden="true">
         <strong>{formatX(xs[hover])}</strong>
         {#each series as s (s.key)}
           {@const v = s.values[hover]}
-          <span><i style:background={s.color} aria-hidden="true"></i>{s.label}: {v === null ? '—' : formatY(v)}</span>
+          <span><i style:background={s.color}></i>{valueLabel(s.label, show(v))}</span>
         {/each}
       </div>
     {/if}
@@ -211,7 +219,7 @@
         </thead>
         <tbody>
           {#each xs as x, i (x)}
-            <tr><th scope="row">{formatX(x)}</th>{#each series as s (s.key)}<td>{s.values[i] === null ? '—' : formatY(s.values[i] as number)}</td>{/each}</tr>
+            <tr><th scope="row">{formatX(x)}</th>{#each series as s (s.key)}<td>{show(s.values[i])}</td>{/each}</tr>
           {/each}
         </tbody>
       </table>

@@ -252,17 +252,7 @@ pub struct Stabilization {
     pub crop: f64,
 }
 
-/// Centred running mean with a window shrinking symmetrically at the ends.
-fn smooth(values: &[f64], window: usize) -> Vec<f64> {
-    let half = window / 2;
-    let n = values.len();
-    (0..n)
-        .map(|i| {
-            let h = half.min(i).min(n - 1 - i);
-            values[i - h..=i + h].iter().sum::<f64>() / (2 * h + 1) as f64
-        })
-        .collect()
-}
+use super::series::mean as smooth;
 
 /// The stabilization of a sequence from its pairwise shifts: `pairs[i]` is the shift from
 /// frame `i` to frame `i + 1` in fractions of the frame (so `pairs.len() == frames - 1`).
@@ -389,7 +379,8 @@ mod tests {
         let st = stabilize(&pairs, &StabilizeConfig { smoothing: 31, max_crop: 0.05 });
         // The output position (path + correction) follows the pan, without the shake.
         let mut worst = 0.0f64;
-        for (i, f) in st.frames.iter().enumerate().skip(20).take(n - 40) {
+        // Every frame, the ends included.
+        for (i, f) in st.frames.iter().enumerate() {
             let out = f.path.0 + f.correction.0;
             // The path starts at 0, i.e. at the first frame's position.
             worst = worst.max((out - (0.001 * i as f64 - pos[0])).abs());

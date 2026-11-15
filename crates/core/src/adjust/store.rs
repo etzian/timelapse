@@ -8,8 +8,10 @@ use super::stabilize::{FrameShift, StabilizeConfig};
 use crate::{Error, Result};
 
 /// Bumped whenever an algorithm's output for the same input changes.
-pub const DEFLICKER_VERSION: i64 = 1;
-pub const STABILIZE_VERSION: i64 = 1;
+/// 2: full windows at the ends (linear extension); colour gains keep luminance.
+pub const DEFLICKER_VERSION: i64 = 2;
+/// 2: full windows at the ends (linear extension).
+pub const STABILIZE_VERSION: i64 = 2;
 
 fn db<T>(r: rusqlite::Result<T>) -> Result<T> {
     r.map_err(|_| Error::StoreTransaction)
@@ -99,7 +101,8 @@ fn flicker_results(gains: &[FrameGains]) -> FlickerResults {
         .fold(0.0f64, f64::max);
     FlickerResults {
         frames: gains.len(),
-        measured: gains.iter().filter(|g| g.luma.is_some()).count(),
+        // Frames that took part in the trend (an unusable measurement keeps a gain of 1).
+        measured: gains.iter().filter(|g| g.trend.is_some()).count(),
         max_stops: exposure.iter().copied().fold(0.0, f64::max),
         mean_stops: if exposure.is_empty() {
             0.0
@@ -336,15 +339,31 @@ pub struct FlickerFrame {
     pub gains: [f64; 3],
 }
 
+const FLICKER_FRAME_COLUMNS: &str =
+    "sequence_index, image_id, mean_r, mean_g, mean_b, trend, gain_r, gain_g, gain_b";
+
 /// Every frame of deflicker run `run`, in sequence order.
 pub fn flicker_frames(conn: &Connection, run: i64) -> Result<Vec<FlickerFrame>> {
-    let mut stmt = db(conn.prepare(
-        r#"
-            SELECT sequence_index, image_id, mean_r, mean_g, mean_b, trend, gain_r, gain_g, gain_b
-            FROM flicker_frames WHERE run_id = ?1 ORDER BY sequence_index
-        "#,
-    ))?;
-    let rows = db(stmt.query_map([run], |r| {
+    let mut stmt = db(conn.prepare(&format!(
+        "SELECT {FLICKER_FRAME_COLUMNS} FROM flicker_frames WHERE run_id = ?1 ORDER BY sequence_index"
+    )))?;
+    let rows = db(stmt.query_map([run], flicker_frame_row))?;
+    db(rows.collect())
+}
+
+/// Frame `index` of deflicker run `run`.
+pub fn flicker_frame(conn: &Connection, run: i64, index: usize) -> Result<Option<FlickerFrame>> {
+    db(conn
+        .query_row(
+            &format!("SELECT {FLICKER_FRAME_COLUMNS} FROM flicker_frames WHERE run_id = ?1 AND sequence_index = ?2"),
+            params![run, index as i64],
+            flicker_frame_row,
+        )
+        .optional())
+}
+
+fn flicker_frame_row(r: &rusqlite::Row<'_>) -> rusqlite::Result<FlickerFrame> {
+    {
         let (mr, mg, mb): (Option<f64>, Option<f64>, Option<f64>) =
             (r.get(2)?, r.get(3)?, r.get(4)?);
         Ok(FlickerFrame {
@@ -357,8 +376,7 @@ pub fn flicker_frames(conn: &Connection, run: i64) -> Result<Vec<FlickerFrame>> 
             trend: r.get(5)?,
             gains: [r.get(6)?, r.get(7)?, r.get(8)?],
         })
-    }))?;
-    db(rows.collect())
+    }
 }
 
 /// One stored stabilization frame.
@@ -373,15 +391,36 @@ pub struct StabilizationFrame {
     pub shift: (f64, f64),
 }
 
+const STABILIZATION_FRAME_COLUMNS: &str = "sequence_index, image_id, measured_x, measured_y, \
+    confidence, path_x, path_y, smooth_x, smooth_y, shift_x, shift_y";
+
 pub fn stabilization_frames(conn: &Connection, run: i64) -> Result<Vec<StabilizationFrame>> {
-    let mut stmt = db(conn.prepare(
-        r#"
-            SELECT sequence_index, image_id, measured_x, measured_y, confidence, path_x, path_y,
-                   smooth_x, smooth_y, shift_x, shift_y
-            FROM stabilization_frames WHERE run_id = ?1 ORDER BY sequence_index
-        "#,
-    ))?;
-    let rows = db(stmt.query_map([run], |r| {
+    let mut stmt = db(conn.prepare(&format!(
+        "SELECT {STABILIZATION_FRAME_COLUMNS} FROM stabilization_frames WHERE run_id = ?1 ORDER BY sequence_index"
+    )))?;
+    let rows = db(stmt.query_map([run], stabilization_frame_row))?;
+    db(rows.collect())
+}
+
+/// Frame `index` of stabilization run `run`.
+pub fn stabilization_frame(
+    conn: &Connection,
+    run: i64,
+    index: usize,
+) -> Result<Option<StabilizationFrame>> {
+    db(conn
+        .query_row(
+            &format!(
+                "SELECT {STABILIZATION_FRAME_COLUMNS} FROM stabilization_frames WHERE run_id = ?1 AND sequence_index = ?2"
+            ),
+            params![run, index as i64],
+            stabilization_frame_row,
+        )
+        .optional())
+}
+
+fn stabilization_frame_row(r: &rusqlite::Row<'_>) -> rusqlite::Result<StabilizationFrame> {
+    {
         let (mx, my): (Option<f64>, Option<f64>) = (r.get(2)?, r.get(3)?);
         Ok(StabilizationFrame {
             sequence_index: r.get::<_, i64>(0)? as usize,
@@ -392,6 +431,5 @@ pub fn stabilization_frames(conn: &Connection, run: i64) -> Result<Vec<Stabiliza
             smoothed: (r.get(7)?, r.get(8)?),
             shift: (r.get(9)?, r.get(10)?),
         })
-    }))?;
-    db(rows.collect())
+    }
 }

@@ -16,7 +16,7 @@ export const SMOOTHINGS: readonly number[] = [9, 15, 31, 61, 121];
 export const CROPS: readonly number[] = [0.01, 0.02, 0.03, 0.04, 0.05];
 
 /** Reasons of the core's `Error::Adjust { reason }`. */
-export const ADJUST_FAILURES = ['busy', 'empty-run', 'unknown-adjustment', 'adjustment-mismatch', 'unknown-frame'] as const;
+export const ADJUST_FAILURES = ['busy', 'empty-run', 'unknown-adjustment', 'adjustment-mismatch', 'adjustment-stale', 'unknown-frame'] as const;
 
 export function adjustFailureText(reason: string | null): string {
   const known = reason !== null && (ADJUST_FAILURES as readonly string[]).includes(reason);

@@ -109,27 +109,7 @@ pub struct FrameGains {
     pub gains: [f64; 3],
 }
 
-/// Centred running median, then running mean, over a window of `window` values; the
-/// window shrinks symmetrically near the ends so a straight line is kept exactly.
-fn trend(values: &[f64], window: usize) -> Vec<f64> {
-    let half = window / 2;
-    let n = values.len();
-    let radius = |i: usize| half.min(i).min(n - 1 - i);
-    let median: Vec<f64> = (0..n)
-        .map(|i| {
-            let h = radius(i);
-            let mut w: Vec<f64> = values[i - h..=i + h].to_vec();
-            w.sort_by(f64::total_cmp);
-            w[h]
-        })
-        .collect();
-    (0..n)
-        .map(|i| {
-            let h = radius(i);
-            median[i - h..=i + h].iter().sum::<f64>() / (2 * h + 1) as f64
-        })
-        .collect()
-}
+use super::series::trend;
 
 /// Gains for a sequence of frames (in order). Frames that could not be measured keep a
 /// gain of 1 and are left out of the trend of the others.
@@ -160,18 +140,25 @@ pub fn gains(means: &[Option<ChannelMeans>], cfg: &DeflickerConfig) -> Vec<Frame
             (series, t)
         })
         .collect();
-    for (j, (i, _)) in measured.iter().enumerate() {
+    const W: [f64; 3] = [0.2126, 0.7152, 0.0722];
+    for (j, (i, m)) in measured.iter().enumerate() {
         let exposure = (cfg.strength * (trend_y[j] - log_y[j])).clamp(-MAX_EXPOSURE, MAX_EXPOSURE);
-        let mut g = [0.0; 3];
-        for (k, gk) in g.iter_mut().enumerate() {
-            let c = if cfg.colour {
+        let mut colour = [1.0; 3];
+        if cfg.colour {
+            for (k, ck) in colour.iter_mut().enumerate() {
                 let (series, t) = &ratios[k];
-                (cfg.strength * (t[j] - series[j])).clamp(-MAX_COLOUR, MAX_COLOUR)
-            } else {
-                0.0
-            };
-            *gk = (exposure + c).exp();
+                *ck = (cfg.strength * (t[j] - series[j])).clamp(-MAX_COLOUR, MAX_COLOUR).exp();
+            }
+            // Colour moves hue only: renormalise so the frame's luminance is unchanged by
+            // it, and exposure alone sets brightness.
+            let y = m.luma();
+            let after: f64 = (0..3).map(|k| W[k] * m.channel(k) * colour[k]).sum();
+            if after > 0.0 {
+                let norm = y / after;
+                colour.iter_mut().for_each(|c| *c *= norm);
+            }
         }
+        let g = [0, 1, 2].map(|k| exposure.exp() * colour[k]);
         out[*i].trend = Some(trend_y[j].exp());
         out[*i].gains = g;
     }
@@ -259,6 +246,32 @@ mod tests {
             for k in 0..3 {
                 assert!((g.gains[k] - 1.0).abs() < 1e-9, "{:?}", g.gains);
             }
+        }
+    }
+
+    #[test]
+    fn the_first_and_last_frames_are_corrected_too() {
+        let mut means: Vec<_> = (0..60).map(|_| grey(0.2)).collect();
+        means[0] = grey(0.3);
+        means[59] = grey(0.13);
+        let g = gains(&means, &DeflickerConfig { strength: 1.0, window: 15, colour: false });
+        assert!((g[0].gains[0] - 0.2 / 0.3).abs() < 0.02, "{:?}", g[0].gains);
+        assert!((g[59].gains[0] - 0.2 / 0.13).abs() < 0.03, "{:?}", g[59].gains);
+    }
+
+    #[test]
+    fn colour_correction_leaves_brightness_to_exposure() {
+        let n = 120;
+        let e = noise(n, 21);
+        let means: Vec<_> = (0..n)
+            .map(|i| Some(ChannelMeans { r: 0.3 * (0.15 * e[i]).exp(), g: 0.2, b: 0.15 }))
+            .collect();
+        let with = gains(&means, &DeflickerConfig { strength: 1.0, window: 31, colour: true });
+        let without = gains(&means, &DeflickerConfig { strength: 1.0, window: 31, colour: false });
+        for i in 0..n {
+            let m = means[i].unwrap();
+            let y = |g: &[f64; 3]| 0.2126 * m.r * g[0] + 0.7152 * m.g * g[1] + 0.0722 * m.b * g[2];
+            assert!((y(&with[i].gains) - y(&without[i].gains)).abs() < 1e-12, "frame {i}");
         }
     }
 

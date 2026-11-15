@@ -25,6 +25,7 @@ describe('adjust helpers', () => {
       expect(t('error-export', { reason: 'adjustment-mismatch' })).not.toBe(t('error-export', { reason: 'other' }));
       expect(t('adjust-frames-option', { count: 1 })).not.toBe(t('adjust-frames-option', { count: 15 }));
       expect(t('nav-adjust')).not.toBe('nav-adjust');
+      expect(t('chart-value', { label: 'A', value: '1' })).toMatch(locale === 'fr-CA' ? /^A : 1$/ : /^A: 1$/);
     }
   });
 

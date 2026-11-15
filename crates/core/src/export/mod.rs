@@ -187,9 +187,37 @@ pub fn export_run(
 
 type Failure = (&'static str, String);
 
+/// A deflicker or stabilization run may be applied to selection `run` only if it was
+/// measured on it (`adjustment-mismatch` otherwise, also when it does not cover every
+/// photograph) and on the same bytes: the selection's sequence fingerprint must be the
+/// one the run recorded (`adjustment-stale` when an original changed since).
+fn check_adjustment(
+    conn: &rusqlite::Connection,
+    run: i64,
+    measured_on: i64,
+    fingerprint: &str,
+    frames: usize,
+    photos: usize,
+) -> Result<()> {
+    if measured_on != run || frames != photos {
+        return Err(fail("adjustment-mismatch"));
+    }
+    if sampling_store::sequence_fingerprint(conn, run)?.0 != fingerprint {
+        return Err(fail("adjustment-stale"));
+    }
+    Ok(())
+}
+
+fn frame_count(conn: &rusqlite::Connection, table: &str, id: i64) -> Result<usize> {
+    conn.query_row(&format!("SELECT COUNT(*) FROM {table} WHERE run_id = ?1"), [id], |r| {
+        r.get::<_, i64>(0)
+    })
+    .map(|n| n as usize)
+    .map_err(|_| Error::StoreTransaction)
+}
+
 /// Per-photograph adjustments of the chosen deflicker and stabilization runs, read from
-/// SQLite (D5). A run of another selection, or one that does not cover every photograph
-/// of this one, is refused (`adjustment-mismatch`).
+/// SQLite (D5), after [`check_adjustment`].
 pub(crate) fn adjustments(
     conn: &rusqlite::Connection,
     run: i64,
@@ -198,27 +226,69 @@ pub(crate) fn adjustments(
     photos: usize,
 ) -> Result<Vec<frames::FrameAdjust>> {
     use crate::adjust::{deflicker, store as adjust_store};
-    let mismatch = || fail("adjustment-mismatch");
     let mut out = vec![frames::FrameAdjust::NONE; photos];
     if let Some(id) = flicker_run {
-        let r = adjust_store::flicker_run(conn, id)?.ok_or_else(mismatch)?;
+        let r = adjust_store::flicker_run(conn, id)?.ok_or_else(|| fail("adjustment-mismatch"))?;
         let frames = adjust_store::flicker_frames(conn, id)?;
-        if r.sampling_run_id != run || frames.len() != photos {
-            return Err(mismatch());
-        }
+        check_adjustment(
+            conn,
+            run,
+            r.sampling_run_id,
+            &r.sequence_fingerprint,
+            frames.len(),
+            photos,
+        )?;
         for (slot, f) in out.iter_mut().zip(&frames) {
             slot.luts = (f.gains != [1.0; 3]).then(|| deflicker::luts(f.gains));
         }
     }
     if let Some(id) = stabilization_run {
-        let r = adjust_store::stabilization_run(conn, id)?.ok_or_else(mismatch)?;
+        let r = adjust_store::stabilization_run(conn, id)?
+            .ok_or_else(|| fail("adjustment-mismatch"))?;
         let frames = adjust_store::stabilization_frames(conn, id)?;
-        if r.sampling_run_id != run || frames.len() != photos {
-            return Err(mismatch());
-        }
+        check_adjustment(
+            conn,
+            run,
+            r.sampling_run_id,
+            &r.sequence_fingerprint,
+            frames.len(),
+            photos,
+        )?;
         for (slot, f) in out.iter_mut().zip(&frames) {
             slot.shift = (r.crop > 0.0).then_some((f.shift.0, f.shift.1, r.crop));
         }
+    }
+    Ok(out)
+}
+
+/// The adjustment of one photograph (position `index`) only, with the same checks: what a
+/// preview needs, without reading or building every frame's.
+pub(crate) fn adjustment_at(
+    conn: &rusqlite::Connection,
+    run: i64,
+    index: usize,
+    flicker_run: Option<i64>,
+    stabilization_run: Option<i64>,
+    photos: usize,
+) -> Result<frames::FrameAdjust> {
+    use crate::adjust::{deflicker, store as adjust_store};
+    let mut out = frames::FrameAdjust::NONE;
+    if let Some(id) = flicker_run {
+        let r = adjust_store::flicker_run(conn, id)?.ok_or_else(|| fail("adjustment-mismatch"))?;
+        let count = frame_count(conn, "flicker_frames", id)?;
+        check_adjustment(conn, run, r.sampling_run_id, &r.sequence_fingerprint, count, photos)?;
+        let f = adjust_store::flicker_frame(conn, id, index)?
+            .ok_or_else(|| fail("adjustment-mismatch"))?;
+        out.luts = (f.gains != [1.0; 3]).then(|| deflicker::luts(f.gains));
+    }
+    if let Some(id) = stabilization_run {
+        let r = adjust_store::stabilization_run(conn, id)?
+            .ok_or_else(|| fail("adjustment-mismatch"))?;
+        let count = frame_count(conn, "stabilization_frames", id)?;
+        check_adjustment(conn, run, r.sampling_run_id, &r.sequence_fingerprint, count, photos)?;
+        let f = adjust_store::stabilization_frame(conn, id, index)?
+            .ok_or_else(|| fail("adjustment-mismatch"))?;
+        out.shift = (r.crop > 0.0).then_some((f.shift.0, f.shift.1, r.crop));
     }
     Ok(out)
 }

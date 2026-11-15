@@ -4,6 +4,7 @@
 
 pub mod deflicker;
 pub mod preview;
+pub mod series;
 pub mod stabilize;
 pub mod store;
 

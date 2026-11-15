@@ -298,6 +298,19 @@ fn the_export_takes_its_frames_from_the_stored_runs() {
         preview::frame(f.root(), f.run, FRAMES, None, None, false),
         Err(Error::Adjust { reason: "unknown-frame" })
     ));
+
+    // An original that changed since the analysis (its recorded hash differs) makes the
+    // stored values stale: refused rather than applied to different pictures.
+    conn.execute("UPDATE images SET file_hash = 'edited' WHERE id = ?1", [items[3].image_id])
+        .unwrap();
+    assert!(matches!(
+        crate::export::adjustments(&conn, f.run, Some(fl.id), None, FRAMES),
+        Err(Error::Export { reason: "adjustment-stale" })
+    ));
+    assert!(matches!(
+        preview::frame(f.root(), f.run, 0, None, Some(st.id), true),
+        Err(Error::Adjust { reason: "adjustment-stale" })
+    ));
 }
 
 #[test]

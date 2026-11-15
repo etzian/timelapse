@@ -425,6 +425,7 @@ error-export = { $reason ->
     [write-failed] The video could not be written to the project's exports folder (disk full or not writable).
     [interrupted] The app closed while this video was being created.
     [unknown-export] This video no longer exists.
+    [adjustment-stale] A photograph of this selection has changed since the chosen flicker or stabilization analysis. Analyse it again on the Adjust page.
     [adjustment-mismatch] A chosen flicker or stabilization analysis belongs to another selection, or does not cover every photograph of this one.
     [record-write-failed] The record could not be saved in the project’s exports folder (disk full or not writable).
    *[other] The video could not be created.
@@ -760,6 +761,9 @@ adjust-series-path = Camera as shot
 adjust-series-stabilized = Stabilized
 adjust-axis-frame = Frame
 adjust-show-table = Show the values as a table
+# A chart value in its tooltip and table: series name, then the value.
+chart-value = { $label }: { $value }
+chart-no-value = —
 adjust-stab-title = Stabilization
 adjust-stab-help = Measures how the picture moves from one photograph to the next and keeps the camera on a smooth path. Shifts only (no rotation); every frame is cropped by the same small amount so the edges never show.
 adjust-smoothing = Smoothing
@@ -793,6 +797,7 @@ error-adjust = { $reason ->
     [empty-run] This selection contains no photograph.
     [unknown-adjustment] This analysis no longer exists.
     [adjustment-mismatch] This analysis belongs to another selection, or does not cover every photograph of this one. Analyse this selection again.
+    [adjustment-stale] A photograph of this selection has changed since it was analysed. Analyse the selection again.
     [unknown-frame] This frame is not part of the selection.
    *[other] The analysis could not be completed.
 }

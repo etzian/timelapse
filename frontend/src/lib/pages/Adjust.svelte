@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { untrack } from 'svelte';
   import { Badge, Banner, Button, Card, EmptyState, Input, PageHeader, SectionLabel, Select, Skeleton, Stat, StatGrid, Toggle } from '@etzianco/ui';
 
   import {
@@ -61,6 +62,8 @@
   const runningKind = $derived<AdjustKind | null>(mine && job.running ? job.kind : null);
   const progress = $derived(mine ? job.progress : null);
 
+  /** Flips once per load; a derived boolean only notifies when it changes. */
+  const loaded = $derived(adjustments !== null);
   const run = $derived(runs?.find((r) => String(r.id) === runId) ?? null);
   const flickerRuns = $derived((adjustments?.flicker ?? []).filter((r) => String(r.sampling_run_id) === runId));
   const stabRuns = $derived((adjustments?.stabilization ?? []).filter((r) => String(r.sampling_run_id) === runId));
@@ -97,6 +100,7 @@
   );
 
   const formatX = (x: number) => formatNumber(x);
+  const valueLabel = (label: string, value: string) => t('chart-value', { label, value });
 
   async function load(): Promise<void> {
     const forRoot = root;
@@ -120,12 +124,16 @@
     void load();
   });
 
-  // The newest run of each kind is shown when the selection changes.
+  // The newest run of each kind is shown when the selection changes (and only then: a
+  // refreshed list keeps the result and frame the user chose).
   $effect(() => {
     void runId;
-    viewFlicker = flickerRuns[0] ? String(flickerRuns[0].id) : '';
-    viewStab = stabRuns[0] ? String(stabRuns[0].id) : '';
-    frameNo = '1';
+    void loaded;
+    untrack(() => {
+      viewFlicker = flickerRuns[0] ? String(flickerRuns[0].id) : '';
+      viewStab = stabRuns[0] ? String(stabRuns[0].id) : '';
+      frameNo = '1';
+    });
   });
 
   // A finished analysis (here or after coming back) refreshes the list and shows its run.
@@ -287,12 +295,12 @@
             <Skeleton lines={4} label={t('clean-loading')} />
           {:else}
             {@const b = brightnessChart(flickerPoints)}
-            <LineChart title={t('adjust-chart-brightness')} xs={b.xs} series={b.series} {formatX} formatY={formatStops} xLabel={t('adjust-axis-frame')} tableLabel={t('adjust-show-table')} />
+            <LineChart title={t('adjust-chart-brightness')} xs={b.xs} series={b.series} {formatX} formatY={formatStops} xLabel={t('adjust-axis-frame')} tableLabel={t('adjust-show-table')} {valueLabel} noValue={t('chart-no-value')} />
             {#if flicker.config.colour}
               {@const red = colourChart(flickerPoints, 'red')}
               {@const blue = colourChart(flickerPoints, 'blue')}
-              <LineChart title={t('adjust-chart-red')} xs={red.xs} series={red.series} {formatX} formatY={formatStops} xLabel={t('adjust-axis-frame')} tableLabel={t('adjust-show-table')} />
-              <LineChart title={t('adjust-chart-blue')} xs={blue.xs} series={blue.series} {formatX} formatY={formatStops} xLabel={t('adjust-axis-frame')} tableLabel={t('adjust-show-table')} />
+              <LineChart title={t('adjust-chart-red')} xs={red.xs} series={red.series} {formatX} formatY={formatStops} xLabel={t('adjust-axis-frame')} tableLabel={t('adjust-show-table')} {valueLabel} noValue={t('chart-no-value')} />
+              <LineChart title={t('adjust-chart-blue')} xs={blue.xs} series={blue.series} {formatX} formatY={formatStops} xLabel={t('adjust-axis-frame')} tableLabel={t('adjust-show-table')} {valueLabel} noValue={t('chart-no-value')} />
             {/if}
           {/if}
         {/if}
@@ -341,8 +349,8 @@
           {:else}
             {@const x = pathChart(stabSeries.points, 0)}
             {@const y = pathChart(stabSeries.points, 1)}
-            <LineChart title={t('adjust-chart-horizontal')} xs={x.xs} series={x.series} {formatX} formatY={formatFrame} xLabel={t('adjust-axis-frame')} tableLabel={t('adjust-show-table')} />
-            <LineChart title={t('adjust-chart-vertical')} xs={y.xs} series={y.series} {formatX} formatY={formatFrame} xLabel={t('adjust-axis-frame')} tableLabel={t('adjust-show-table')} />
+            <LineChart title={t('adjust-chart-horizontal')} xs={x.xs} series={x.series} {formatX} formatY={formatFrame} xLabel={t('adjust-axis-frame')} tableLabel={t('adjust-show-table')} {valueLabel} noValue={t('chart-no-value')} />
+            <LineChart title={t('adjust-chart-vertical')} xs={y.xs} series={y.series} {formatX} formatY={formatFrame} xLabel={t('adjust-axis-frame')} tableLabel={t('adjust-show-table')} {valueLabel} noValue={t('chart-no-value')} />
           {/if}
         {/if}
       {:else}
