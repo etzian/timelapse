@@ -1,4 +1,5 @@
 <script lang="ts">
+  import NextStep from '../components/NextStep.svelte';
   import { Badge, Banner, Button, Card, EmptyState, Input, Modal, PageHeader, SectionLabel, Skeleton, Stat, StatGrid, Tabs, Toggle } from '@etzianco/ui';
 
   import {
@@ -487,6 +488,7 @@
       {/if}
     </Card>
   {/if}
+  <NextStep step="cleaning" />
 </div>
 
 <Modal open={confirmOpen} title={t('clean-confirm-title')} onclose={() => (confirmOpen = false)}>

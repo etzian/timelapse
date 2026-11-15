@@ -1,4 +1,6 @@
 <script lang="ts">
+  import NextStep from '../components/NextStep.svelte';
+  import { runLabel } from '../selectionLabel';
   import { Badge, Banner, Button, Card, EmptyState, Input, PageHeader, SectionLabel, Select, Skeleton, Stat, StatGrid, Tabs, Toggle } from '@etzianco/ui';
 
   import { limited } from '../clean';
@@ -292,7 +294,7 @@
     {#if savedNotice}
       <Banner
         tone="success"
-        text={t('sampling-saved', { id: savedNotice.id, count: savedNotice.selected_count })}
+        text={t('sampling-saved', { label: runLabel(savedNotice) })}
         ondismiss={() => (savedNotice = null)}
         dismissLabel={t('clean-dismiss')}
       />
@@ -397,10 +399,10 @@
           {#each runs as r (r.id)}
             <li>
               <div class="app-sampling__run-main">
-                <strong>{t('sampling-run-title', { id: r.id })}</strong>
+                <strong>{runLabel(r)}</strong>
                 <span>{runDescription(r)}</span>
                 <span class="app-sampling__note">
-                  {t('sampling-run-stats', { selected: r.selected_count, input: r.input_count })} · {formatDate(r.created_at * 1000, { dateStyle: 'medium', timeStyle: 'short' })}
+                  {t('sampling-run-id', { id: r.id })} · {t('sampling-run-stats', { selected: r.selected_count, input: r.input_count })} · {formatDate(r.created_at * 1000, { dateStyle: 'medium', timeStyle: 'short' })}
                 </span>
                 {#if verified[r.id]}
                   {@const v = verified[r.id]}
@@ -424,6 +426,7 @@
       {/if}
     </Card>
   {/if}
+  <NextStep step="sampling" />
 </div>
 
 <style>

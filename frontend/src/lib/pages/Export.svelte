@@ -1,4 +1,6 @@
 <script lang="ts">
+  import NextStep from '../components/NextStep.svelte';
+  import { runLabel, runLabelWithId } from '../selectionLabel';
   import { Badge, Banner, Button, Card, EmptyState, PageHeader, SectionLabel, Select, Skeleton, Stat, StatGrid } from '@etzianco/ui';
 
   import { CODECS, QUALITIES, RESOLUTIONS, durationSeconds, exportFailureText, formatBytes, outputFrames, supports } from '../export';
@@ -43,6 +45,10 @@
   const error = $derived(mine && job.error ? errorText(job.error) : '');
   const history = $derived(mine ? job.history : null);
 
+  const historyRun = (id: number): string => {
+    const r = (runs ?? []).find((x) => x.id === id);
+    return r ? runLabel(r) : `#${id}`;
+  };
   const run = $derived(runs?.find((r) => String(r.id) === runId) ?? null);
   const flickerOptions = $derived([
     { value: '', label: t('export-adjust-none') },
@@ -68,7 +74,7 @@
   const canExport = $derived(!!run && supports(info, codec) && !exporting);
 
   const runOptions = $derived(
-    (runs ?? []).map((r) => ({ value: String(r.id), label: t('export-run-option', { id: r.id, count: r.selected_count }) }))
+    (runs ?? []).map((r) => ({ value: String(r.id), label: runLabelWithId(r) }))
   );
   const codecOptions = $derived(
     CODECS.map((c) => ({
@@ -281,7 +287,7 @@
                 <span>
                   <Badge variant={statusVariant(h.status)}>{t(`export-status-${h.status}`)}</Badge>
                   {t('export-history-line', {
-                    run: h.sampling_run_id,
+                    run: historyRun(h.sampling_run_id),
                     codec: t(`export-codec-${h.settings.codec}`),
                     duration: formatDuration(h.duration_seconds)
                   })}
@@ -315,6 +321,7 @@
       {/if}
     </Card>
   {/if}
+  <NextStep step="export" />
 </div>
 
 <style>

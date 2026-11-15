@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { runLabelWithId } from '../selectionLabel';
   import { Badge, Banner, Button, Card, EmptyState, Modal, PageHeader, SectionLabel, Select, Skeleton, Stat, StatGrid, Toggle } from '@etzianco/ui';
 
   import { NAMINGS, OPERATIONS, canUndo, consolidationFailureText, itemNote, joinTarget, sameConfig, statusVariant } from '../consolidate';
@@ -69,7 +70,7 @@
   const namingOptions = $derived(NAMINGS.map((n) => ({ value: n, label: t(`organize-naming-${n}`) })));
   const sourceOptions = $derived([
     { value: '', label: t('organize-source-all') },
-    ...(runs ?? []).map((r) => ({ value: String(r.id), label: t('export-run-option', { id: r.id, count: r.selected_count }) }))
+    ...(runs ?? []).map((r) => ({ value: String(r.id), label: runLabelWithId(r) }))
   ]);
 
   async function load(): Promise<void> {

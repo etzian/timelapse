@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { runLabel, runLabelWithId } from '../selectionLabel';
   import { untrack } from 'svelte';
   import { Badge, Banner, Button, Card, EmptyState, Input, PageHeader, SectionLabel, Select, Skeleton, Stat, StatGrid, Toggle } from '@etzianco/ui';
 
@@ -95,9 +96,13 @@
   const canGenerate = $derived(!!source && !!preview && preview.photos > 0 && !preview.too_many && !busy && !previewing);
 
   const kindOptions = $derived(SOURCE_KINDS.map((k) => ({ value: k, label: t(`sheets-source-${k}`) })));
-  const runOptions = $derived((runs ?? []).map((r) => ({ value: String(r.id), label: t('export-run-option', { id: r.id, count: r.selected_count }) })));
+  const runOptions = $derived((runs ?? []).map((r) => ({ value: String(r.id), label: runLabelWithId(r) })));
+  const sel = (id: number): string => {
+    const r = (runs ?? []).find((x) => x.id === id);
+    return r ? runLabel(r) : t('sheets-selection-unknown', { id });
+  };
   const exportOptions = $derived(
-    completedExports.map((e) => ({ value: String(e.id), label: t('sheets-export-option', { id: e.id, run: e.sampling_run_id, count: e.input_photos }) }))
+    completedExports.map((e) => ({ value: String(e.id), label: t('sheets-export-option', { id: e.id, selection: sel(e.sampling_run_id), count: e.input_photos }) }))
   );
   const pageSizeOptions = $derived((['a4', 'letter'] as const).map((p) => ({ value: p, label: t(`sheets-page-${p}`) })));
   const orientationOptions = $derived((['portrait', 'landscape'] as const).map((o) => ({ value: o, label: t(`sheets-orientation-${o}`) })));

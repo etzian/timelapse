@@ -44,3 +44,21 @@ describe('endedJobs', () => {
     expect(endedJobs(NO_JOBS, NO_JOBS)).toEqual([]);
   });
 });
+
+import { nextStep } from './pipeline';
+
+describe('nextStep', () => {
+  const f = { photos: 10, unanalyzed: 0, flagged: 0, selections: 1, adjustments: 0, exports: 0 };
+  it('names the following step', () => {
+    expect(nextStep('home', f)).toEqual({ target: 'cleaning', reason: null });
+    expect(nextStep('export', f).target).toBe('organize');
+  });
+  it('refuses with a reason when the step lacks what it needs', () => {
+    expect(nextStep('home', null).reason).toBe('checking');
+    expect(nextStep('home', { ...f, photos: 0 }).reason).toBe('no-photos');
+    expect(nextStep('cleaning', f, { ...NO_JOBS, analysis: true }).reason).toBe('analysing');
+    expect(nextStep('sampling', { ...f, selections: 0 }).reason).toBe('no-selection');
+    expect(nextStep('adjust', { ...f, selections: 0 }).reason).toBe('no-selection');
+    expect(nextStep('adjust', f, { ...NO_JOBS, adjust: true }).reason).toBe('adjusting');
+  });
+});

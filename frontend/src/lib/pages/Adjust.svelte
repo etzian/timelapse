@@ -1,4 +1,6 @@
 <script lang="ts">
+  import NextStep from '../components/NextStep.svelte';
+  import { runLabelWithId } from '../selectionLabel';
   import { untrack } from 'svelte';
   import { Badge, Banner, Button, Card, EmptyState, Input, PageHeader, SectionLabel, Select, Skeleton, Stat, StatGrid, Toggle } from '@etzianco/ui';
 
@@ -72,7 +74,7 @@
   const frames = $derived(run?.selected_count ?? 0);
   const frameIndex = $derived(Math.min(Math.max(1, Math.round(Number(frameNo)) || 1), Math.max(1, frames)) - 1);
 
-  const runOptions = $derived((runs ?? []).map((r) => ({ value: String(r.id), label: t('export-run-option', { id: r.id, count: r.selected_count }) })));
+  const runOptions = $derived((runs ?? []).map((r) => ({ value: String(r.id), label: runLabelWithId(r) })));
   const strengthOptions = $derived(STRENGTHS.map((v) => ({ value: String(v), label: formatNumber(v, { style: 'percent' }) })));
   const windowOptions = $derived(WINDOWS.map((v) => ({ value: String(v), label: t('adjust-frames-option', { count: v }) })));
   const smoothingOptions = $derived(SMOOTHINGS.map((v) => ({ value: String(v), label: t('adjust-frames-option', { count: v }) })));
@@ -386,6 +388,7 @@
       {/if}
     </Card>
   {/if}
+  <NextStep step="adjust" />
 </div>
 
 <style>

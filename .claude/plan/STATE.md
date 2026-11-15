@@ -45,7 +45,7 @@ STATUS: RUNNING
 | P2 | Project store and continuity | sonnet | GATE-UI + GATE-FAST + legal | done |
 | P3 | Home as the project overview | sonnet | GATE-UI | done |
 | P4 | Pipeline navigation | sonnet | GATE-UI | done |
-| P5 | Next step and named selections | sonnet | GATE-UI | pending |
+| P5 | Next step and named selections | sonnet | GATE-UI | done |
 | P6 | Flipbook | sonnet | GATE-UI | pending |
 | P7 | Flipbook in Adjust and Export, wipe | sonnet | GATE-UI | pending |
 | P8 | Fast triage | sonnet | GATE-UI | pending |
@@ -87,6 +87,12 @@ STATUS: RUNNING
 - CHANGED: pure `pipeline.ts` (stepStates, endedJobs, JOB_PAGE) with 6 vitest cases; `pipeline.svelte.ts` store; Sidebar `groups` (Workflow, Tools, App) and TabBar in the same order; state suffix on labels; sr-only live region announcing job ends; Cleaning reports analysis start/end; verb nav labels and page titles in en and fr-CA.
 - DECISIONS: 2.6.1 Sidebar still renders `icon` as escaped text, so the CSS icon rules in app.css stay and `icon` is not passed. Sidebar renders `items` before `groups`, so Settings sits in its own "App" group to stay last. Import is done when photos exist; Clean is in progress if some photos are unmeasured or flagged; Select, Adjust, Export are done when a selection, adjustment or completed export exists. Sidebar state is text in the label (e.g. "Clean · ◐ in progress"); TabBar has no state suffix. Nav figures refresh on root, page or running-job change; a failed refresh keeps the previous figures.
 - DEFERRED: The state glyph is read literally by VoiceOver; a proper icon or aria slot needs a design-system change. Rendered pass (sidebar width with long fr-CA labels) goes to P14/P15.
+- MANUAL: none
+
+### P5 — pass
+- CHANGED: pure `selectionLabel` in sampling.ts and `selectionLabel.ts` binding (t, formatNumber, formatDate); pure `nextStep` in pipeline.ts; new `NextStep.svelte` placed at the end of Home, Cleaning, Sampling, Adjust, Export; labels used in Sampling, Adjust, Export, Organize, Contact sheets selects and lists; selection-*, next-* keys in en and fr-CA.
+- DECISIONS: Chain is home→cleaning→sampling→adjust→export→organize. Readiness: Home needs photos; Clean needs photos and no analysis running; Select and Adjust need a saved selection; Adjust also waits while an adjustment runs. The id stays secondary ("(#id)" in selects). Label dates are day plus short month, year only if it differs from now. The Button component has no aria-describedby passthrough, so the reason is plain adjacent text.
+- DEFERRED: Home's Selections line still shows a run count. Two selections can share a label (same method, count, day); only "#id" tells them apart. Rendered pass (fr-CA label length in selects, disabled Next look) goes to P14/P15.
 - MANUAL: none
 
 ## Open user items

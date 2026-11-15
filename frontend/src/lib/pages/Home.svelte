@@ -1,4 +1,5 @@
 <script lang="ts">
+  import NextStep from '../components/NextStep.svelte';
   import { onMount } from 'svelte';
   import { Button, Card, PageHeader } from '@etzianco/ui';
   import { getCurrentWebview } from '@tauri-apps/api/webview';
@@ -242,6 +243,7 @@
       </ul>
     </Card>
   {/if}
+  <NextStep step="home" />
 </div>
 
 <style>

@@ -56,3 +56,32 @@ export function stepStates(f: Figures | null, running: Running = NO_JOBS): Recor
 export function endedJobs(prev: Running, next: Running): JobId[] {
   return JOB_IDS.filter((j) => prev[j] && !next[j]);
 }
+
+export type NextTarget = 'cleaning' | 'sampling' | 'adjust' | 'export' | 'organize';
+/** Why the next step cannot start yet; each maps to one `next-reason-*` message. */
+export type NextReason = 'checking' | 'no-photos' | 'analysing' | 'no-selection' | 'adjusting';
+
+export interface NextStep {
+  target: NextTarget;
+  /** `null` when the next step has what it needs. */
+  reason: NextReason | null;
+}
+
+const FOLLOWING: Record<StepId, NextTarget> = {
+  home: 'cleaning',
+  cleaning: 'sampling',
+  sampling: 'adjust',
+  adjust: 'export',
+  export: 'organize'
+};
+
+/** The step after `step` and whether it can start, from the figures the navigation already holds. */
+export function nextStep(step: StepId, f: Figures | null, running: Running = NO_JOBS): NextStep {
+  const target = FOLLOWING[step];
+  if (!f) return { target, reason: 'checking' };
+  if (f.photos <= 0) return { target, reason: 'no-photos' };
+  if (step === 'cleaning' && running.analysis) return { target, reason: 'analysing' };
+  if ((step === 'sampling' || step === 'adjust') && f.selections <= 0) return { target, reason: 'no-selection' };
+  if (step === 'adjust' && running.adjust) return { target, reason: 'adjusting' };
+  return { target, reason: null };
+}

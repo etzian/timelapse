@@ -376,10 +376,7 @@ sampling-preview = Aperçu
 sampling-previewing = Calcul en cours…
 sampling-save = Enregistrer cette sélection
 sampling-saving = Enregistrement…
-sampling-saved = { $count ->
-    [one] Sélection { $id } enregistrée avec { $count } photographie.
-   *[other] Sélection { $id } enregistrée avec { $count } photographies.
-}
+sampling-saved = Enregistrée : { $label }.
 sampling-preview-title = Aperçu
 sampling-preview-empty-title = Aucun aperçu pour l’instant
 sampling-preview-empty-description = Choisissez une méthode, puis Aperçu pour voir quelles photographies seraient utilisées.
@@ -410,7 +407,6 @@ sampling-strip-preview-limit = L’aperçu montre les 200 premières photographi
 sampling-runs-title = Sélections enregistrées
 sampling-runs-empty-title = Aucune sélection enregistrée
 sampling-runs-empty-description = Enregistrez un aperçu pour conserver sa séquence exacte; la vidéo sera produite à partir d’une sélection enregistrée.
-sampling-run-title = Sélection { $id }
 sampling-run-fixed-closest = Intervalle de { $interval }, photographie la plus proche
 sampling-run-fixed-first-after = Intervalle de { $interval }, première photographie après chaque pas
 sampling-run-fixed-last-before = Intervalle de { $interval }, dernière photographie avant chaque pas
@@ -435,10 +431,6 @@ export-no-runs-description = Une vidéo est produite à partir d’une sélectio
 export-go-sampling = Aller à l’échantillonnage
 export-settings-title = Vidéo
 export-run = Sélection
-export-run-option = { $count ->
-    [one] Sélection { $id } ({ $count } photographie)
-   *[other] Sélection { $id } ({ $count } photographies)
-}
 export-codec = Format
 export-codec-av1 = AV1 (recommandé)
 export-codec-h264 = H.264 (le plus compatible)
@@ -470,7 +462,7 @@ export-status-running = Encodage
 export-status-completed = Terminée
 export-status-failed = Échec
 export-status-cancelled = Annulée
-export-history-line = Sélection { $run }, { $codec }, { $duration }
+export-history-line = { $run }, { $codec }, { $duration }
 about-ffmpeg-notice = L’encodage vidéo utilise FFmpeg (LGPL 2.1 ou ultérieure) et SVT-AV1 (licence BSD-3-Clause-Clear et Alliance for Open Media Patent License 1.0). Leurs textes de licence, réglages de compilation et emplacements des sources sont inclus dans l’application, dans Resources/resources/ffmpeg/LICENSES.
 
 ## Erreurs (rendues via i18n/errors.ts → t(`error-${kind}`, args)).
@@ -675,7 +667,7 @@ sheets-period-invalid = Choisissez un début et une fin; la fin doit suivre le d
 sheets-sampling-run = Sélection
 sheets-no-runs = Aucune sélection enregistrée pour l’instant. Enregistrez-en une à la page Échantillonnage.
 sheets-export = Vidéo
-sheets-export-option = Vidéo no { $id } (sélection no { $run }, { $count } photographies)
+sheets-export-option = Vidéo no { $id } ({ $selection }, { $count } photographies)
 sheets-no-exports = Aucune vidéo créée pour l’instant.
 sheets-layout-title = Mise en page
 sheets-page-size = Papier
@@ -882,3 +874,27 @@ project-opening = Ouverture de votre projet…
 project-unreachable = Ce dossier est inaccessible.
 project-unreachable-hint = Il a peut-être été déplacé ou renommé, ou son disque n’est pas branché. Branchez-le et réessayez, ou retirez-le de la liste. Vos photographies ne sont pas touchées.
 project-last-opened = Dernière ouverture : { $date }
+
+# Sélections nommées et étape suivante (P5)
+selection-label = { $method } · { $count ->
+    [one] une photographie
+   *[other] { $photos } photographies
+} · { $date }
+selection-every-seconds = Toutes les { $n } s
+selection-every-minutes = Toutes les { $n } min
+selection-every-hours = Toutes les { $n } h
+selection-every-days = { $count ->
+    [one] Chaque jour
+   *[other] Tous les { $n } jours
+}
+selection-nth = Une sur { $n }
+selection-uniform = Répartition égale
+selection-with-id = { $label } (no { $id })
+sampling-run-id = Sélection no { $id }
+sheets-selection-unknown = sélection no { $id }
+next-action = Suivant : { $step }
+next-reason-checking = Vérification du projet…
+next-reason-no-photos = Importez d’abord des photographies.
+next-reason-analysing = Attendez la fin de l’analyse.
+next-reason-no-selection = Enregistrez d’abord une sélection.
+next-reason-adjusting = Attendez la fin de l’ajustement.

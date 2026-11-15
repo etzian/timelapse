@@ -376,10 +376,7 @@ sampling-preview = Preview
 sampling-previewing = Calculating…
 sampling-save = Save this selection
 sampling-saving = Saving…
-sampling-saved = { $count ->
-    [one] Selection { $id } saved with one photograph.
-   *[other] Selection { $id } saved with { $count } photographs.
-}
+sampling-saved = Saved: { $label }.
 sampling-preview-title = Preview
 sampling-preview-empty-title = No preview yet
 sampling-preview-empty-description = Choose a method and select Preview to see which photographs would be used.
@@ -410,7 +407,6 @@ sampling-strip-preview-limit = The preview shows the first 200 photographs; save
 sampling-runs-title = Saved selections
 sampling-runs-empty-title = No saved selection
 sampling-runs-empty-description = Save a preview to keep its exact sequence; the video will be made from a saved selection.
-sampling-run-title = Selection { $id }
 sampling-run-fixed-closest = Every { $interval }, closest photograph
 sampling-run-fixed-first-after = Every { $interval }, first photograph after each step
 sampling-run-fixed-last-before = Every { $interval }, last photograph before each step
@@ -435,10 +431,6 @@ export-no-runs-description = A video is made from a saved selection. Preview and
 export-go-sampling = Go to Sampling
 export-settings-title = Video
 export-run = Selection
-export-run-option = { $count ->
-    [one] Selection { $id } (one photograph)
-   *[other] Selection { $id } ({ $count } photographs)
-}
 export-codec = Format
 export-codec-av1 = AV1 (recommended)
 export-codec-h264 = H.264 (most compatible)
@@ -470,7 +462,7 @@ export-status-running = Encoding
 export-status-completed = Done
 export-status-failed = Failed
 export-status-cancelled = Cancelled
-export-history-line = Selection { $run }, { $codec }, { $duration }
+export-history-line = { $run }, { $codec }, { $duration }
 about-ffmpeg-notice = Video encoding uses FFmpeg (LGPL 2.1 or later) and SVT-AV1 (BSD-3-Clause-Clear licence and Alliance for Open Media Patent License 1.0). Their licence texts, build settings and source locations are included in the app, in Resources/resources/ffmpeg/LICENSES.
 
 ## Errors (rendered via i18n/errors.ts → t(`error-${kind}`, args)).
@@ -675,7 +667,7 @@ sheets-period-invalid = Choose a start and an end; the end must come after the s
 sheets-sampling-run = Selection
 sheets-no-runs = No selection saved yet. Save one on the Sampling page.
 sheets-export = Video
-sheets-export-option = Video #{ $id } (selection #{ $run }, { $count } photographs)
+sheets-export-option = Video #{ $id } ({ $selection }, { $count } photographs)
 sheets-no-exports = No video created yet.
 sheets-layout-title = Layout
 sheets-page-size = Paper
@@ -884,3 +876,27 @@ project-opening = Opening your project…
 project-unreachable = This folder cannot be reached.
 project-unreachable-hint = It may have been moved or renamed, or its drive may not be connected. Connect it and try again, or remove it from the list. Your photographs are not touched.
 project-last-opened = Last opened { $date }
+
+# Named selections and the next step (P5)
+selection-label = { $method } · { $count ->
+    [one] one photograph
+   *[other] { $photos } photographs
+} · { $date }
+selection-every-seconds = Every { $n } s
+selection-every-minutes = Every { $n } min
+selection-every-hours = Every { $n } h
+selection-every-days = { $count ->
+    [one] Every day
+   *[other] Every { $n } days
+}
+selection-nth = One in { $n }
+selection-uniform = Evenly spread
+selection-with-id = { $label } (#{ $id })
+sampling-run-id = Selection #{ $id }
+sheets-selection-unknown = selection #{ $id }
+next-action = Next: { $step }
+next-reason-checking = Checking the project…
+next-reason-no-photos = Import photographs first.
+next-reason-analysing = Wait for the analysis to finish.
+next-reason-no-selection = Save a selection first.
+next-reason-adjusting = Wait for the adjustment to finish.

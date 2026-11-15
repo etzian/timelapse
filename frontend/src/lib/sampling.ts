@@ -91,3 +91,55 @@ export function buildConfig(f: SamplingForm): SamplingConfig | null {
 export function estimatedDurationSeconds(selected: number, fps: number, multiplier: number): number {
   return fps > 0 && multiplier > 0 ? selected / fps / multiplier : 0;
 }
+
+/** The pieces of a saved selection's name; each maps to one Fluent message in the UI. */
+export type SelectionMethodPart =
+  | { kind: 'interval'; unit: IntervalUnit; value: number }
+  | { kind: 'nth'; n: number }
+  | { kind: 'uniform'; count: number };
+
+/** How a run was sampled, in the largest unit that divides the interval evenly. */
+export function selectionMethodPart(run: { config: SamplingConfig }): SelectionMethodPart {
+  const c = run.config;
+  if (c.method === 'every-nth') return { kind: 'nth', n: c.n };
+  if (c.method === 'uniform') return { kind: 'uniform', count: c.count };
+  const s = c.interval_seconds;
+  for (const unit of ['days', 'hours', 'minutes'] as const) {
+    if (s >= UNIT_SECONDS[unit] && s % UNIT_SECONDS[unit] === 0) return { kind: 'interval', unit, value: s / UNIT_SECONDS[unit] };
+  }
+  return { kind: 'interval', unit: 'seconds', value: s };
+}
+
+/** What the label needs from the UI layer: message lookup and `Intl` formatting. */
+export interface LabelFormat {
+  t: (id: string, args?: Record<string, unknown>) => string;
+  number: (n: number) => string;
+  /** `withYear` is true when the run was made in another year than `now`. */
+  date: (ms: number, withYear: boolean) => string;
+}
+
+/**
+ * "Every 5 min · 1,033 photos · 15 Nov": what a saved selection is, from its method, its
+ * photo count and the day it was made. Pure; the id is not part of it (see `selectionRef`).
+ */
+export function selectionLabel(
+  run: { config: SamplingConfig; selected_count: number; created_at: number },
+  f: LabelFormat,
+  now: number = Date.now()
+): string {
+  const part = selectionMethodPart(run);
+  const method =
+    part.kind === 'interval'
+      ? f.t(`selection-every-${part.unit}`, { n: f.number(part.value), count: part.value })
+      : part.kind === 'nth'
+        ? f.t('selection-nth', { n: f.number(part.n) })
+        : f.t('selection-uniform');
+  const ms = run.created_at * 1000;
+  const withYear = new Date(ms).getFullYear() !== new Date(now).getFullYear();
+  return f.t('selection-label', {
+    method,
+    count: run.selected_count,
+    photos: f.number(run.selected_count),
+    date: f.date(ms, withYear)
+  });
+}
