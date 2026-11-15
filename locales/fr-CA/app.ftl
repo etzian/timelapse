@@ -229,44 +229,41 @@ clean-selected-beyond = { $count ->
 clean-bulk-accept = Conserver la sélection
 clean-bulk-reject = Rejeter la sélection
 clean-bulk-clear = Effacer leurs décisions
-clean-bulk-accept-title = { $count ->
-    [one] Conserver { $count } photographie?
-   *[other] Conserver { $count } photographies?
-}
-clean-bulk-accept-body = { $count ->
-    [one] Elle reste disponible pour l’échantillonnage et la vidéo, quoi que l’analyse ait proposé.
-   *[other] Elles restent disponibles pour l’échantillonnage et la vidéo, quoi que l’analyse ait proposé.
-}
-clean-bulk-accept-action = { $count ->
-    [one] Conserver { $count } photographie
-   *[other] Conserver { $count } photographies
-}
-clean-bulk-reject-title = { $count ->
-    [one] Rejeter { $count } photographie?
-   *[other] Rejeter { $count } photographies?
-}
-clean-bulk-reject-body = { $count ->
-    [one] Elle est exclue de l’échantillonnage et de la vidéo. Le fichier n’est ni déplacé ni supprimé.
-   *[other] Elles sont exclues de l’échantillonnage et de la vidéo. Les fichiers ne sont ni déplacés ni supprimés.
-}
-clean-bulk-reject-action = { $count ->
-    [one] Rejeter { $count } photographie
-   *[other] Rejeter { $count } photographies
-}
-clean-bulk-clear-title = { $count ->
-    [one] Effacer la décision sur { $count } photographie?
-   *[other] Effacer les décisions sur { $count } photographies?
-}
-clean-bulk-clear-body = { $count ->
-    [one] Elle revient à ce que propose l’analyse.
-   *[other] Elles reviennent à ce que propose l’analyse.
-}
-clean-bulk-clear-action = { $count ->
-    [one] Effacer { $count } décision
-   *[other] Effacer { $count } décisions
-}
-clean-bulk-undo = Vous pouvez modifier ces décisions en tout temps.
 clean-accept = Conserver
+clean-done-accept = { $count ->
+    [one] { $count } photographie conservée
+   *[other] { $count } photographies conservées
+}
+clean-done-reject = { $count ->
+    [one] { $count } photographie rejetée
+   *[other] { $count } photographies rejetées
+}
+clean-done-clear = { $count ->
+    [one] Décision effacée sur { $count } photographie
+   *[other] Décisions effacées sur { $count } photographies
+}
+clean-undo = Annuler
+clean-undone = Décisions rétablies.
+clean-keys-title = Clavier
+clean-keys-hint = La touche Tab atteint les photographies en un seul arrêt; les flèches se déplacent entre elles. Les boutons sur chaque photographie et dans la visionneuse font la même chose.
+clean-cap-keep = A
+clean-cap-reject = R
+clean-cap-clear = U
+clean-cap-open = Espace
+clean-cap-select = X
+clean-key-move = Se déplacer
+clean-key-keep = Conserver
+clean-key-reject = Rejeter
+clean-key-clear = Effacer la décision
+clean-key-open = Ouvrir la visionneuse
+clean-key-select = Cocher ou décocher
+clean-grid-label = Photographies à trier
+clean-photo-label = { $path }, { $status }
+clean-inspector-position = { $index } de { $total }
+clean-previous = Précédente
+clean-next = Suivante
+clean-close = Fermer
+clean-inspector-keys = Flèches gauche et droite : précédente et suivante. A conserve, R rejette, U efface la décision.
 clean-reject = Rejeter
 clean-clear = Annuler la décision
 clean-restore = Restaurer

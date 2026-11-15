@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { AppShell, Sidebar, TabBar } from '@etzianco/ui';
+  import { AppShell, Sidebar, TabBar, Toast } from '@etzianco/ui';
 
   import Adjust from './lib/pages/Adjust.svelte';
   import Cleaning from './lib/pages/Cleaning.svelte';
@@ -110,3 +110,4 @@
   {/if}
   <div class="app-sr-only" role="status" aria-live="polite">{announcement}</div>
 </AppShell>
+<Toast />

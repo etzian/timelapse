@@ -1,19 +1,28 @@
 <script lang="ts">
+  import Inspector from '../components/Inspector.svelte';
   import NextStep from '../components/NextStep.svelte';
-  import { Badge, Banner, Button, Card, EmptyState, Input, Modal, PageHeader, SectionLabel, Skeleton, Stat, StatGrid, Tabs, Toggle } from '@etzianco/ui';
+  import { Badge, Banner, Button, Card, EmptyState, Input, Modal, PageHeader, SectionLabel, Skeleton, Stat, StatGrid, Tabs, Toggle, toast } from '@etzianco/ui';
+  import { tick } from 'svelte';
 
   import {
     STATUS_KEYS,
     STATUS_VARIANT,
     analysisFailureText,
+    columnsFromTops,
+    decisionApplies,
     fileFailureText,
+    focusAfterRemoval,
     formatLuma,
     formatPercent,
     limited,
+    moveIndex,
+    neighbourId,
     parseThresholds,
+    planDecision,
     reasonText,
     thresholdsToForm
   } from '../clean';
+  import type { MoveKey } from '../clean';
   import { formatNumber, t } from '../i18n';
   import { errorText } from '../i18n/errors';
   import {
@@ -61,15 +70,17 @@
 
   let thumbs = $state<Record<number, string>>({});
   let thumbFailed = $state<Record<number, true>>({});
-  let inspect = $state<ReviewItem | null>(null);
-  let inspectUrl = $state('');
+  /** Id of the photograph open in the viewer. */
+  let inspectId = $state<number | null>(null);
+  /** Roving tabindex: the tile that holds the grid's single tab stop. */
+  let activeId = $state<number | null>(null);
+  let gridEl = $state<HTMLElement>();
 
   let confirmOpen = $state(false);
   let moving = $state(false);
 
   // Bulk decisions: the photographs ticked on the current tab, and the decision to confirm.
   let selection = $state<Record<number, true>>({});
-  let bulk = $state<Decision | null>(null);
   let deciding = $state(false);
   let outcome = $state<{ kind: 'quarantine' | 'restore'; ok: number; failures: OpOutcome[] } | null>(null);
 
@@ -85,6 +96,10 @@
   );
   const visible = $derived((items ?? []).filter((i) => filter === 'all' || i.status === filter));
   const page = $derived(visible.slice(0, shown));
+  const visibleIds = $derived(visible.map((i) => i.id));
+  const inspectIndex = $derived(inspectId === null ? -1 : visibleIds.indexOf(inspectId));
+  const inspectItem = $derived(inspectId === null ? null : (items?.find((i) => i.id === inspectId) ?? null));
+  const tabStopId = $derived(page.some((i) => i.id === activeId) ? activeId : (page[0]?.id ?? null));
   const rejectedIds = $derived((items ?? []).filter((i) => i.status === 'rejected').map((i) => i.id));
   /** Photographs of this tab a decision can apply to (a quarantined one must be restored first). */
   const decidable = $derived(visible.filter((i) => i.status !== null && i.status !== 'quarantined'));
@@ -132,7 +147,8 @@
     requested = new Set();
     outcome = null;
     selection = {};
-    bulk = null;
+    inspectId = null;
+    activeId = null;
     void loadSettings();
     void loadReview();
   });
@@ -208,26 +224,112 @@
     }
   }
 
+  /**
+   * Apply a decision at once and offer Undo. The undo snapshot is taken before the change and
+   * restores each photograph's previous decision through `set_decision`. Returns the visible ids
+   * after the change so a caller can place focus.
+   */
   async function decide(ids: number[], decision: Decision): Promise<void> {
+    if (deciding || !items) return;
+    const plan = planDecision(items, ids, decision);
+    if (plan.ids.length === 0) return;
+    deciding = true;
     actionError = '';
+    const before = visibleIds;
+    const focused = activeId;
     try {
-      await setDecision(root, ids, decision);
+      await setDecision(root, plan.ids, decision);
       await loadReview();
+      toast.undo(t(`clean-done-${decision}`, { count: plan.ids.length }), {
+        label: t('clean-undo'),
+        duration: 8000,
+        onundo: () => void undo(plan.undo)
+      });
+      selection = Object.fromEntries(Object.keys(selection).filter((k) => !plan.ids.includes(Number(k))).map((k) => [k, true as const]));
+      const next = focusAfterRemoval(before, visibleIds, focused);
+      if (next !== null) activeId = next;
     } catch (err) {
       actionError = errorText(err as IpcError);
+    } finally {
+      deciding = false;
     }
   }
 
-  async function decideSelected(): Promise<void> {
-    const decision = bulk;
-    if (!decision || deciding || selectedIds.length === 0) return;
-    deciding = true;
+  async function undo(groups: { decision: Decision; ids: number[] }[]): Promise<void> {
+    const forRoot = root;
     try {
-      await decide(selectedIds, decision);
-      selection = {};
-    } finally {
-      deciding = false;
-      bulk = null;
+      for (const g of groups) await setDecision(forRoot, g.ids, g.decision);
+      if (forRoot === root) {
+        await loadReview();
+        toast.success(t('clean-undone'));
+      }
+    } catch (err) {
+      if (forRoot === root) actionError = errorText(err as IpcError);
+    }
+  }
+
+  /** Decide from the viewer, then move on to the next photograph (or close at the end of the list). */
+  async function decideInspected(decision: Decision): Promise<void> {
+    if (inspectId === null) return;
+    const current = inspectId;
+    const next = neighbourId(visibleIds, current);
+    activeId = current;
+    await decide([current], decision);
+    if (inspectId === current) {
+      inspectId = next !== null && visibleIds.includes(next) ? next : null;
+      if (inspectId !== null) activeId = inspectId;
+      else void focusTile();
+    }
+  }
+
+  function step(delta: number): void {
+    const to = visibleIds[inspectIndex + delta];
+    if (to === undefined) return;
+    inspectId = to;
+    activeId = to;
+    shown = Math.max(shown, inspectIndex + 1);
+  }
+
+  function closeInspector(): void {
+    const last = inspectId;
+    inspectId = null;
+    if (last !== null) activeId = last;
+    void focusTile();
+  }
+
+  /** Move DOM focus to the tile holding the tab stop (after the viewer or a re-render). */
+  async function focusTile(): Promise<void> {
+    await tick();
+    requestAnimationFrame(() => gridEl?.querySelector<HTMLElement>('[role="option"][tabindex="0"]')?.focus());
+  }
+
+  function onGridKeydown(e: KeyboardEvent, item: ReviewItem): void {
+    if (e.metaKey || e.ctrlKey || e.altKey || e.target !== e.currentTarget) return;
+    const key = e.key.length === 1 ? e.key.toLowerCase() : e.key;
+    if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'].includes(key)) {
+      e.preventDefault();
+      const tiles = Array.from(gridEl?.querySelectorAll<HTMLElement>('[role="option"]') ?? []);
+      const at = page.findIndex((i) => i.id === item.id);
+      const to = page[moveIndex(at, key as MoveKey, page.length, columnsFromTops(tiles.map((el) => el.offsetTop)))];
+      if (to) {
+        activeId = to.id;
+        void focusTile();
+      }
+    } else if (key === 'a') {
+      e.preventDefault();
+      void decide([item.id], 'accept').then(focusTile);
+    } else if (key === 'r') {
+      e.preventDefault();
+      void decide([item.id], 'reject').then(focusTile);
+    } else if (key === 'u') {
+      e.preventDefault();
+      void decide([item.id], 'clear').then(focusTile);
+    } else if (key === ' ' || key === 'Enter') {
+      e.preventDefault();
+      openInspect(item);
+    } else if (key === 'x' && item.status && item.status !== 'quarantined') {
+      e.preventDefault();
+      toggle(item.id, !selection[item.id]);
     }
   }
 
@@ -259,14 +361,9 @@
     }
   }
 
-  async function openInspect(item: ReviewItem): Promise<void> {
-    inspect = item;
-    inspectUrl = '';
-    try {
-      inspectUrl = await getThumbnail(root, item.id, 1024);
-    } catch {
-      inspectUrl = '';
-    }
+  function openInspect(item: ReviewItem): void {
+    activeId = item.id;
+    inspectId = item.id;
   }
 
   function pathOf(id: number): string {
@@ -280,7 +377,6 @@
   }
 
   const statusOf = (s: ImageStatus | null) => (s ? t(STATUS_KEYS[s]) : t('clean-status-unanalyzed'));
-  const maxBin = (h: number[]) => Math.max(1, ...h);
 </script>
 
 <div class="app-page">
@@ -417,29 +513,51 @@
             {/if}
             {#if selectedIds.length > 0}
               <span class="app-clean__note" aria-live="polite">{t('clean-selected', { count: selectedIds.length })}</span>
-              <Button size="sm" variant="secondary" onclick={() => (bulk = 'accept')} disabled={deciding || moving}>{t('clean-bulk-accept')}</Button>
-              <Button size="sm" variant="secondary" onclick={() => (bulk = 'reject')} disabled={deciding || moving}>{t('clean-bulk-reject')}</Button>
-              <Button size="sm" variant="ghost" onclick={() => (bulk = 'clear')} disabled={deciding || moving}>{t('clean-bulk-clear')}</Button>
+              <Button size="sm" variant="secondary" onclick={() => decide(selectedIds, 'accept')} disabled={deciding || moving}>{t('clean-bulk-accept')}</Button>
+              <Button size="sm" variant="secondary" onclick={() => decide(selectedIds, 'reject')} disabled={deciding || moving}>{t('clean-bulk-reject')}</Button>
+              <Button size="sm" variant="ghost" onclick={() => decide(selectedIds, 'clear')} disabled={deciding || moving}>{t('clean-bulk-clear')}</Button>
               {#if selectedIds.length > page.length}
                 <span class="app-clean__note">{t('clean-selected-beyond', { count: selectedIds.length - page.filter((i) => selection[i.id]).length })}</span>
               {/if}
             {/if}
           </div>
         {/if}
-        <ul class="app-clean__grid">
+        <details class="app-clean__keys">
+          <summary>{t('clean-keys-title')}</summary>
+          <ul>
+            <li><kbd>←</kbd> <kbd>↑</kbd> <kbd>→</kbd> <kbd>↓</kbd> {t('clean-key-move')}</li>
+            <li><kbd>{t('clean-cap-keep')}</kbd> {t('clean-key-keep')}</li>
+            <li><kbd>{t('clean-cap-reject')}</kbd> {t('clean-key-reject')}</li>
+            <li><kbd>{t('clean-cap-clear')}</kbd> {t('clean-key-clear')}</li>
+            <li><kbd>{t('clean-cap-open')}</kbd> {t('clean-key-open')}</li>
+            <li><kbd>{t('clean-cap-select')}</kbd> {t('clean-key-select')}</li>
+          </ul>
+          <p class="app-clean__note">{t('clean-keys-hint')}</p>
+        </details>
+        <ul class="app-clean__grid" role="listbox" aria-multiselectable="true" aria-label={t('clean-grid-label')} bind:this={gridEl}>
           {#each page as item (item.id)}
-            <li class="app-clean__tile" class:app-clean__tile--selected={!!selection[item.id]}>
+            <li
+              class="app-clean__tile"
+              class:app-clean__tile--selected={!!selection[item.id]}
+              role="option"
+              aria-selected={!!selection[item.id]}
+              aria-label={t('clean-photo-label', { path: item.relative_path, status: statusOf(item.status) })}
+              tabindex={item.id === tabStopId ? 0 : -1}
+              onkeydown={(e) => onGridKeydown(e, item)}
+              onfocus={() => (activeId = item.id)}
+            >
               {#if item.status && item.status !== 'quarantined'}
                 <label class="app-clean__pick">
                   <input
                     type="checkbox"
+                    tabindex="-1"
                     checked={!!selection[item.id]}
                     onchange={(e) => toggle(item.id, e.currentTarget.checked)}
                     aria-label={t('clean-select-photo', { path: item.relative_path })}
                   />
                 </label>
               {/if}
-              <button type="button" class="app-clean__thumb" onclick={() => openInspect(item)} aria-label={t('clean-inspect', { path: item.relative_path })}>
+              <button type="button" tabindex="-1" class="app-clean__thumb" onclick={() => openInspect(item)} aria-label={t('clean-inspect', { path: item.relative_path })}>
                 {#if thumbs[item.id]}
                   <img src={thumbs[item.id]} alt="" />
                 {:else if item.failure || thumbFailed[item.id]}
@@ -465,16 +583,16 @@
               </div>
               <div class="app-clean__tile-actions">
                 {#if item.status === 'quarantined'}
-                  <Button size="sm" variant="secondary" onclick={() => move('restore', [item.id])} disabled={moving}>{t('clean-restore')}</Button>
+                  <button type="button" tabindex="-1" class="ez-btn ez-btn--secondary ez-btn--sm" onclick={() => move('restore', [item.id])} disabled={moving}>{t('clean-restore')}</button>
                 {:else if item.status}
-                  {#if item.status !== 'eligible' || !item.user_override}
-                    <Button size="sm" variant="secondary" onclick={() => decide([item.id], 'accept')} disabled={moving}>{t('clean-accept')}</Button>
+                  {#if decisionApplies(item, 'accept')}
+                    <button type="button" tabindex="-1" class="ez-btn ez-btn--secondary ez-btn--sm" onclick={() => decide([item.id], 'accept')} disabled={moving || deciding}>{t('clean-accept')}</button>
                   {/if}
-                  {#if item.status !== 'rejected'}
-                    <Button size="sm" variant="ghost" onclick={() => decide([item.id], 'reject')} disabled={moving}>{t('clean-reject')}</Button>
+                  {#if decisionApplies(item, 'reject')}
+                    <button type="button" tabindex="-1" class="ez-btn ez-btn--ghost ez-btn--sm" onclick={() => decide([item.id], 'reject')} disabled={moving || deciding}>{t('clean-reject')}</button>
                   {/if}
-                  {#if item.user_override}
-                    <Button size="sm" variant="ghost" onclick={() => decide([item.id], 'clear')} disabled={moving}>{t('clean-clear')}</Button>
+                  {#if decisionApplies(item, 'clear')}
+                    <button type="button" tabindex="-1" class="ez-btn ez-btn--ghost ez-btn--sm" onclick={() => decide([item.id], 'clear')} disabled={moving || deciding}>{t('clean-clear')}</button>
                   {/if}
                 {/if}
               </div>
@@ -502,52 +620,17 @@
   {/snippet}
 </Modal>
 
-<Modal open={bulk !== null} title={bulk ? t(`clean-bulk-${bulk}-title`, { count: selectedIds.length }) : ''} onclose={() => (bulk = null)}>
-  {#if bulk}
-    <p>{t(`clean-bulk-${bulk}-body`, { count: selectedIds.length })}</p>
-    <p class="app-clean__note">{t('clean-bulk-undo')}</p>
-  {/if}
-  {#snippet footer()}
-    <Button variant="secondary" onclick={() => (bulk = null)} disabled={deciding}>{t('clean-cancel')}</Button>
-    <Button variant={bulk === 'reject' ? 'danger' : 'primary'} onclick={decideSelected} disabled={deciding}>
-      {bulk ? t(`clean-bulk-${bulk}-action`, { count: selectedIds.length }) : ''}
-    </Button>
-  {/snippet}
-</Modal>
-
-<Modal open={inspect !== null} title={inspect?.relative_path ?? ''} size="lg" onclose={() => (inspect = null)}>
-  {#if inspect}
-    {#if inspectUrl}
-      <img class="app-clean__inspect" src={inspectUrl} alt={t('clean-inspect', { path: inspect.relative_path })} />
-    {:else if inspect.failure}
-      <p>{analysisFailureText(inspect.failure)}</p>
-    {:else}
-      <Skeleton variant="rect" size="16rem" label={t('clean-loading')} />
-    {/if}
-    <dl class="app-clean__details">
-      <div><dt>{t('clean-detail-status')}</dt><dd>{statusOf(inspect.status)}</dd></div>
-      {#if inspect.mean_luma !== null}
-        <div><dt>{t('clean-detail-mean')}</dt><dd>{formatLuma(inspect.mean_luma)}</dd></div>
-        <div><dt>{t('clean-detail-median')}</dt><dd>{formatLuma(inspect.median_luma ?? 0)}</dd></div>
-        <div><dt>{t('clean-detail-dark')}</dt><dd>{formatPercent(inspect.dark_fraction ?? 0)}</dd></div>
-      {/if}
-      {#if inspect.xmp_rating !== null}
-        <div><dt>{t('clean-detail-xmp')}</dt><dd>{formatNumber(inspect.xmp_rating)}</dd></div>
-      {/if}
-      {#if inspect.current_path}
-        <div><dt>{t('clean-detail-location')}</dt><dd class="app-clean__path">{inspect.current_path}</dd></div>
-      {/if}
-    </dl>
-    {#if inspect.histogram.length > 0}
-      <SectionLabel text={t('clean-detail-histogram')} />
-      <div class="app-clean__histogram" aria-hidden="true">
-        {#each inspect.histogram as bin, i (i)}
-          <span style:height="{Math.round((bin / maxBin(inspect.histogram)) * 100)}%"></span>
-        {/each}
-      </div>
-    {/if}
-  {/if}
-</Modal>
+<Inspector
+  {root}
+  item={inspectItem}
+  index={inspectIndex}
+  total={visibleIds.length}
+  busy={deciding}
+  onprevious={() => step(-1)}
+  onnext={() => step(1)}
+  ondecide={decideInspected}
+  onclose={closeInspector}
+/>
 
 <style>
   .app-clean__intro,
@@ -670,34 +753,32 @@
     color: var(--ez-color-text-muted);
     font-variant-numeric: tabular-nums;
   }
-  .app-clean__inspect {
-    display: block;
-    max-width: 100%;
-    max-height: 60vh;
-    margin: 0 auto var(--ez-space-md);
-  }
-  .app-clean__details {
-    display: grid;
-    grid-template-columns: auto minmax(0, 1fr);
-    gap: var(--ez-space-2xs) var(--ez-space-md);
-    margin: 0 0 var(--ez-space-md);
-  }
-  .app-clean__details dt {
+  .app-clean__keys {
+    margin: var(--ez-space-sm) 0;
+    font-size: var(--ez-fs-sm);
     color: var(--ez-color-text-muted);
   }
-  .app-clean__details dd {
-    margin: 0;
-    font-variant-numeric: tabular-nums;
-  }
-  .app-clean__histogram {
+  .app-clean__keys ul {
     display: flex;
-    align-items: flex-end;
-    gap: 1px;
-    height: 4rem;
+    flex-wrap: wrap;
+    gap: var(--ez-space-xs) var(--ez-space-md);
+    list-style: none;
+    margin: var(--ez-space-xs) 0;
+    padding: 0;
   }
-  .app-clean__histogram span {
-    flex: 1;
-    min-height: 1px;
-    background: var(--ez-color-accent);
+  .app-clean__keys kbd {
+    display: inline-block;
+    min-width: 1.5rem;
+    padding: 0 var(--ez-space-2xs);
+    border: 1px solid var(--ez-color-border);
+    border-radius: var(--ez-radius-sm);
+    font: inherit;
+    font-weight: 600;
+    text-align: center;
+    color: var(--ez-color-text);
+  }
+  .app-clean__tile:focus-visible {
+    outline: var(--ez-focus-ring);
+    outline-offset: var(--ez-focus-ring-offset);
   }
 </style>

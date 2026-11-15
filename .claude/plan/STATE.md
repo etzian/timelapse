@@ -48,7 +48,7 @@ STATUS: RUNNING
 | P5 | Next step and named selections | sonnet | GATE-UI | done |
 | P6 | Flipbook | sonnet | GATE-UI | done |
 | P7 | Flipbook in Adjust and Export, wipe | sonnet | GATE-UI | done |
-| P8 | Fast triage | sonnet | GATE-UI | pending |
+| P8 | Fast triage | sonnet | GATE-UI | done |
 | P9 | Presets and summaries | sonnet | GATE-UI | pending |
 | P10 | Open and reveal commands | opus | full | pending |
 | P11 | Progress and the export finish | sonnet | GATE-UI | pending |
@@ -105,6 +105,12 @@ STATUS: RUNNING
 - CHANGED: new `Wipe.svelte` (role=slider divider with pointer and keyboard, As shot / Corrected tags in text); pure `wipe.ts` and bounded `frameCache.ts` with tests; `loopWindow` (max 60) in flipbook.ts; Flipbook gained an optional `loadFrame(i)` prop (default getThumbnail, Sampling unchanged); `cachedAdjustedFrame` in adjust store; Adjust compare uses Wipe and gains a "Play the loop" card (as shot / corrected); Export gains a Preview flipbook as shot; wipe-*, adjust-loop-*, export-preview-* keys in en and fr-CA.
 - DECISIONS: `loadFrame` is the way to play non-thumbnail frames. The Adjust loop's resetKey includes root, run, window start, adjusted flag and applied run ids. Wipe and loop share one adjusted-frame cache (bounded 240). Export preview is capped at 1000 frames (partial note shows the total). No Rust, capability, dependency or data-map change.
 - DEFERRED: Rendered checks (wipe drag in the WebView, VoiceOver on the slider, fr-CA length, dark mode) go to P14/P15. Switching as shot / corrected resets to the loop start.
+- MANUAL: none
+
+### P8 — pass
+- CHANGED: pure triage logic in clean.ts (columnsFromTops, moveIndex, focusAfterRemoval, neighbourId, decisionApplies, previousDecision, planDecision) with 19 vitest cases; new `Inspector.svelte` (Previous/Next, Keep/Reject/Undo, "n of N", moves on after a decision); Cleaning grid is role=listbox with roving tabindex, keys arrows/Home/End/A/R/U/Space/Enter/X, key legend, immediate decisions with an 8 s Undo toast through `set_decision`, three bulk dialogs removed, quarantine modal kept; `<Toast />` mounted once in App.svelte; clean-* keys in en and fr-CA.
+- DECISIONS: Toast is mounted once; later phases call `toast.*` from @etzianco/ui. Keys act on the focused tile only; bulk buttons act on ticked photos; X ticks. Per-tile mouse buttons are native `ez-btn` buttons with tabindex=-1 (ui Button forwards no tabindex). Undo is a toast action, not Cmd+Z. No-op decisions are skipped without a toast. Analysis start/end still reported to the pipeline store; NextStep unchanged.
+- DEFERRED: fr-CA copy polish (P13). `clean-close` key is unused (the viewer uses the Modal's own close); remove in P13. Modal footer may wrap tightly in fr-CA with 5 buttons. Rendered keyboard and VoiceOver pass goes to P14/P15.
 - MANUAL: none
 
 ## Open user items

@@ -230,43 +230,40 @@ clean-selected-beyond = { $count ->
 clean-bulk-accept = Keep selected
 clean-bulk-reject = Reject selected
 clean-bulk-clear = Clear their decisions
-clean-bulk-accept-title = { $count ->
-    [one] Keep { $count } photograph?
-   *[other] Keep { $count } photographs?
+clean-done-accept = { $count ->
+    [one] Kept { $count } photograph
+   *[other] Kept { $count } photographs
 }
-clean-bulk-accept-body = { $count ->
-    [one] It stays available to sampling and the video, whatever the analysis proposed.
-   *[other] They stay available to sampling and the video, whatever the analysis proposed.
+clean-done-reject = { $count ->
+    [one] Rejected { $count } photograph
+   *[other] Rejected { $count } photographs
 }
-clean-bulk-accept-action = { $count ->
-    [one] Keep { $count } photograph
-   *[other] Keep { $count } photographs
+clean-done-clear = { $count ->
+    [one] Cleared the decision on { $count } photograph
+   *[other] Cleared the decisions on { $count } photographs
 }
-clean-bulk-reject-title = { $count ->
-    [one] Reject { $count } photograph?
-   *[other] Reject { $count } photographs?
-}
-clean-bulk-reject-body = { $count ->
-    [one] It is left out of sampling and the video. The file is not moved or deleted.
-   *[other] They are left out of sampling and the video. The files are not moved or deleted.
-}
-clean-bulk-reject-action = { $count ->
-    [one] Reject { $count } photograph
-   *[other] Reject { $count } photographs
-}
-clean-bulk-clear-title = { $count ->
-    [one] Clear the decision on { $count } photograph?
-   *[other] Clear the decisions on { $count } photographs?
-}
-clean-bulk-clear-body = { $count ->
-    [one] It goes back to what the analysis proposes.
-   *[other] They go back to what the analysis proposes.
-}
-clean-bulk-clear-action = { $count ->
-    [one] Clear { $count } decision
-   *[other] Clear { $count } decisions
-}
-clean-bulk-undo = You can change these decisions at any time.
+clean-undo = Undo
+clean-undone = Decisions restored.
+clean-keys-title = Keyboard
+clean-keys-hint = Tab reaches the photographs once; the arrow keys move between them. The buttons on each photograph and in the viewer do the same.
+clean-cap-keep = A
+clean-cap-reject = R
+clean-cap-clear = U
+clean-cap-open = Space
+clean-cap-select = X
+clean-key-move = Move
+clean-key-keep = Keep
+clean-key-reject = Reject
+clean-key-clear = Clear the decision
+clean-key-open = Open the viewer
+clean-key-select = Tick or untick
+clean-grid-label = Photographs to triage
+clean-photo-label = { $path }, { $status }
+clean-inspector-position = { $index } of { $total }
+clean-previous = Previous
+clean-next = Next
+clean-close = Close
+clean-inspector-keys = Left and right arrows: previous and next. A keeps, R rejects, U clears.
 clean-reject = Reject
 clean-clear = Undo decision
 clean-restore = Restore
