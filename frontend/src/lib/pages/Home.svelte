@@ -1,6 +1,6 @@
 <script lang="ts">
   import NextStep from '../components/NextStep.svelte';
-  import { onMount } from 'svelte';
+  import { onMount, tick } from 'svelte';
   import { Button, Card, PageHeader } from '@etzianco/ui';
   import { getCurrentWebview } from '@tauri-apps/api/webview';
 
@@ -46,6 +46,24 @@
   }
 
   const idle = $derived(!busy && !dating && !opening);
+
+  /** Set when a folder is dropped while an import is still running; the drop is not taken. */
+  let dropRefused = $state(false);
+  $effect(() => {
+    if (idle) dropRefused = false;
+  });
+  // One status region, in the page from the start, says what Home is doing (GUIDELINES §2.2).
+  const status = $derived(
+    dropRefused
+      ? t('home-drop-busy')
+      : busy
+        ? t('home-importing')
+        : opening
+          ? t('project-opening')
+          : dating
+            ? t('timeline-dating')
+            : ''
+  );
 
   async function doImport(): Promise<void> {
     if (!idle) return;
@@ -97,7 +115,8 @@
           else if (p.type === 'drop') {
             dragging = false;
             const first = p.paths[0];
-            if (first) void importPath(first);
+            if (first && !idle) dropRefused = true;
+            else if (first) void importPath(first);
           } else dragging = false;
         })
         .then((fn) => (gone ? fn() : (off = fn)))
@@ -117,6 +136,19 @@
     backfillError = '';
     await openProject(path);
   }
+
+  let recentHeading = $state<HTMLElement>();
+  let recentList = $state<HTMLElement>();
+
+  /** Remove a recent project, then put focus on the row that took its place (or the heading). */
+  async function removeRecent(path: string, index: number): Promise<void> {
+    forgetProject(path);
+    await tick();
+    const rows = recentList?.querySelectorAll<HTMLElement>('.app-home__recent-open') ?? [];
+    const target = rows[Math.min(index, rows.length - 1)] ?? recentHeading ?? document.querySelector<HTMLElement>('main h1');
+    if (target && !target.matches('button')) target.tabIndex = -1;
+    target?.focus();
+  }
 </script>
 
 <div class="app-page">
@@ -127,21 +159,29 @@
     <Card class="app-home__welcome {dragging ? 'app-home__drop--active' : ''}">
       <p class="app-home__intro">{t('home-welcome-intro')}</p>
       <div class="app-home__actions">
-        <Button onclick={doImport} disabled={!idle}>{busy ? t('home-importing') : t('home-import-action')}</Button>
+        <button type="button" class="ez-btn ez-btn--primary ez-btn--md" aria-disabled={!idle} onclick={doImport}>
+          {busy ? t('home-importing') : t('home-import-action')}
+        </button>
       </div>
-      <p class="app-home__drop" aria-live="polite">{dragging ? t('home-drop-active') : t('home-drop-hint')}</p>
+      <p class="app-home__drop">{dragging ? t('home-drop-active') : t('home-drop-hint')}</p>
     </Card>
   {:else if root}
     <div class="app-home__actions app-home__toolbar {dragging ? 'app-home__drop--active' : ''}">
-      <Button variant="secondary" onclick={() => importPath(root)} disabled={!idle}>{busy ? t('home-importing') : t('home-rescan')}</Button>
-      <Button variant="ghost" onclick={doImport} disabled={!idle}>{t('home-switch')}</Button>
-      {#if dragging}<span class="app-home__drop" aria-live="polite">{t('home-drop-active')}</span>{/if}
+      <button type="button" class="ez-btn ez-btn--secondary ez-btn--md" aria-disabled={!idle} onclick={() => importPath(root)}>
+        {busy ? t('home-importing') : t('home-rescan')}
+      </button>
+      <button type="button" class="ez-btn ez-btn--ghost ez-btn--md" aria-disabled={!idle} onclick={doImport}>{t('home-switch')}</button>
+      {#if dragging}<span class="app-home__drop">{t('home-drop-active')}</span>{/if}
     </div>
     <p class="app-home__root" title={root}>{root}</p>
   {/if}
 
+  <p class="app-sr-only" role="status">{status}</p>
+  {#if dropRefused}
+    <p class="app-home__note">{t('home-drop-busy')}</p>
+  {/if}
   {#if busy}
-    <p class="app-home__progress" aria-live="polite">{t('home-importing')}</p>
+    <p class="app-home__progress">{t('home-importing')}</p>
   {/if}
 
   {#if project.status === 'unreachable'}
@@ -152,12 +192,12 @@
         <p>{t('project-unreachable-hint')}</p>
       </div>
       <div class="app-home__actions">
-        <Button onclick={() => reopen(project.unreachable)}>{t('project-retry')}</Button>
+        <Button onclick={() => reopen(project.unreachable)}>{t('action-retry')}</Button>
         <Button variant="ghost" onclick={() => forgetProject(project.unreachable)}>{t('project-remove')}</Button>
       </div>
     </Card>
   {:else if opening}
-    <p class="app-home__progress" aria-live="polite">{t('project-opening')}</p>
+    <p class="app-home__progress">{t('project-opening')}</p>
   {/if}
 
   {#if error}<p role="alert" class="app-home__error">{error}</p>{/if}
@@ -214,11 +254,11 @@
   {/if}
 
   {#if dating}
-    <p class="app-home__progress" aria-live="polite">{t('timeline-dating')}</p>
+    <p class="app-home__progress">{t('timeline-dating')}</p>
   {:else if backfillError}
     <div role="alert" class="app-home__error">
       <p>{backfillError}</p>
-      <Button onclick={doBackfill}>{t('timeline-retry')}</Button>
+      <Button onclick={doBackfill}>{t('action-retry')}</Button>
     </div>
   {:else if backfill}
     {#if backfill.newly_resolved + backfill.unresolved_this_run > 0}
@@ -231,12 +271,13 @@
 
   {#if others.length > 0}
     <Card>
-      <h2 class="app-home__recent-title">{t('project-recent')}</h2>
-      <ul class="app-home__recent">
-        {#each others as r (r.path)}
+      <h2 class="app-home__recent-title" bind:this={recentHeading}>{t('project-recent')}</h2>
+      <ul class="app-home__recent" bind:this={recentList}>
+        {#each others as r, i (r.path)}
+          {@const name = folderName(r.path)}
           <li>
             <div class="app-home__recent-text">
-              <span class="app-home__recent-name">{folderName(r.path)}</span>
+              <span class="app-home__recent-name">{name}</span>
               <span class="app-home__path" title={r.path}>{r.path}</span>
               <span class="app-home__path">{t('project-last-opened', { date: formatDate(r.openedAt, { dateStyle: 'medium', timeStyle: 'short' }) })}</span>
               {#if project.status === 'unreachable' && project.unreachable === r.path}
@@ -244,8 +285,18 @@
               {/if}
             </div>
             <div class="app-home__actions">
-              <Button size="sm" variant="secondary" onclick={() => reopen(r.path)} disabled={!idle}>{project.unreachable === r.path ? t('project-retry') : t('project-open')}</Button>
-              <Button size="sm" variant="ghost" onclick={() => forgetProject(r.path)}>{t('project-remove')}</Button>
+              <button
+                type="button"
+                class="ez-btn ez-btn--secondary ez-btn--sm app-home__recent-open"
+                aria-disabled={!idle}
+                aria-label={project.unreachable === r.path ? undefined : t('project-open-named', { name })}
+                onclick={() => reopen(r.path)}
+              >
+                {project.unreachable === r.path ? t('action-retry') : t('project-open')}
+              </button>
+              <button type="button" class="ez-btn ez-btn--ghost ez-btn--sm" aria-label={t('project-remove-named', { name })} onclick={() => removeRecent(r.path, i)}>
+                {t('project-remove')}
+              </button>
             </div>
           </li>
         {/each}

@@ -204,7 +204,7 @@
     <Card>
       <div role="alert" class="app-organize__error">
         <p>{loadError}</p>
-        <Button onclick={load}>{t('clean-retry')}</Button>
+        <Button onclick={load}>{t('action-retry')}</Button>
       </div>
     </Card>
   {:else if runs === null}

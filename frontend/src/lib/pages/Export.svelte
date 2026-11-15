@@ -5,6 +5,7 @@
   import Progress from '../components/Progress.svelte';
   import { runLabel, runLabelWithId } from '../selectionLabel';
   import { Badge, Banner, Button, Card, EmptyState, PageHeader, SectionLabel, Select, Skeleton, Stat, StatGrid } from '@etzianco/ui';
+  import { tick, untrack } from 'svelte';
 
   import { CODECS, EXPORT_PRESETS, QUALITIES, RESOLUTIONS, exportFailureText, formatBytes, matchExportPreset, presetAvailable, summarize, summaryText, supports } from '../export';
   import type { ExportPreset, ResolutionKey } from '../export';
@@ -165,7 +166,11 @@
     })();
   });
 
-  function start(): void {
+  let startEl = $state<HTMLButtonElement>();
+  let cancelEl = $state<HTMLButtonElement>();
+  let doneTitleEl = $state<HTMLElement>();
+
+  async function start(): Promise<void> {
     if (!run || !canExport) return;
     const r = RESOLUTIONS.find((x) => x.key === resolution) ?? RESOLUTIONS[2];
     void runExport(root, run.id, {
@@ -178,10 +183,34 @@
       flicker_run: flickerRun ? Number(flickerRun) : null,
       stabilization_run: stabRun ? Number(stabRun) : null
     });
+    // Start cannot act while the export runs: focus goes to Cancel, the one control that can.
+    await tick();
+    cancelEl?.focus();
   }
 
   function cancel(): void {
+    if (cancelling) return;
     void stopExport();
+  }
+
+  // A result that arrives while this page is open takes focus: the finish card's heading when
+  // the export completed, else Start (Cancel, which may have held focus, is gone). A result
+  // already there when the page opens is left alone.
+  let seenResult: unknown = untrack(() => result);
+  $effect(() => {
+    const r = result;
+    if (!r || r === seenResult) return;
+    seenResult = r;
+    void tick().then(() => {
+      if (r.status === 'completed') doneTitleEl?.focus();
+      else startEl?.focus();
+    });
+  });
+
+  async function dismissResult(): Promise<void> {
+    exportJob.dismiss();
+    await tick();
+    startEl?.focus();
   }
 
   // The derived export record (ADR-015): fetched when opened, saved on request.
@@ -245,7 +274,7 @@
     <Card>
       <div role="alert" class="app-export__error">
         <p>{loadError}</p>
-        <Button onclick={load}>{t('clean-retry')}</Button>
+        <Button onclick={load}>{t('action-retry')}</Button>
       </div>
     </Card>
   {:else if info === null || runs === null}
@@ -321,9 +350,13 @@
         {/if}
 
         <div class="app-export__actions">
-          <Button onclick={start} disabled={!canExport}>{exporting ? t('export-exporting') : t('export-start')}</Button>
+          <button type="button" class="ez-btn ez-btn--primary ez-btn--md" aria-disabled={!canExport} onclick={start} bind:this={startEl}>
+            {exporting ? t('export-exporting') : t('export-start')}
+          </button>
           {#if exporting}
-            <Button variant="secondary" onclick={cancel} disabled={cancelling}>{cancelling ? t('export-cancelling') : t('export-cancel')}</Button>
+            <button type="button" class="ez-btn ez-btn--secondary ez-btn--md" aria-disabled={cancelling} onclick={cancel} bind:this={cancelEl}>
+              {cancelling ? t('export-cancelling') : t('export-cancel')}
+            </button>
           {/if}
         </div>
         {#if exporting && progress}
@@ -341,7 +374,7 @@
         {#if previewError}
           <div role="alert" class="app-export__error">
             <p>{previewError}</p>
-            <Button onclick={() => previewTry++}>{t('clean-retry')}</Button>
+            <Button onclick={() => previewTry++}>{t('action-retry')}</Button>
           </div>
         {:else if previewItems === null}
           <Skeleton lines={5} label={t('clean-loading')} />
@@ -359,7 +392,7 @@
           <div class="app-export__done">
             {#if poster}<img class="app-export__poster" src={poster} alt="" />{/if}
             <div class="app-export__done-body">
-              <h2 class="app-export__done-title">{t('export-done-title')}</h2>
+              <h2 class="app-export__done-title" tabindex="-1" bind:this={doneTitleEl}>{t('export-done-title')}</h2>
               <p>
                 {t('export-done', {
                   duration: formatDuration(result.duration_seconds),
@@ -370,7 +403,7 @@
               <p class="app-export__path">{result.output_path}</p>
               <ExportActions {root} exportId={result.id} size="md" />
               <div>
-                <Button size="sm" variant="ghost" onclick={() => exportJob.dismiss()}>{t('clean-dismiss')}</Button>
+                <Button size="sm" variant="ghost" onclick={dismissResult}>{t('clean-dismiss')}</Button>
               </div>
             </div>
           </div>

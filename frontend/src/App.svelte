@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { flushSync, untrack } from 'svelte';
+  import { flushSync, tick, untrack } from 'svelte';
   import { AppShell, Sidebar, TabBar, Toast } from '@etzianco/ui';
 
   import Adjust from './lib/pages/Adjust.svelte';
@@ -14,8 +14,9 @@
   import { installMenu } from './lib/menuNative';
   import type { MenuAction } from './lib/menu';
   import { NAV_ORDER, nav } from './lib/stores/nav.svelte';
-  import { JOB_IDS, JOB_PAGE, NO_JOBS, endedJobs, stepStates } from './lib/pipeline';
+  import { JOB_IDS, JOB_PAGE, NO_JOBS, endedJobs, startedJobs, stepStates } from './lib/pipeline';
   import type { Running, StepId, StepState } from './lib/pipeline';
+  import { STORAGE_KEYS } from './lib/storageKeys';
   import { pipeline } from './lib/stores/pipeline.svelte';
   import { project } from './lib/stores/project.svelte';
   import type { Page } from './lib/stores/nav.svelte';
@@ -29,14 +30,25 @@
   $effect(() => {
     const next = nav.active;
     if (next === untrack(() => shown)) return;
+    const focus = nav.takeFocusRequest();
     const swap = () => {
       shown = next;
       flushSync();
+      // A change from the menu, Next or a page's own button: the control that asked is gone,
+      // so focus goes to the new page's heading (a sidebar or tab link keeps its focus).
+      if (focus) focusHeading();
     };
     const calm = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
     if (!calm && typeof document.startViewTransition === 'function') document.startViewTransition(swap);
     else swap();
   });
+
+  function focusHeading(): void {
+    const h = document.querySelector<HTMLElement>('main .ez-page-header h1, main h1');
+    if (!h) return;
+    h.tabIndex = -1;
+    h.focus();
+  }
 
   // The native menu: rebuilt when the language changes so its labels follow.
   function runMenu(action: MenuAction): void {
@@ -60,16 +72,25 @@
     void pipeline.refresh(project.root);
   });
 
-  // Announce a job's end once, in a live region that exists from the start.
+  // Announce a job's start and end once, in a live region that exists from the start. The
+  // region is emptied first so the same sentence twice in a row is read again.
   let announcement = $state('');
   let previous: Running = { ...NO_JOBS };
+  async function announce(text: string): Promise<void> {
+    announcement = '';
+    await tick();
+    announcement = text;
+  }
   $effect(() => {
     const next = { ...running };
     const ended = endedJobs(previous, next);
+    const started = startedJobs(previous, next);
     previous = next;
-    if (ended.length > 0) {
-      announcement = ended.map((j) => t('pipeline-job-ended', { job: t(`pipeline-job-${j}`) })).join(' ');
-    }
+    const lines = [
+      ...started.map((j) => t('pipeline-job-started', { job: t(`pipeline-job-${j}`) })),
+      ...ended.map((j) => t('pipeline-job-ended', { job: t(`pipeline-job-${j}`) }))
+    ];
+    if (lines.length > 0) void announce(lines.join(' '));
   });
 
   const steps = $derived(stepStates(pipeline.figures, running));
@@ -84,7 +105,7 @@
     return ` · ${STATE_GLYPH[s]} ${t(`pipeline-state-${s}`)}`;
   }
 
-  const navItem = (id: Page) => ({ label: `${t(`nav-${id}`)}${suffix(id)}`, href: `#${id}`, onclick: () => nav.go(id) });
+  const navItem = (id: Page) => ({ label: `${t(`nav-${id}`)}${suffix(id)}`, href: `#${id}`, onclick: () => nav.go(id, { focus: false }) });
   const groups = $derived([
     { id: 'workflow', label: t('nav-group-workflow'), items: (['home', 'cleaning', 'sampling', 'adjust', 'export'] as Page[]).map(navItem) },
     { id: 'tools', label: t('nav-group-tools'), items: (['organize', 'sheets'] as Page[]).map(navItem) },
@@ -96,7 +117,7 @@
 
 <AppShell mode="auto">
   {#snippet sidebar()}
-    <Sidebar brand={t('app-name')} {groups} active={activeHref} storageKey="timelapse:sidebar">
+    <Sidebar brand={t('app-name')} {groups} active={activeHref} storageKey={STORAGE_KEYS.sidebar}>
       {#snippet footer()}
         <div class="app-sidebar-footer">
           <svg class="app-sidebar-footer__mark" viewBox="0 0 200 200" aria-hidden="true">
@@ -116,7 +137,7 @@
     </Sidebar>
   {/snippet}
   {#snippet tabbar()}
-    <TabBar items={tabs} {active} onselect={(id: string) => nav.go(id as Page)} />
+    <TabBar items={tabs} {active} onselect={(id: string) => nav.go(id as Page, { focus: false })} />
   {/snippet}
 
   {#if shown === 'home'}

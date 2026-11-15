@@ -218,7 +218,7 @@
   {#if error}
     <div role="alert" class="app-timeline__error">
       <p>{error}</p>
-      <Button onclick={load}>{t('timeline-retry')}</Button>
+      <Button onclick={load}>{t('action-retry')}</Button>
     </div>
   {:else if summary.resolved === 0}
     <EmptyState title={t('timeline-empty-title')} description={t('timeline-empty-description')} compact />
@@ -228,7 +228,7 @@
     {#if distError}
       <div role="alert" class="app-timeline__error">
         <p>{distError}</p>
-        <Button onclick={() => loadDistribution(granularity)}>{t('timeline-retry')}</Button>
+        <Button onclick={() => loadDistribution(granularity)}>{t('action-retry')}</Button>
       </div>
     {:else if buckets === null}
       <Skeleton lines={4} label={t('timeline-loading')} />
@@ -262,7 +262,7 @@
         {#if periodError}
           <div role="alert" class="app-timeline__error">
             <p>{periodError}</p>
-            <Button onclick={() => loadPeriod(0)}>{t('timeline-retry')}</Button>
+            <Button onclick={() => loadPeriod(0)}>{t('action-retry')}</Button>
           </div>
         {:else if periodPage === null}
           <Skeleton lines={3} label={t('timeline-loading')} />

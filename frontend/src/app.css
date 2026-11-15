@@ -8,6 +8,8 @@
   --app-doc-max-height: 60vh;
   --app-nav-icon-size: var(--ez-fs-md);
   --app-sun-size: var(--ez-space-lg);
+  /* A dialog never runs past the window (the lg Modal is a fixed width). */
+  --app-modal-max-width: calc(100vw - 2 * var(--ez-space-lg));
   /* Charts (Phase 8): "before" and "after" lines. Design-system hues; where the engine
      supports relative colour, lightness and chroma are set to the values the dataviz
      palette check validated (light and dark surfaces), else the plain tokens apply. */
@@ -55,9 +57,12 @@ body {
 }
 
 /* Sidebar icons. Sidebar renders `icon` as text, so each destination gets an inline SVG
-   (authored here, drawn with currentColor through a mask) before its label. */
-.ez-sidebar__item::before {
+   (authored here, drawn with currentColor through a mask) before its label. The icon is
+   the item's ::after, moved first with `order`: ::before is the design system's active
+   accent bar and stays untouched. */
+.ez-sidebar__item::after {
   content: '';
+  order: -1;
   flex-shrink: 0;
   width: var(--app-nav-icon-size);
   height: var(--app-nav-icon-size);
@@ -66,28 +71,28 @@ body {
   -webkit-mask: var(--app-nav-icon) center / contain no-repeat;
 }
 .ez-sidebar__item[href='#home'] {
-  --app-nav-icon: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'><path d='M3 11l9-8 9 8'/><path d='M5 10v10h14V10'/></svg>");
+  --app-nav-icon: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 11l9-8 9 8'/%3E%3Cpath d='M5 10v10h14V10'/%3E%3C/svg%3E");
 }
 .ez-sidebar__item[href='#cleaning'] {
-  --app-nav-icon: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'><path d='M4 6h16M4 12h10M4 18h6'/><path d='M16 15l2 2 4-4'/></svg>");
+  --app-nav-icon: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 6h16M4 12h10M4 18h6'/%3E%3Cpath d='M16 15l2 2 4-4'/%3E%3C/svg%3E");
 }
 .ez-sidebar__item[href='#organize'] {
-  --app-nav-icon: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'><rect x='3' y='4' width='18' height='6' rx='1'/><rect x='3' y='14' width='18' height='6' rx='1'/></svg>");
+  --app-nav-icon: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='4' width='18' height='6' rx='1'/%3E%3Crect x='3' y='14' width='18' height='6' rx='1'/%3E%3C/svg%3E");
 }
 .ez-sidebar__item[href='#sampling'] {
-  --app-nav-icon: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'><rect x='3' y='6' width='18' height='12' rx='1'/><path d='M8 6v12M16 6v12'/></svg>");
+  --app-nav-icon: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='6' width='18' height='12' rx='1'/%3E%3Cpath d='M8 6v12M16 6v12'/%3E%3C/svg%3E");
 }
 .ez-sidebar__item[href='#adjust'] {
-  --app-nav-icon: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'><path d='M4 7h10M18 7h2M4 17h2M10 17h10'/><circle cx='16' cy='7' r='2'/><circle cx='8' cy='17' r='2'/></svg>");
+  --app-nav-icon: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 7h10M18 7h2M4 17h2M10 17h10'/%3E%3Ccircle cx='16' cy='7' r='2'/%3E%3Ccircle cx='8' cy='17' r='2'/%3E%3C/svg%3E");
 }
 .ez-sidebar__item[href='#export'] {
-  --app-nav-icon: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'><path d='M12 3v12M7 8l5-5 5 5'/><path d='M4 15v5h16v-5'/></svg>");
+  --app-nav-icon: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 3v12M7 8l5-5 5 5'/%3E%3Cpath d='M4 15v5h16v-5'/%3E%3C/svg%3E");
 }
 .ez-sidebar__item[href='#sheets'] {
-  --app-nav-icon: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'><rect x='4' y='3' width='16' height='18' rx='1'/><path d='M8 8h3M13 8h3M8 13h3M13 13h3'/></svg>");
+  --app-nav-icon: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='4' y='3' width='16' height='18' rx='1'/%3E%3Cpath d='M8 8h3M13 8h3M8 13h3M13 13h3'/%3E%3C/svg%3E");
 }
 .ez-sidebar__item[href='#settings'] {
-  --app-nav-icon: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='12' r='3'/><path d='M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1'/></svg>");
+  --app-nav-icon: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='3'/%3E%3Cpath d='M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1'/%3E%3C/svg%3E");
 }
 
 .app-sidebar-footer {
@@ -104,6 +109,14 @@ body {
 }
 .app-sidebar-footer__sun { fill: var(--ez-color-sun-primary); }
 .app-sidebar-footer__stripe { fill: var(--ez-color-sun-stripe); opacity: 0.55; }
+
+/* A button that cannot act right now but keeps focus: aria-disabled instead of disabled,
+   so focus is not dropped to <body> when it becomes unavailable under the user's hand.
+   The handler refuses the click; this matches the look of .ez-btn:disabled. */
+.ez-btn[aria-disabled='true'] {
+  opacity: var(--ez-state-disabled-opacity);
+  cursor: not-allowed;
+}
 
 .app-sr-only {
   position: absolute;

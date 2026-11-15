@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Button, Card } from '@etzianco/ui';
+  import { Button, Card, createLoadingGate } from '@etzianco/ui';
 
   import { formatNumber, t } from '../i18n';
   import { errorText } from '../i18n/errors';
@@ -51,11 +51,22 @@
     }
   }
 
+  // A rescan keeps the figures on screen (dimmed) while they refresh; another folder clears them.
+  let shownRoot = '';
   $effect(() => {
     void version;
-    figures = null;
+    if (root !== shownRoot) figures = null;
+    shownRoot = root;
     void load(root);
   });
+
+  // The skeleton waits 300 ms and, once shown, holds 500 ms (GUIDELINES §6).
+  let skeleton = $state(false);
+  const gate = createLoadingGate({ onChange: (v: boolean) => (skeleton = v) });
+  $effect(() => {
+    gate.set(loading && !figures);
+  });
+  $effect(() => () => gate.destroy());
 
   const rows = $derived(
     figures
@@ -79,9 +90,9 @@
   {#if error}
     <div role="alert" class="app-steps__error">
       <p>{t('home-steps-error')} {error}</p>
-      <Button size="sm" onclick={() => load(root)}>{t('timeline-retry')}</Button>
+      <Button size="sm" onclick={() => load(root)}>{t('action-retry')}</Button>
     </div>
-  {:else if loading && !figures}
+  {:else if !figures && skeleton}
     <ul class="app-steps__list" aria-busy="true" aria-label={t('project-opening')}>
       {#each [0, 1, 2, 3] as i (i)}
         <li class="app-steps__row app-steps__row--skeleton" aria-hidden="true"><span class="app-steps__bone"></span></li>
@@ -117,7 +128,6 @@
   .app-steps__label { min-width: 0; }
   .app-steps__value { font-variant-numeric: tabular-nums; font-weight: 600; text-align: end; }
   .app-steps__error { color: var(--ez-color-error); display: grid; gap: var(--ez-space-sm); justify-items: start; }
-  .app-sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
   .app-steps__bone {
     grid-column: 1 / -1;
     height: var(--ez-space-md);

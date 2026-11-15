@@ -30,10 +30,11 @@
 </script>
 
 <div class="app-output-actions">
-  <Button {size} onclick={() => run(openOutput)} disabled={busy}>{t('output-play')}</Button>
-  <Button {size} variant="secondary" onclick={() => run(revealOutput)} disabled={busy}>
+  <!-- aria-disabled while a request runs, so the clicked button keeps focus; run() refuses. -->
+  <button type="button" class="ez-btn ez-btn--primary ez-btn--{size}" aria-disabled={busy} onclick={() => run(openOutput)}>{t('output-play')}</button>
+  <button type="button" class="ez-btn ez-btn--secondary ez-btn--{size}" aria-disabled={busy} onclick={() => run(revealOutput)}>
     {isMac ? t('output-reveal-mac') : t('output-reveal')}
-  </Button>
+  </button>
   {#if sheet}
     <Button {size} variant="secondary" onclick={() => openContactSheet({ kind: 'export', export: exportId })}>{t('export-sheet')}</Button>
   {/if}

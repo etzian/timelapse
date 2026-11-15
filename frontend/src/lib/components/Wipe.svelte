@@ -164,8 +164,8 @@
     font-size: var(--ez-fs-sm);
   }
   .app-wipe__divider:focus-visible {
-    outline: 2px solid var(--ez-color-accent);
-    outline-offset: 2px;
+    outline: var(--ez-focus-ring);
+    outline-offset: var(--ez-focus-ring-offset);
   }
   .app-wipe__hint {
     margin: 0;

@@ -57,6 +57,11 @@ export function endedJobs(prev: Running, next: Running): JobId[] {
   return JOB_IDS.filter((j) => prev[j] && !next[j]);
 }
 
+/** Jobs running in `next` that were not in `prev`, in JOB_IDS order. */
+export function startedJobs(prev: Running, next: Running): JobId[] {
+  return JOB_IDS.filter((j) => !prev[j] && next[j]);
+}
+
 export type NextTarget = 'cleaning' | 'sampling' | 'adjust' | 'export' | 'organize';
 /** Why the next step cannot start yet; each maps to one `next-reason-*` message. */
 export type NextReason = 'checking' | 'no-photos' | 'analysing' | 'no-selection' | 'adjusting';

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { endedJobs, NO_JOBS, stepStates, type Figures } from './pipeline';
+import { endedJobs, NO_JOBS, startedJobs, stepStates, type Figures } from './pipeline';
 
 const base: Figures = { photos: 100, unanalyzed: 100, flagged: 0, selections: 0, adjustments: 0, exports: 0 };
 
@@ -42,6 +42,15 @@ describe('endedJobs', () => {
     const next = { ...NO_JOBS, sheet: true, adjust: true };
     expect(endedJobs(prev, next)).toEqual(['export']);
     expect(endedJobs(NO_JOBS, NO_JOBS)).toEqual([]);
+  });
+});
+
+describe('startedJobs', () => {
+  it('reports only jobs that began, never one still running or one that stopped', () => {
+    const prev = { ...NO_JOBS, export: true, sheet: true };
+    const next = { ...NO_JOBS, sheet: true, adjust: true };
+    expect(startedJobs(prev, next)).toEqual(['adjust']);
+    expect(startedJobs(next, next)).toEqual([]);
   });
 });
 

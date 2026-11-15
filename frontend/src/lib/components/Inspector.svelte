@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Badge, Button, Modal, SectionLabel, Skeleton } from '@etzianco/ui';
+  import { Badge, Modal, SectionLabel, Skeleton } from '@etzianco/ui';
 
   import { analysisFailureText, decisionApplies, formatLuma, formatPercent, reasonText, STATUS_KEYS, STATUS_VARIANT } from '../clean';
   import { formatNumber, t } from '../i18n';
@@ -26,7 +26,7 @@
     busy?: boolean;
     onprevious: () => void;
     onnext: () => void;
-    ondecide: (decision: Decision) => void;
+    ondecide: (decision: Decision, fromKeyboard?: boolean) => void;
     onclose: () => void;
   } = $props();
 
@@ -50,12 +50,21 @@
     );
   });
 
+  // Buttons stay focusable when they cannot act (aria-disabled), so a decision or a step to
+  // the first photograph never drops focus out of the dialog.
+  const canPrevious = $derived(index > 0);
+  const canNext = $derived(index < total - 1);
+  const can = (d: Decision) => !busy && item !== null && decisionApplies(item, d);
+  function choose(d: Decision): void {
+    if (can(d)) ondecide(d);
+  }
+
   function onkeydown(e: KeyboardEvent): void {
     if (!item || e.defaultPrevented || e.metaKey || e.ctrlKey || e.altKey) return;
     const key = e.key.length === 1 ? e.key.toLowerCase() : e.key;
     const decide = (d: Decision) => {
       e.preventDefault();
-      if (!busy && decisionApplies(item!, d)) ondecide(d);
+      if (!busy && decisionApplies(item!, d)) ondecide(d, true);
     };
     if (key === 'ArrowLeft' && index > 0) {
       e.preventDefault();
@@ -71,7 +80,7 @@
 
 <svelte:window onkeydown={item ? onkeydown : undefined} />
 
-<Modal open={item !== null} title={item?.relative_path ?? ''} size="lg" {onclose}>
+<Modal open={item !== null} title={item?.relative_path ?? ''} size="lg" class="app-inspector" {onclose}>
   {#if item}
     {#if url}
       <img class="app-inspector__image" src={url} alt={t('clean-inspect', { path: item.relative_path })} />
@@ -80,6 +89,11 @@
     {:else}
       <Skeleton variant="rect" size="16rem" label={t('clean-loading')} />
     {/if}
+    <div class="app-inspector__nav">
+      <button type="button" class="ez-btn ez-btn--secondary ez-btn--sm" aria-disabled={!canPrevious} onclick={() => canPrevious && onprevious()}>{t('clean-previous')}</button>
+      <span class="app-inspector__position" aria-live="polite">{t('clean-inspector-position', { index: formatNumber(index + 1), total: formatNumber(total) })}</span>
+      <button type="button" class="ez-btn ez-btn--secondary ez-btn--sm" aria-disabled={!canNext} onclick={() => canNext && onnext()}>{t('clean-next')}</button>
+    </div>
     <p class="app-inspector__badges">
       <Badge variant={item.status ? STATUS_VARIANT[item.status] : 'default'}>{statusText(item.status)}</Badge>
       {#if item.user_override}<Badge>{t('clean-user-decision')}</Badge>{/if}
@@ -112,12 +126,9 @@
   {/if}
   {#snippet footer()}
     {#if item}
-      <span class="app-inspector__position" aria-live="polite">{t('clean-inspector-position', { index: formatNumber(index + 1), total: formatNumber(total) })}</span>
-      <Button variant="secondary" onclick={onprevious} disabled={index <= 0}>{t('clean-previous')}</Button>
-      <Button variant="secondary" onclick={onnext} disabled={index >= total - 1}>{t('clean-next')}</Button>
-      <Button variant="secondary" onclick={() => ondecide('accept')} disabled={busy || !decisionApplies(item, 'accept')}>{t('clean-accept')}</Button>
-      <Button variant="danger" onclick={() => ondecide('reject')} disabled={busy || !decisionApplies(item, 'reject')}>{t('clean-reject')}</Button>
-      <Button variant="ghost" onclick={() => ondecide('clear')} disabled={busy || !decisionApplies(item, 'clear')}>{t('clean-clear')}</Button>
+      <button type="button" class="ez-btn ez-btn--secondary ez-btn--md" aria-disabled={!can('accept')} onclick={() => choose('accept')}>{t('clean-accept')}</button>
+      <button type="button" class="ez-btn ez-btn--danger ez-btn--md" aria-disabled={!can('reject')} onclick={() => choose('reject')}>{t('clean-reject')}</button>
+      <button type="button" class="ez-btn ez-btn--ghost ez-btn--md" aria-disabled={!can('clear')} onclick={() => choose('clear')}>{t('clean-clear')}</button>
     {/if}
   {/snippet}
 </Modal>
@@ -141,8 +152,23 @@
     font-size: var(--ez-fs-sm);
     margin: var(--ez-space-2xs) 0;
   }
+  /* The Modal is portaled to <body>, so its own box is styled through :global. 720 px (lg)
+     is the design system's width; it never runs past the window, and the footer wraps. */
+  :global(.ez-modal.app-inspector) {
+    max-width: var(--app-modal-max-width);
+  }
+  :global(.ez-modal.app-inspector .ez-modal__footer) {
+    flex-wrap: wrap;
+  }
+  .app-inspector__nav {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: var(--ez-space-sm);
+    margin: 0 0 var(--ez-space-sm);
+  }
   .app-inspector__position {
-    margin-right: auto;
     color: var(--ez-color-text-muted);
     font-variant-numeric: tabular-nums;
   }

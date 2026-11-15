@@ -111,6 +111,16 @@
     return () => clearTimeout(timer);
   });
 
+  // A hidden window (another app in front, minimized) pauses playback; it never resumes
+  // on its own.
+  $effect(() => {
+    const onVisibility = () => {
+      if (document.hidden) playing = false;
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => document.removeEventListener('visibilitychange', onVisibility);
+  });
+
   function go(i: number): void {
     index = clampIndex(i, count);
   }
@@ -241,8 +251,8 @@
     accent-color: var(--ez-color-accent);
   }
   .app-flipbook__scrub:focus-visible {
-    outline: 2px solid var(--ez-color-accent);
-    outline-offset: 2px;
+    outline: var(--ez-focus-ring);
+    outline-offset: var(--ez-focus-ring-offset);
   }
   .app-flipbook__controls {
     display: flex;

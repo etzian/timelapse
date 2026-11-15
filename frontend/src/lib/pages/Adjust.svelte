@@ -285,7 +285,7 @@
     <Card>
       <div role="alert" class="app-adjust__error">
         <p>{loadError}</p>
-        <Button onclick={load}>{t('clean-retry')}</Button>
+        <Button onclick={load}>{t('action-retry')}</Button>
       </div>
     </Card>
   {:else if runs === null || adjustments === null}
@@ -436,7 +436,7 @@
       {#if loopError}
         <div role="alert" class="app-adjust__error">
           <p>{loopError}</p>
-          <Button onclick={() => loopTry++}>{t('clean-retry')}</Button>
+          <Button onclick={() => loopTry++}>{t('action-retry')}</Button>
         </div>
       {:else if loopItems === null}
         <Skeleton variant="rect" size="12rem" label={t('clean-loading')} />

@@ -397,7 +397,7 @@
       {#if runsError}
         <div role="alert" class="app-sampling__error">
           <p>{runsError}</p>
-          <Button onclick={loadRuns}>{t('clean-retry')}</Button>
+          <Button onclick={loadRuns}>{t('action-retry')}</Button>
         </div>
       {:else if runs === null}
         <Skeleton lines={3} label={t('clean-loading')} />

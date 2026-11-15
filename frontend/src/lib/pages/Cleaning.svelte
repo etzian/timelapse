@@ -88,6 +88,12 @@
   // Bulk decisions: the photographs ticked on the current tab, and the decision to confirm.
   let selection = $state<Record<number, true>>({});
   let deciding = $state(false);
+  /**
+   * Decisions that can still be undone, newest last: each is valid while its toast is on
+   * screen. ⌘Z / Ctrl+Z on this page takes the newest, the same undo as its toast's button.
+   */
+  type PendingUndo = { toastId: number; groups: { decision: Decision; ids: number[] }[] };
+  let pendingUndo: PendingUndo[] = [];
   let outcome = $state<{ kind: 'quarantine' | 'restore'; ok: number; failures: OpOutcome[] } | null>(null);
 
   const counts = $derived<StatusCounts>(
@@ -184,7 +190,7 @@
   });
 
   async function analyze(): Promise<void> {
-    if (analyzing) return;
+    if (analyzing || moving) return;
     analyzing = true;
     pipeline.setAnalyzing(true);
     stopping = false;
@@ -247,7 +253,7 @@
    * restores each photograph's previous decision through `set_decision`. Returns the visible ids
    * after the change so a caller can place focus.
    */
-  async function decide(ids: number[], decision: Decision): Promise<void> {
+  async function decide(ids: number[], decision: Decision, fromKeyboard = false): Promise<void> {
     if (deciding || !items) return;
     const plan = planDecision(items, ids, decision);
     if (plan.ids.length === 0) return;
@@ -258,11 +264,17 @@
     try {
       await setDecision(root, plan.ids, decision);
       await loadReview();
-      toast.undo(t(`clean-done-${decision}`, { count: plan.ids.length }), {
+      const entry: PendingUndo = { toastId: -1, groups: plan.undo };
+      entry.toastId = toast.undo(t(`clean-done-${decision}`, { count: plan.ids.length }), {
         label: t('clean-undo'),
-        duration: 8000,
-        onundo: () => void undo(plan.undo)
+        // A keyboard user has further to travel to the toast (or uses ⌘Z): give them longer.
+        duration: fromKeyboard ? 12000 : 8000,
+        onundo: () => takeUndo(entry),
+        onexpire: () => {
+          pendingUndo = pendingUndo.filter((u) => u !== entry);
+        }
       });
+      pendingUndo = [...pendingUndo, entry];
       selection = Object.fromEntries(Object.keys(selection).filter((k) => !plan.ids.includes(Number(k))).map((k) => [k, true as const]));
       const next = focusAfterRemoval(before, visibleIds, focused);
       if (next !== null) activeId = next;
@@ -271,6 +283,27 @@
     } finally {
       deciding = false;
     }
+  }
+
+  /** Run a pending undo once, whether it came from the toast or from ⌘Z / Ctrl+Z. */
+  function takeUndo(entry: PendingUndo): void {
+    if (!pendingUndo.includes(entry)) return;
+    pendingUndo = pendingUndo.filter((u) => u !== entry);
+    toast.dismiss(entry.toastId);
+    void undo(entry.groups);
+  }
+
+  function isTyping(target: EventTarget | null): boolean {
+    if (!(target instanceof HTMLElement)) return false;
+    return target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName);
+  }
+
+  function onPageKeydown(e: KeyboardEvent): void {
+    if (e.defaultPrevented || e.shiftKey || e.altKey || !(e.metaKey || e.ctrlKey)) return;
+    const newest = pendingUndo.at(-1);
+    if (e.key.toLowerCase() !== 'z' || isTyping(e.target) || !newest) return;
+    e.preventDefault();
+    takeUndo(newest);
   }
 
   async function undo(groups: { decision: Decision; ids: number[] }[]): Promise<void> {
@@ -287,12 +320,12 @@
   }
 
   /** Decide from the viewer, then move on to the next photograph (or close at the end of the list). */
-  async function decideInspected(decision: Decision): Promise<void> {
+  async function decideInspected(decision: Decision, fromKeyboard = false): Promise<void> {
     if (inspectId === null) return;
     const current = inspectId;
     const next = neighbourId(visibleIds, current);
     activeId = current;
-    await decide([current], decision);
+    await decide([current], decision, fromKeyboard);
     if (inspectId === current) {
       inspectId = next !== null && visibleIds.includes(next) ? next : null;
       if (inspectId !== null) activeId = inspectId;
@@ -318,7 +351,7 @@
   /** Move DOM focus to the tile holding the tab stop (after the viewer or a re-render). */
   async function focusTile(): Promise<void> {
     await tick();
-    requestAnimationFrame(() => gridEl?.querySelector<HTMLElement>('[role="option"][tabindex="0"]')?.focus());
+    requestAnimationFrame(() => gridEl?.querySelector<HTMLElement>('.app-clean__tile[tabindex="0"]')?.focus());
   }
 
   function onGridKeydown(e: KeyboardEvent, item: ReviewItem): void {
@@ -326,7 +359,7 @@
     const key = e.key.length === 1 ? e.key.toLowerCase() : e.key;
     if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'].includes(key)) {
       e.preventDefault();
-      const tiles = Array.from(gridEl?.querySelectorAll<HTMLElement>('[role="option"]') ?? []);
+      const tiles = Array.from(gridEl?.querySelectorAll<HTMLElement>('.app-clean__tile') ?? []);
       const at = page.findIndex((i) => i.id === item.id);
       const to = page[moveIndex(at, key as MoveKey, page.length, columnsFromTops(tiles.map((el) => el.offsetTop)))];
       if (to) {
@@ -335,13 +368,13 @@
       }
     } else if (key === 'a') {
       e.preventDefault();
-      void decide([item.id], 'accept').then(focusTile);
+      void decide([item.id], 'accept', true).then(focusTile);
     } else if (key === 'r') {
       e.preventDefault();
-      void decide([item.id], 'reject').then(focusTile);
+      void decide([item.id], 'reject', true).then(focusTile);
     } else if (key === 'u') {
       e.preventDefault();
-      void decide([item.id], 'clear').then(focusTile);
+      void decide([item.id], 'clear', true).then(focusTile);
     } else if (key === ' ' || key === 'Enter') {
       e.preventDefault();
       openInspect(item);
@@ -395,7 +428,10 @@
   }
 
   const statusOf = (s: ImageStatus | null) => (s ? t(STATUS_KEYS[s]) : t('clean-status-unanalyzed'));
+  const undoCap = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent) ? '⌘Z' : 'Ctrl+Z';
 </script>
+
+<svelte:window onkeydown={onPageKeydown} />
 
 <div class="app-page">
   <PageHeader title={t('clean-title')} />
@@ -432,8 +468,8 @@
             class="ez-btn ez-btn--md ez-btn--{preset === p.key ? 'primary' : 'secondary'}"
             aria-pressed={preset === p.key}
             aria-describedby="app-clean-preset-help"
+            aria-disabled={savingSettings || analyzing}
             onclick={() => choosePreset(p.key)}
-            disabled={savingSettings || analyzing}
           >
             {t(`clean-preset-${p.key}`)}
           </button>
@@ -457,7 +493,9 @@
         </Button>
       </details>
       <div class="app-clean__actions">
-        <Button onclick={analyze} disabled={analyzing || moving}>{analyzing ? t('clean-analyzing') : t('clean-analyze')}</Button>
+        <button type="button" class="ez-btn ez-btn--primary ez-btn--md" aria-disabled={analyzing || moving} onclick={analyze}>
+          {analyzing ? t('clean-analyzing') : t('clean-analyze')}
+        </button>
         {#if analyzing}
           <Button variant="secondary" onclick={stopAnalysis} disabled={stopping}>{stopping ? t('clean-stopping') : t('clean-stop')}</Button>
         {/if}
@@ -512,7 +550,7 @@
       {#if loadError}
         <div role="alert" class="app-clean__error">
           <p>{loadError}</p>
-          <Button onclick={loadReview}>{t('clean-retry')}</Button>
+          <Button onclick={loadReview}>{t('action-retry')}</Button>
         </div>
       {:else if items === null}
         <Skeleton lines={6} label={t('clean-loading')} />
@@ -521,7 +559,7 @@
       {:else if counts.unanalyzed === items.length}
         <EmptyState title={t('clean-unanalyzed-title')} description={t('clean-unanalyzed-description')} compact>
           {#snippet action()}
-            <Button onclick={analyze} disabled={analyzing}>{t('clean-analyze')}</Button>
+            <button type="button" class="ez-btn ez-btn--primary ez-btn--md" aria-disabled={analyzing || moving} onclick={analyze}>{t('clean-analyze')}</button>
           {/snippet}
         </EmptyState>
       {:else if visible.length === 0}
@@ -565,17 +603,22 @@
             <li><kbd>{t('clean-cap-clear')}</kbd> {t('clean-key-clear')}</li>
             <li><kbd>{t('clean-cap-open')}</kbd> {t('clean-key-open')}</li>
             <li><kbd>{t('clean-cap-select')}</kbd> {t('clean-key-select')}</li>
+            <li><kbd>{undoCap}</kbd> {t('clean-key-undo')}</li>
           </ul>
           <p class="app-clean__note">{t('clean-keys-hint')}</p>
         </details>
-        <ul class="app-clean__grid" role="listbox" aria-multiselectable="true" aria-label={t('clean-grid-label')} bind:this={gridEl}>
+        <!-- A plain list of tiles, each a named group: the buttons and the checkbox inside stay
+             reachable for a screen reader (an option would hide them). Roving tabindex and the
+             triage keys live on the tile. -->
+        <ul class="app-clean__grid" aria-label={t('clean-grid-label')} bind:this={gridEl}>
           {#each page as item (item.id)}
+            <!-- svelte-ignore a11y_no_noninteractive_tabindex, a11y_no_noninteractive_element_interactions -->
             <li
               class="app-clean__tile"
               class:app-clean__tile--selected={!!selection[item.id]}
-              role="option"
-              aria-selected={!!selection[item.id]}
+              role="group"
               aria-label={t('clean-photo-label', { path: item.relative_path, status: statusOf(item.status) })}
+              aria-describedby={item.reasons.length > 0 ? `app-clean-reasons-${item.id}` : undefined}
               tabindex={item.id === tabStopId ? 0 : -1}
               onkeydown={(e) => onGridKeydown(e, item)}
               onfocus={() => (activeId = item.id)}
@@ -611,9 +654,13 @@
                     {t('clean-metrics', { mean: formatLuma(item.mean_luma), dark: formatPercent(item.dark_fraction ?? 0) })}
                   </span>
                 {/if}
-                {#each item.reasons as r, i (i)}
-                  <span class="app-clean__reason">{reasonText(r)}</span>
-                {/each}
+                {#if item.reasons.length > 0}
+                  <span class="app-clean__reasons" id="app-clean-reasons-{item.id}">
+                    {#each item.reasons as r, i (i)}
+                      <span class="app-clean__reason">{reasonText(r)}</span>
+                    {/each}
+                  </span>
+                {/if}
               </div>
               <div class="app-clean__tile-actions">
                 {#if item.status === 'quarantined'}
@@ -714,9 +761,11 @@
     gap: var(--ez-space-xs);
     margin: var(--ez-space-sm) 0;
   }
+  /* Selection is drawn inside the tile (border and inset ring) so the focus ring, drawn
+     outside, stays visible on a selected tile. The ticked checkbox is the non-colour signal. */
   .app-clean__tile--selected {
-    outline: 2px solid var(--ez-color-accent);
-    outline-offset: 2px;
+    border-color: var(--ez-color-accent);
+    box-shadow: inset 0 0 0 var(--ez-focus-ring-width) var(--ez-color-accent);
   }
   .app-clean__pick {
     position: absolute;
@@ -782,6 +831,11 @@
   .app-clean__tile-actions {
     display: flex;
     flex-wrap: wrap;
+    gap: var(--ez-space-2xs);
+  }
+  .app-clean__reasons {
+    display: flex;
+    flex-direction: column;
     gap: var(--ez-space-2xs);
   }
   .app-clean__metrics,
