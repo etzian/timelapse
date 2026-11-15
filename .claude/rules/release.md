@@ -13,3 +13,6 @@ The bundled FFmpeg (ADR-022) adds two steps:
   them when the release is cut.
 - The hardware path is verified once on a real Apple Silicon Mac:
   `TIMELAPSE_FFMPEG_DIR=<bundle>/resources/ffmpeg TIMELAPSE_REQUIRE_VIDEOTOOLBOX=1 cargo test -p timelapse-core export:: -- --nocapture`.
+- Consolidation (ADR-023) is checked once on a real Mac onto an external **exFAT**
+  drive: copy, check, undo, then move and undo. That drive takes the plain-copy path
+  (no clone, no exclusive rename), which CI does not exercise.
