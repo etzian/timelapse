@@ -1,5 +1,9 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
   import { Button, Card, PageHeader } from '@etzianco/ui';
+  import { getCurrentWebview } from '@tauri-apps/api/webview';
+
+  import ProjectSteps from '../components/ProjectSteps.svelte';
 
   import { folderName } from '../erase';
   import { formatDate, formatNumber, t } from '../i18n';
@@ -21,6 +25,7 @@
   let dating = $state(false);
   const opening = $derived(project.status === 'opening');
   const others = $derived(project.recent.filter((r) => r.path !== root));
+  const title = $derived(root ? folderName(root) : t('home-welcome-title'));
 
   /** Phase 2: resolve capture times once the import is in. Its failure never hides the import report. */
   async function doBackfill(): Promise<void> {
@@ -38,10 +43,17 @@
     }
   }
 
+  const idle = $derived(!busy && !dating && !opening);
+
   async function doImport(): Promise<void> {
-    if (busy || dating || opening) return;
+    if (!idle) return;
     const picked = await pickFolder();
     if (!picked) return; // cancelled — a no-op, not an error
+    await importPath(picked);
+  }
+
+  async function importPath(picked: string): Promise<void> {
+    if (!idle) return;
     project.root = picked;
     rememberProject(picked);
     busy = true;
@@ -58,10 +70,39 @@
       busy = false;
     }
     if (project.report) await doBackfill();
+    scanVersion += 1;
   }
 
+  // The folder can also be dropped on the window (webview drag-and-drop; needs no extra permission).
+  let dragging = $state(false);
+  let scanVersion = $state(0);
+  onMount(() => {
+    let off: (() => void) | undefined;
+    let gone = false;
+    try {
+      void getCurrentWebview()
+        .onDragDropEvent((event) => {
+          const p = event.payload;
+          if (p.type === 'enter' || p.type === 'over') dragging = true;
+          else if (p.type === 'drop') {
+            dragging = false;
+            const first = p.paths[0];
+            if (first) void importPath(first);
+          } else dragging = false;
+        })
+        .then((fn) => (gone ? fn() : (off = fn)))
+        .catch(() => {}); // outside the desktop shell there is no drop event; the picker stays
+    } catch {
+      /* same */
+    }
+    return () => {
+      gone = true;
+      off?.();
+    };
+  });
+
   async function reopen(path: string): Promise<void> {
-    if (busy || dating || opening) return;
+    if (!idle) return;
     error = '';
     backfillError = '';
     await openProject(path);
@@ -69,13 +110,29 @@
 </script>
 
 <div class="app-page">
-  <PageHeader title={t('home-title')} />
-  <p class="app-home__tagline">{t('app-tagline')}</p>
+  <PageHeader {title} />
+  {#if !root}<p class="app-home__tagline">{t('app-tagline')}</p>{/if}
 
-  <Card>
-    <p class="app-home__intro">{t('home-intro')}</p>
-    <Button onclick={doImport} disabled={busy || dating || opening}>{busy ? t('home-importing') : t('home-import-action')}</Button>
-  </Card>
+  {#if !root && !opening}
+    <Card class="app-home__welcome {dragging ? 'app-home__drop--active' : ''}">
+      <p class="app-home__intro">{t('home-welcome-intro')}</p>
+      <div class="app-home__actions">
+        <Button onclick={doImport} disabled={!idle}>{busy ? t('home-importing') : t('home-import-action')}</Button>
+      </div>
+      <p class="app-home__drop" aria-live="polite">{dragging ? t('home-drop-active') : t('home-drop-hint')}</p>
+    </Card>
+  {:else if root}
+    <div class="app-home__actions app-home__toolbar {dragging ? 'app-home__drop--active' : ''}">
+      <Button variant="secondary" onclick={() => importPath(root)} disabled={!idle}>{busy ? t('home-importing') : t('home-rescan')}</Button>
+      <Button variant="ghost" onclick={doImport} disabled={!idle}>{t('home-switch')}</Button>
+      {#if dragging}<span class="app-home__drop" aria-live="polite">{t('home-drop-active')}</span>{/if}
+    </div>
+    <p class="app-home__root" title={root}>{root}</p>
+  {/if}
+
+  {#if busy}
+    <p class="app-home__progress" aria-live="polite">{t('home-importing')}</p>
+  {/if}
 
   {#if project.status === 'unreachable'}
     <Card class="app-home__unreachable">
@@ -93,39 +150,15 @@
     <p class="app-home__progress" aria-live="polite">{t('project-opening')}</p>
   {/if}
 
-  {#if others.length > 0}
-    <Card>
-      <h2 class="app-home__recent-title">{t('project-recent')}</h2>
-      <ul class="app-home__recent">
-        {#each others as r (r.path)}
-          <li>
-            <div class="app-home__recent-text">
-              <span class="app-home__recent-name">{folderName(r.path)}</span>
-              <span class="app-home__path" title={r.path}>{r.path}</span>
-              <span class="app-home__path">{t('project-last-opened', { date: formatDate(r.openedAt, { dateStyle: 'medium', timeStyle: 'short' }) })}</span>
-              {#if project.status === 'unreachable' && project.unreachable === r.path}
-                <span class="app-home__error">{t('project-unreachable')}</span>
-              {/if}
-            </div>
-            <div class="app-home__actions">
-              <Button size="sm" variant="secondary" onclick={() => reopen(r.path)} disabled={busy || dating || opening}>{project.unreachable === r.path ? t('project-retry') : t('project-open')}</Button>
-              <Button size="sm" variant="ghost" onclick={() => forgetProject(r.path)}>{t('project-remove')}</Button>
-            </div>
-          </li>
-        {/each}
-      </ul>
-    </Card>
+  {#if error}<p role="alert" class="app-home__error">{error}</p>{/if}
+
+  {#if root && !opening}
+    <ProjectSteps {root} version={scanVersion} />
   {/if}
 
   {#if report}
     <Card class="app-home__report">
-      <dl class="app-home__stats">
-        <div><dt>{t('home-stat-scanned')}</dt><dd>{formatNumber(report.scanned_count)}</dd></div>
-        <div><dt>{t('home-stat-hashed')}</dt><dd>{formatNumber(report.hash_computed)}</dd></div>
-        <div><dt>{t('home-stat-new')}</dt><dd>{formatNumber(report.new_rows)}</dd></div>
-        <div><dt>{t('home-stat-unchanged')}</dt><dd>{formatNumber(report.unchanged)}</dd></div>
-        <div><dt>{t('home-stat-duplicates')}</dt><dd>{formatNumber(report.duplicates_found)}</dd></div>
-      </dl>
+      <p class="app-home__summary">{t('home-summary', { new: report.new_rows, unchanged: report.unchanged })}</p>
 
       {#if report.hidden_removed > 0}
         <p class="app-home__note">{t('home-hidden-removed', { count: report.hidden_removed })}</p>
@@ -135,37 +168,38 @@
         <p class="app-home__note">{t('home-skipped-unreadable', { count: report.skipped_unreadable })}</p>
       {/if}
 
-      {#if integrity && (integrity.missing_files.length > 0 || integrity.duplicates.length > 0)}
-        <section class="app-home__integrity">
-          {#if integrity.missing_files.length > 0}
-            <h3>{t('home-integrity-missing', { count: integrity.missing_files.length })}</h3>
-            <ul>
-              {#each integrity.missing_files as p}
-                <li>{p}</li>
-              {/each}
-            </ul>
-          {/if}
-          {#if integrity.duplicates.length > 0}
-            <h3>{t('home-integrity-dups', { count: integrity.duplicates.length })}</h3>
-            <ul>
-              {#each integrity.duplicates as group, i}
-                <li>{group.join(', ')}</li>
-              {/each}
-            </ul>
-          {/if}
-        </section>
-      {/if}
+      <details>
+        <summary>{t('home-details-summary')}</summary>
+        <dl class="app-home__stats">
+          <div><dt>{t('home-stat-scanned')}</dt><dd>{formatNumber(report.scanned_count)}</dd></div>
+          <div><dt>{t('home-stat-duplicates')}</dt><dd>{formatNumber(report.duplicates_found)}</dd></div>
+        </dl>
 
-      {#if report.duplicate_groups.length > 0}
-        <details>
-          <summary>{t('home-duplicate-groups-summary')}</summary>
+        {#if integrity && integrity.missing_files.length > 0}
+          <h3 class="app-home__subtitle">{t('home-integrity-missing', { count: integrity.missing_files.length })}</h3>
           <ul>
-            {#each report.duplicate_groups as group, i}
+            {#each integrity.missing_files as p}
+              <li>{p}</li>
+            {/each}
+          </ul>
+        {/if}
+        {#if integrity && integrity.duplicates.length > 0}
+          <h3 class="app-home__subtitle">{t('home-integrity-dups', { count: integrity.duplicates.length })}</h3>
+          <ul>
+            {#each integrity.duplicates as group}
               <li>{group.join(', ')}</li>
             {/each}
           </ul>
-        </details>
-      {/if}
+        {/if}
+        {#if report.duplicate_groups.length > 0}
+          <h3 class="app-home__subtitle">{t('home-duplicate-groups-summary')}</h3>
+          <ul>
+            {#each report.duplicate_groups as group}
+              <li>{group.join(', ')}</li>
+            {/each}
+          </ul>
+        {/if}
+      </details>
     </Card>
   {/if}
 
@@ -185,9 +219,29 @@
     <TimelineSection {root} {backfill} />
   {/if}
 
-  {#if error}<p role="alert" class="app-home__error">{error}</p>{/if}
-
-  {#if root}<p class="app-home__root" title={root}>{t('home-root', { path: root })}</p>{/if}
+  {#if others.length > 0}
+    <Card>
+      <h2 class="app-home__recent-title">{t('project-recent')}</h2>
+      <ul class="app-home__recent">
+        {#each others as r (r.path)}
+          <li>
+            <div class="app-home__recent-text">
+              <span class="app-home__recent-name">{folderName(r.path)}</span>
+              <span class="app-home__path" title={r.path}>{r.path}</span>
+              <span class="app-home__path">{t('project-last-opened', { date: formatDate(r.openedAt, { dateStyle: 'medium', timeStyle: 'short' }) })}</span>
+              {#if project.status === 'unreachable' && project.unreachable === r.path}
+                <span class="app-home__error">{t('project-unreachable')}</span>
+              {/if}
+            </div>
+            <div class="app-home__actions">
+              <Button size="sm" variant="secondary" onclick={() => reopen(r.path)} disabled={!idle}>{project.unreachable === r.path ? t('project-retry') : t('project-open')}</Button>
+              <Button size="sm" variant="ghost" onclick={() => forgetProject(r.path)}>{t('project-remove')}</Button>
+            </div>
+          </li>
+        {/each}
+      </ul>
+    </Card>
+  {/if}
 </div>
 
 <style>
@@ -207,7 +261,6 @@
   .app-home__stats dt { color: var(--ez-color-text-muted); }
   .app-home__stats dd { margin: 0; font-variant-numeric: tabular-nums; }
   .app-home__note { font-size: var(--ez-fs-sm); color: var(--ez-color-warning); }
-  .app-home__integrity h3 { font-size: var(--ez-fs-md); margin: var(--ez-space-sm) 0 var(--ez-space-2xs); }
   .app-home__error { color: var(--ez-color-error); }
   .app-home__path { display: block; font-size: var(--ez-fs-sm); color: var(--ez-color-text-muted); word-break: break-all; }
   .app-home__actions { display: flex; flex-wrap: wrap; gap: var(--ez-space-sm); }
@@ -217,5 +270,10 @@
   .app-home__recent-text { min-width: 0; flex: 1 1 16rem; }
   .app-home__recent-name { font-weight: 600; }
   .app-home__progress { color: var(--ez-color-text-muted); }
+  .app-home__summary { margin: 0 0 var(--ez-space-sm); }
+  .app-home__subtitle { font-size: var(--ez-fs-md); margin: var(--ez-space-sm) 0 var(--ez-space-2xs); }
+  .app-home__drop { color: var(--ez-color-text-muted); margin: var(--ez-space-md) 0 0; }
+  .app-home__toolbar { margin-bottom: var(--ez-space-xs); }
+  :global(.app-home__drop--active), .app-home__drop--active { outline: var(--ez-space-2xs) solid var(--ez-color-accent-ring); outline-offset: var(--ez-space-2xs); border-radius: var(--ez-radius-md); }
   .app-home__root { font-size: var(--ez-fs-sm); color: var(--ez-color-text-muted); word-break: break-all; }
 </style>

@@ -17,24 +17,34 @@ nav-export = Exportation
 nav-sheets = Planches contact
 nav-settings = Réglages
 
-home-title = Importer une collection
-home-intro = Choisissez le dossier qui contient vos photographies. Timelapse Studio l’explore, applique un hachage SHA-256 aux formats pris en charge (JPG, PNG, TIFF), cherche les doublons de contenu et consigne tout cela dans une base de données projet sur cet appareil.
 home-import-action = Choisir un dossier à importer
 home-importing = Importation…
+home-welcome-title = Bienvenue
+home-welcome-intro = Choisissez le dossier qui contient vos photographies. Tout reste sur cet appareil.
+home-drop-hint = Ou déposez un dossier sur cette fenêtre.
+home-drop-active = Relâchez pour ouvrir ce dossier.
+home-rescan = Réanalyser
+home-switch = Changer de projet
+home-steps-title = Votre projet
+home-steps-error = Les chiffres du projet n’ont pas pu être lus.
+home-step-photos = Photographies
+home-step-flagged = Signalées pour révision
+home-step-not-analyzed = Pas encore analysées
+home-step-selections = Sélections
+home-step-exports = Exports
+home-step-open = Ouvrir
+home-summary = { $new } nouvelle(s), { $unchanged } déjà dans le projet.
+home-details-summary = Détails
 home-stat-scanned = Fichiers explorés
-home-stat-hashed = Fichiers hachés
-home-stat-new = Nouvelles entrées
-home-stat-unchanged = Déjà présentes
 home-stat-duplicates = Fichiers en doublon
 home-hidden-removed = { $count ->
     [one] { $count } fichier macOS caché (une copie « ._ » des métadonnées d’une photo) importé plus tôt a été retiré du projet. Vos photographies ne sont pas touchées.
    *[other] { $count } fichiers macOS cachés (des copies « ._ » des métadonnées de photos) importés plus tôt ont été retirés du projet. Vos photographies ne sont pas touchées.
 }
-home-skipped-unreadable = { $count } fichier(s) n’ont pas pu être lus et ont été importés sans hachage.
+home-skipped-unreadable = { $count } fichier(s) n’ont pas pu être lus et ont été importés sans vérification du contenu.
 home-duplicate-groups-summary = Groupes de doublons trouvés lors de cet import
 home-integrity-missing = { $count } entrée(s) de l’inventaire n’a/ont plus de fichier sur disque
 home-integrity-dups = { $count } groupe(s) distinct(s) de doublon(s) dans l’inventaire
-home-root = Dossier source : { $path }
 
 settings-section-privacy = Confidentialité
 settings-privacy-description = Tout reste sur cet appareil. Rien n’est transmis.

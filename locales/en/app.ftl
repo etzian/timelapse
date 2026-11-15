@@ -16,24 +16,34 @@ nav-export = Export
 nav-sheets = Contact sheets
 nav-settings = Settings
 
-home-title = Import collection
-home-intro = Pick the folder that contains your photographs. Timelapse Studio scans it, hashes the supported formats (JPG, PNG, TIFF), looks for content duplicates and records everything in a project database on this device.
 home-import-action = Choose a folder to import
 home-importing = Importing…
+home-welcome-title = Welcome
+home-welcome-intro = Choose the folder that holds your photographs. Everything stays on this device.
+home-drop-hint = Or drop a folder on this window.
+home-drop-active = Release to open this folder.
+home-rescan = Rescan
+home-switch = Switch project
+home-steps-title = Your project
+home-steps-error = The project figures could not be read.
+home-step-photos = Photographs
+home-step-flagged = Flagged for review
+home-step-not-analyzed = Not analyzed yet
+home-step-selections = Selections
+home-step-exports = Exports
+home-step-open = Open
+home-summary = { $new } new, { $unchanged } already in the project.
+home-details-summary = Details
 home-stat-scanned = Files scanned
-home-stat-hashed = Files hashed
-home-stat-new = New entries
-home-stat-unchanged = Already present
 home-stat-duplicates = Duplicate files
 home-hidden-removed = { $count ->
     [one] { $count } hidden macOS file (a “._” copy of a photo’s metadata) imported earlier was removed from the project. Your photographs are not affected.
    *[other] { $count } hidden macOS files (“._” copies of photos’ metadata) imported earlier were removed from the project. Your photographs are not affected.
 }
-home-skipped-unreadable = { $count } file(s) could not be read and were imported without a hash.
+home-skipped-unreadable = { $count } file(s) could not be read and were imported without a content check.
 home-duplicate-groups-summary = Duplicate groups found in this import
 home-integrity-missing = { $count } inventory entry(ies) has/have no file on disk
 home-integrity-dups = { $count } distinct duplicate group(s) in the inventory
-home-root = Source folder: { $path }
 
 settings-section-privacy = Privacy
 settings-privacy-description = Everything stays on this device. Nothing is sent anywhere.

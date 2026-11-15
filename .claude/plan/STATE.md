@@ -43,7 +43,7 @@ STATUS: RUNNING
 | --- | --- | --- | --- | --- |
 | P1 | ADR-027 and baseline debts | sonnet | GATE-UI | done |
 | P2 | Project store and continuity | sonnet | GATE-UI + GATE-FAST + legal | done |
-| P3 | Home as the project overview | sonnet | GATE-UI | pending |
+| P3 | Home as the project overview | sonnet | GATE-UI | done |
 | P4 | Pipeline navigation | sonnet | GATE-UI | pending |
 | P5 | Next step and named selections | sonnet | GATE-UI | pending |
 | P6 | Flipbook | sonnet | GATE-UI | pending |
@@ -71,6 +71,12 @@ STATUS: RUNNING
 - DECISIONS: Reopen fills `project.backfill` with `{0, 0, summary}`; Home hides the resolved/unresolved line when both are 0. Reopen runs `integrityCheck` in the background, failure ignored. `project.report` is null after reopen (not persisted). Erase does not close the open project. localStorage key `timelapse.recent-projects`.
 - DEFERRED: P3 redesigns Home (overview, copy, recent list placement).
 - MANUAL: none (unreachable state and launch restore not rendered; P14/P15 pass)
+
+### P3 — pass
+- CHANGED: new `ProjectSteps.svelte` (one line per step with skeleton, error and refreshing states); Home rewritten (welcome with drop target and recent list; open project with title, Rescan, Switch project, steps, short summary, details disclosure, timeline); home-* keys in en and fr-CA, hashing and database wording removed.
+- DECISIONS: Drag-drop works with `core:default` (`onDragDropEvent` uses only `listen`); capabilities unchanged. Drop is accepted anywhere in the window and a dropped file surfaces the import error. Figures come from `projectSummary`, `classifyImages`, `listSamplingRuns`, `listExports`; `classifyImages` runs each time the steps load. Exports counts completed ones only. Rescan is `importPath(root)` and bumps `scanVersion`. Recent list sits at the bottom of Home, excluding the open project. No new `--app-*` tokens.
+- DEFERRED: Selections shows a run count, named labels come in P5. Photographs line has no link. Rendered pass (drop highlight, skeleton, fr-CA length) goes to P14/P15.
+- MANUAL: none
 
 ## Open user items
 
