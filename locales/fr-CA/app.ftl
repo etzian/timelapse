@@ -38,6 +38,56 @@ home-root = Dossier source : { $path }
 settings-section-privacy = Confidentialité
 settings-privacy-description = Tout reste sur cet appareil. Rien n’est transmis.
 erase-item-settings = Vos choix de langue, de thème et de densité
+erase-section = Choisir ce qu'il faut effacer
+erase-section-description = Utilisez ensuite Effacer toutes les données ci-dessous. Vos photographies originales ne sont jamais touchées, sauf celles rejetées qui sont en quarantaine si vous la choisissez.
+erase-choice-settings = Réglages de l'application
+erase-choice-project = Données du projet
+erase-choice-project-hint = Le dossier caché « .timelapse » de { $folder } ({ $size }) : décisions, sélections, analyses d'ajustement, vignettes, fichiers temporaires et historique d'annulation.
+erase-choice-exports = Exportations
+erase-choice-exports-hint = { $count ->
+    [one] { $count } fichier ({ $size }) dans le dossier « Timelapse exports » : vidéos, leurs fiches et planches contact.
+   *[other] { $count } fichiers ({ $size }) dans le dossier « Timelapse exports » : vidéos, leurs fiches et planches contact.
+}
+erase-choice-copies = Photographies copiées
+erase-choice-copies-hint = { $count ->
+    [one] { $count } copie ({ $size }) faite par le regroupement dans { $folders }. Une copie que vous avez modifiée est conservée.
+   *[other] { $count } copies ({ $size }) faites par le regroupement dans { $folders }. Une copie que vous avez modifiée est conservée.
+}
+erase-choice-copies-moved = { $count ->
+    [one] { $count } photographie déplacée par le regroupement n'est jamais effacée : c'est le seul exemplaire.
+   *[other] { $count } photographies déplacées par le regroupement ne sont jamais effacées : ce sont les seuls exemplaires.
+}
+erase-choice-quarantine = Quarantaine
+erase-choice-quarantine-hint = { $count ->
+    [one] { $count } photographie originale rejetée ({ $size }) dans le dossier « Timelapse quarantine ». Elle sera supprimée définitivement.
+   *[other] { $count } photographies originales rejetées ({ $size }) dans le dossier « Timelapse quarantine ». Elles seront supprimées définitivement.
+}
+erase-choice-empty = Rien à effacer.
+erase-no-project = Ouvrez un dossier source dans Accueil pour effacer aussi ses données de projet, ses exportations, ses copies ou sa quarantaine.
+erase-nothing-chosen = Rien : choisissez au moins un élément ci-dessus.
+erase-item-project = Les données du projet de { $folder } ({ $size })
+erase-item-exports = { $count ->
+    [one] Les exportations : { $count } fichier ({ $size })
+   *[other] Les exportations : { $count } fichiers ({ $size })
+}
+erase-item-copies = { $count ->
+    [one] { $count } photographie copiée par le regroupement ({ $size })
+   *[other] { $count } photographies copiées par le regroupement ({ $size })
+}
+erase-item-quarantine = { $count ->
+    [one] { $count } photographie originale rejetée en quarantaine ({ $size })
+   *[other] { $count } photographies originales rejetées en quarantaine ({ $size })
+}
+erase-done-copies-kept = { $count ->
+    [one] { $count } copie a été conservée : elle a changé, est introuvable ou est maintenant un original.
+   *[other] { $count } copies ont été conservées : elles ont changé, sont introuvables ou sont maintenant des originaux.
+}
+error-erase = { $reason ->
+    [busy] Un traitement est en cours sur ce dossier. Attendez qu'il se termine ou arrêtez-le, puis effacez.
+    [quarantine-inside] Des originaux rejetés sont encore dans les données du projet. Choisissez aussi la quarantaine, ou restaurez-les d'abord.
+    [remove-failed] Un fichier n'a pas pu être supprimé ; il est peut-être ouvert dans une autre application. Fermez-le et réessayez.
+   *[other] L'effacement n'a pas été mené à terme.
+}
 
 about-endorsed-by = par
 
@@ -352,7 +402,7 @@ sampling-verify-inputs-changed = Les photographies ont changé depuis
 
 ## Phase 5 — exportation
 export-title = Exportation
-export-intro = Transformez une sélection enregistrée en vidéo MP4. L’encodage se fait sur cet appareil avec le FFmpeg fourni avec l’application; la vidéo est enregistrée dans le dossier .timelapse/exports du projet et rien n’est écrasé.
+export-intro = Transformez une sélection enregistrée en vidéo MP4. L’encodage se fait sur cet appareil avec le FFmpeg fourni avec l’application; la vidéo est enregistrée dans le dossier « Timelapse exports » du dossier source et rien n’est écrasé.
 export-no-project-description = Importez d’abord un dossier, puis enregistrez une sélection dans la page Échantillonnage.
 export-no-ffmpeg-title = L’encodage vidéo n’est pas offert dans cette version
 export-no-ffmpeg-description = Le FFmpeg fourni avec l’application est introuvable. Installez l’application à partir d’un paquet officiel pour exporter des vidéos.
@@ -582,7 +632,7 @@ organize-problem-changed = Modifié depuis l’importation
 
 sheets-title = Planches contact
 sheets-no-project-description = Importez d’abord un dossier de photographies; vous pourrez ensuite les imprimer en planches contact.
-sheets-intro = Une planche contact est un PDF de vignettes avec leur nom de fichier et leur heure de prise de vue, établi à partir des registres du projet. Elle est enregistrée dans le dossier .timelapse/contact-sheets du projet.
+sheets-intro = Une planche contact est un PDF de vignettes avec leur nom de fichier et leur heure de prise de vue, établi à partir des registres du projet. Elle est enregistrée dans le dossier « Timelapse exports/contact-sheets » du dossier source.
 sheets-source-title = Quoi afficher
 sheets-source = Photographies
 sheets-source-all = Toutes les photographies

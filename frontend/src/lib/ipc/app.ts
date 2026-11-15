@@ -699,7 +699,7 @@ export const listContactSheets = (root: string) => invoke<SheetRecord[]>('list_c
 
 /** The derived export record (ADR-015), pretty JSON. */
 export const exportRecord = (root: string, exportId: number) => invoke<string>('export_record', { root, export: exportId });
-/** Saves the record as `.timelapse/exports/<id>.record.json`; resolves to its path. */
+/** Saves the record as `Timelapse exports/<video name>.record.json`; resolves to its path. */
 export const writeExportRecord = (root: string, exportId: number) => invoke<string>('write_export_record', { root, export: exportId });
 
 export interface TimelinePage {
@@ -836,3 +836,48 @@ export async function adjustedFrame(
   const buf = await invoke<ArrayBuffer>('adjusted_frame', { root, run, index, flickerRun, stabilizationRun, after }, 60_000);
   return `data:image/jpeg;base64,${toBase64(new Uint8Array(buf))}`;
 }
+
+/* ---------- Erase (ADR-026) ---------- */
+
+/** One folder Settings → Erase all data can remove. */
+export interface EraseFolder {
+  path: string;
+  exists: boolean;
+  files: number;
+  bytes: number;
+}
+
+/** Photographs consolidation copied (erasable) or moved (never erased) into working folders. */
+export interface EraseCopies {
+  folders: string[];
+  files: number;
+  bytes: number;
+  moved: number;
+}
+
+export interface EraseInventory {
+  project_data: EraseFolder;
+  exports: EraseFolder;
+  quarantine: EraseFolder;
+  copies: EraseCopies;
+}
+
+export interface EraseTargets {
+  project_data: boolean;
+  exports: boolean;
+  quarantine: boolean;
+  copies: boolean;
+}
+
+export interface EraseReport {
+  project_data: boolean;
+  exports: boolean;
+  quarantine: boolean;
+  copies_removed: number;
+  copies_kept: number;
+}
+
+export const eraseInventory = (root: string) => invoke<EraseInventory>('erase_inventory', { root }, 120_000);
+/** Erasing copies re-hashes each one before removing it: allow for a large working folder. */
+export const eraseProjectData = (root: string, targets: EraseTargets) =>
+  invoke<EraseReport>('erase_project_data', { root, targets }, 6 * 3600_000);

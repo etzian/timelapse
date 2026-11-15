@@ -41,6 +41,10 @@ STATUS: DONE
 
 ## Handoff log
 
+- **2026-11-15 — ADR-026: visible output folders, erasable `.timelapse/`** (user request after Phase 8).
+  - Videos, records and contact sheets go to `<root>/Timelapse exports/`, rejected originals to `<root>/Timelapse quarantine/`; `.timelapse/` keeps the database, thumbnails and `tmp/` (all `.part` files). The scan skips both folders. Older projects are moved on open (file by file, no overwrite, stored paths rewritten).
+  - Settings → Erase all data now lets the user choose: app settings, project data, exports, quarantine, consolidation copies (unmodified copies only, via the copy runs' undo; moved photographs never). A per-folder job guard refuses an erase while work runs (`busy`).
+  - Tests: erase targets and busy, copies vs moved, legacy relocation + restore, scan skip; frontend erase helpers.
 - **2026-11-15 — Phase 8 DONE** (one item is the user's).
   - **ADR-025:** deflicker (luminance + colour, against a trend of running median then mean in log space; exposure capped at ±1 stop, colour at ±⅓ stop and renormalised to keep luminance) and translation-only stabilization (block matching on 512 px normalised grayscale, a 4-level pyramid, sub-pixel fit, confidence, cuts ignored; the smoothed path; one crop of at most 5% per side). Series are extended at both ends along a robust line, so the first and last frames are corrected too. No new dependency; vidstab (GPL) excluded.
   - **Core** (`crates/core/src/adjust/`): `deflicker.rs`, `stabilize.rs`, `series.rs` (pure); `mod.rs` (analyses of a saved selection from the cached review thumbnails, in parallel batches, with progress, cancel and a lock); `store.rs` (schema v8: `flicker_runs`/`flicker_frames`, `stabilization_runs`/`stabilization_frames`, each run written whole in one transaction); `preview.rs` (downsampled chart series, before/after stills).

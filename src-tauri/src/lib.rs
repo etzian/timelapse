@@ -180,7 +180,7 @@ fn set_decision(
     Ok(clean::decide_for_root(&root, &ids, decision)?)
 }
 
-/// Move rejected originals into `<root>/.timelapse/quarantine/` (journaled, hash-verified).
+/// Move rejected originals into `<root>/Timelapse quarantine/` (journaled, hash-verified).
 #[tauri::command]
 async fn quarantine_images(
     root: PathBuf,
@@ -291,7 +291,7 @@ async fn ffmpeg_info(app: tauri::AppHandle) -> std::result::Result<export::Ffmpe
     blocking(move || Ok(paths.map(|p| export::info(&p)).unwrap_or_default())).await
 }
 
-/// Encode saved sampling run `run` into an MP4 under `<root>/.timelapse/exports/`.
+/// Encode saved sampling run `run` into an MP4 under `<root>/Timelapse exports/`.
 #[tauri::command]
 async fn start_export(
     app: tauri::AppHandle,
@@ -418,7 +418,7 @@ async fn preview_contact_sheet(
     blocking(move || contact_sheet::preview(&root, &source, &layout)).await
 }
 
-/// Generate a sheet into `<root>/.timelapse/contact-sheets/`; `labels` are translated by
+/// Generate a sheet into `<root>/Timelapse exports/contact-sheets/`; `labels` are translated by
 /// the UI.
 #[tauri::command]
 async fn start_contact_sheet(
@@ -531,6 +531,23 @@ fn cancel_adjustment(token: u64) {
     adjust::cancel(token);
 }
 
+/// What Settings → Erase all data would remove for `root` (ADR-026).
+#[tauri::command]
+async fn erase_inventory(
+    root: PathBuf,
+) -> std::result::Result<timelapse_core::erase::Inventory, IpcError> {
+    blocking(move || timelapse_core::erase::inventory(&root)).await
+}
+
+/// Erase what the user chose for `root`; refused (`busy`) while work runs on it.
+#[tauri::command]
+async fn erase_project_data(
+    root: PathBuf,
+    targets: timelapse_core::erase::Targets,
+) -> std::result::Result<timelapse_core::erase::Report, IpcError> {
+    blocking(move || timelapse_core::erase::erase(&root, targets)).await
+}
+
 #[tauri::command]
 async fn list_adjustments(root: PathBuf) -> std::result::Result<adjust::Adjustments, IpcError> {
     blocking(move || adjust::adjustments_for_root(&root)).await
@@ -639,7 +656,9 @@ pub fn run() {
             list_adjustments,
             flicker_series,
             stabilization_series,
-            adjusted_frame
+            adjusted_frame,
+            erase_inventory,
+            erase_project_data
         ])
         .run(tauri::generate_context!())
         .expect("error while running Timelapse Studio");

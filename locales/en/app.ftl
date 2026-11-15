@@ -37,6 +37,56 @@ home-root = Source folder: { $path }
 settings-section-privacy = Privacy
 settings-privacy-description = Everything stays on this device. Nothing is sent anywhere.
 erase-item-settings = Your language, theme and density choices
+erase-section = Choose what to erase
+erase-section-description = Then use Erase all data below. Your original photographs are never touched, except the rejected ones in the quarantine if you choose it.
+erase-choice-settings = App settings
+erase-choice-project = Project data
+erase-choice-project-hint = The hidden “.timelapse” folder of { $folder } ({ $size }): decisions, selections, adjustment runs, thumbnails, temporary files and the undo history.
+erase-choice-exports = Exports
+erase-choice-exports-hint = { $count ->
+    [one] One file ({ $size }) in the “Timelapse exports” folder: videos, their records and contact sheets.
+   *[other] { $count } files ({ $size }) in the “Timelapse exports” folder: videos, their records and contact sheets.
+}
+erase-choice-copies = Copied photographs
+erase-choice-copies-hint = { $count ->
+    [one] One copy ({ $size }) made by consolidation in { $folders }. A copy you changed is kept.
+   *[other] { $count } copies ({ $size }) made by consolidation in { $folders }. A copy you changed is kept.
+}
+erase-choice-copies-moved = { $count ->
+    [one] One photograph moved by consolidation is never erased: it is the only copy.
+   *[other] { $count } photographs moved by consolidation are never erased: they are the only copy.
+}
+erase-choice-quarantine = Quarantine
+erase-choice-quarantine-hint = { $count ->
+    [one] One rejected original photograph ({ $size }) in the “Timelapse quarantine” folder. It is deleted permanently.
+   *[other] { $count } rejected original photographs ({ $size }) in the “Timelapse quarantine” folder. They are deleted permanently.
+}
+erase-choice-empty = Nothing to erase.
+erase-no-project = Open a source folder on Home to also erase its project data, exports, copies or quarantine.
+erase-nothing-chosen = Nothing: choose at least one item above.
+erase-item-project = The project data of { $folder } ({ $size })
+erase-item-exports = { $count ->
+    [one] The exports: one file ({ $size })
+   *[other] The exports: { $count } files ({ $size })
+}
+erase-item-copies = { $count ->
+    [one] One photograph copied by consolidation ({ $size })
+   *[other] { $count } photographs copied by consolidation ({ $size })
+}
+erase-item-quarantine = { $count ->
+    [one] One rejected original photograph in the quarantine ({ $size })
+   *[other] { $count } rejected original photographs in the quarantine ({ $size })
+}
+erase-done-copies-kept = { $count ->
+    [one] One copy was kept: it changed, went missing or is now an original.
+   *[other] { $count } copies were kept: they changed, went missing or are now originals.
+}
+error-erase = { $reason ->
+    [busy] Work is running on this folder. Wait for it to finish or stop it, then erase.
+    [quarantine-inside] Rejected originals are still inside the project data. Choose the quarantine too, or restore them first.
+    [remove-failed] A file could not be removed; it may be open in another app. Close it and try again.
+   *[other] Erasing did not complete.
+}
 
 about-endorsed-by = by
 
@@ -352,7 +402,7 @@ sampling-verify-inputs-changed = The photographs have changed since
 
 ## Phase 5 — export
 export-title = Export
-export-intro = Turn a saved selection into an MP4 video. Encoding runs on this device with the FFmpeg bundled in the app; the video is saved in the project's .timelapse/exports folder and nothing is overwritten.
+export-intro = Turn a saved selection into an MP4 video. Encoding runs on this device with the FFmpeg bundled in the app; the video is saved in the “Timelapse exports” folder of the source folder and nothing is overwritten.
 export-no-project-description = Import a folder first, then save a selection on the Sampling page.
 export-no-ffmpeg-title = Video encoding is not available in this build
 export-no-ffmpeg-description = The FFmpeg that ships with the app was not found. Install the app from an official package to export videos.
@@ -582,7 +632,7 @@ organize-problem-changed = Changed since the import
 
 sheets-title = Contact sheets
 sheets-no-project-description = Import a folder of photographs first; you can then print them as contact sheets.
-sheets-intro = A contact sheet is a PDF of thumbnails with their file names and capture times, made from the project’s records. It goes into the project’s .timelapse/contact-sheets folder.
+sheets-intro = A contact sheet is a PDF of thumbnails with their file names and capture times, made from the project’s records. It goes into the “Timelapse exports/contact-sheets” folder of the source folder.
 sheets-source-title = What to show
 sheets-source = Photographs
 sheets-source-all = All photographs

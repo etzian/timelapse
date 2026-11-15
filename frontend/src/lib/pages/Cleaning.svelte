@@ -88,7 +88,8 @@
   const decidable = $derived(visible.filter((i) => i.status !== null && i.status !== 'quarantined'));
   const selectedIds = $derived(decidable.filter((i) => selection[i.id]).map((i) => i.id));
   const allSelected = $derived(decidable.length > 0 && selectedIds.length === decidable.length);
-  const quarantinePath = $derived(root ? `${root}${root.includes('\\') ? '\\' : '/'}.timelapse${root.includes('\\') ? '\\' : '/'}quarantine` : '');
+  // ADR-026: the quarantine is a visible folder at the top of the source folder.
+  const quarantinePath = $derived(root ? `${root}${root.includes('\\') ? '\\' : '/'}Timelapse quarantine` : '');
   const filterItems = $derived(
     (['flagged', 'rejected', 'quarantined', 'all'] as const).map((key) => ({
       key,
