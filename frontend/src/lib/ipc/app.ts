@@ -50,13 +50,13 @@ export function pickFolder(): Promise<string | null> {
 export const importRoot = (root: string) => invoke<ImportReport>('import_folder', { root }, IMPORT_TIMEOUT_MS);
 
 export interface ProjectSummary {
-  /** False when the folder has never been imported. */
+  /** False when the folder has never been imported, or its database awaits an upgrade from an older version. */
   imported: boolean;
   total_images: number;
   timeline: TimelineSummary;
 }
 
-/** Read-only: what an already imported folder holds, without a rescan. Refuses an unreachable folder. */
+/** Read-only (writes nothing): what an imported folder holds, without a rescan. Refuses an unreachable folder. */
 export const projectSummary = (root: string) => invoke<ProjectSummary>('project_summary', { root });
 
 export const listImages = (root: string) => invoke<ImageRow[]>('list_images', { root });
@@ -719,7 +719,8 @@ export type OutputKind = 'export' | 'contact-sheet' | 'export-record';
 
 /**
  * Opens a video, its saved record or a contact sheet in the default app. Refused
- * (`output` error) unless the stored file exists inside `<root>/Timelapse exports/`.
+ * (`output` error) unless the stored file exists inside `<root>/Timelapse exports/` and has
+ * the extension the app writes for `kind` (mp4, pdf, json).
  */
 export const openOutput = (root: string, kind: OutputKind, id: number) => invoke<void>('open_output', { root, kind, id });
 /** Shows the same file selected in Finder; refused on the same terms as `openOutput`. */

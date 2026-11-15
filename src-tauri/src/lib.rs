@@ -601,7 +601,8 @@ async fn adjusted_frame(
 // ---- UX milestone: open and reveal what the app made (ADR-027) ------------------------
 //
 // The webview names a kind and an id, never a path; the core resolves it to the stored
-// path and refuses anything that is not an existing file inside `<root>/Timelapse exports/`.
+// path and refuses anything that is not an existing file inside `<root>/Timelapse exports/`
+// with the extension the app writes for that kind (the same check for open and reveal).
 // The opener plugin is called from Rust only: the webview holds no opener permission.
 
 use timelapse_core::outputs::{self, OutputKind};
@@ -616,8 +617,7 @@ async fn with_output(
 ) -> std::result::Result<(), IpcError> {
     blocking(move || {
         let path = outputs::resolve(&root, kind, id)?;
-        let path = path.to_str().ok_or(timelapse_core::Error::Output { reason: "not-a-file" })?;
-        act(&app, path).map_err(|_| timelapse_core::Error::Output { reason: "open-failed" })
+        act(&app, &path).map_err(|_| timelapse_core::Error::Output { reason: "open-failed" })
     })
     .await
 }

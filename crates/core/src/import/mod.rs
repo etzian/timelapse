@@ -141,22 +141,29 @@ pub struct ProjectSummary {
 }
 
 /// Read-only summary of an already imported folder: the inventory size and the timeline
-/// counts. Reads nothing from the photographs. A folder that cannot be reached is
-/// `ImportRootUnreadable`; a folder never imported is `imported: false` and is left untouched.
+/// counts. Reads nothing from the photographs and writes nothing: the database is opened
+/// with [`store::open_read_only`], so nothing is created, migrated, settled or moved
+/// (a pre-ADR-026 layout is left for the next command that opens the project for work).
+///
+/// A folder that cannot be reached is `ImportRootUnreadable`. A folder never imported, or
+/// whose database comes from an older build and still needs its migration, is
+/// `imported: false` and is left untouched. A database from a newer build is `DbMessage`.
 pub fn project_summary(root: &Path) -> Result<ProjectSummary> {
     if !root.is_dir() {
         return Err(crate::Error::ImportRootUnreadable {
             path: root.to_string_lossy().into_owned(),
         });
     }
-    if !store::db_exists(default_db_dir(root).as_path()) {
-        return Ok(ProjectSummary {
-            imported: false,
-            total_images: 0,
-            timeline: Default::default(),
-        });
-    }
-    let conn = open_root(root)?;
+    let conn = match store::open_read_only(default_db_dir(root).as_path())? {
+        store::ReadOnly::Ready(conn) => conn,
+        store::ReadOnly::Missing | store::ReadOnly::Outdated => {
+            return Ok(ProjectSummary {
+                imported: false,
+                total_images: 0,
+                timeline: Default::default(),
+            });
+        }
+    };
     let timeline = store::timeline_summary(&conn)?;
     Ok(ProjectSummary { imported: true, total_images: timeline.total, timeline })
 }
@@ -265,6 +272,43 @@ mod tests {
         assert!(s.imported);
         assert_eq!(s.total_images, 1);
         assert_eq!(s.timeline.unresolved, 1);
+    }
+
+    #[test]
+    fn project_summary_does_not_write_the_database_or_move_a_legacy_layout() {
+        let root = tmp("summary-ro");
+        std::fs::write(root.join("G001.JPG"), b"photo").unwrap();
+        import_folder(&root).unwrap();
+        let db = default_db_dir(&root).join("timelapse.db");
+        // A pre-ADR-026 exports folder inside `.timelapse/`, which `open_root` would move.
+        let legacy = project_dir(&root).join("exports");
+        std::fs::create_dir_all(&legacy).unwrap();
+        std::fs::write(legacy.join("old.mp4"), b"video").unwrap();
+        let bytes = std::fs::read(&db).unwrap();
+        let mtime = std::fs::metadata(&db).unwrap().modified().unwrap();
+        std::thread::sleep(std::time::Duration::from_millis(20));
+
+        let s = project_summary(&root).unwrap();
+        assert!(s.imported && s.total_images == 1);
+        assert_eq!(std::fs::read(&db).unwrap(), bytes);
+        assert_eq!(std::fs::metadata(&db).unwrap().modified().unwrap(), mtime);
+        assert!(legacy.join("old.mp4").is_file(), "the legacy folder is left in place");
+        assert!(!crate::layout::exports_dir(&root).exists());
+
+        // A database from an older build: not migrated, reported as not imported yet.
+        {
+            let conn = rusqlite::Connection::open(&db).unwrap();
+            conn.pragma_update(None, "user_version", 1).unwrap();
+        }
+        let bytes = std::fs::read(&db).unwrap();
+        let s = project_summary(&root).unwrap();
+        assert!(!s.imported);
+        assert_eq!(std::fs::read(&db).unwrap(), bytes);
+        let v: i64 = rusqlite::Connection::open(&db)
+            .unwrap()
+            .query_row("PRAGMA user_version", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(v, 1);
     }
 
     #[test]

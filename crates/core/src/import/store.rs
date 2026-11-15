@@ -363,6 +363,41 @@ pub fn db_exists(db_dir: &Path) -> bool {
     db_path(db_dir).is_file()
 }
 
+/// What [`open_read_only`] found.
+#[derive(Debug)]
+pub enum ReadOnly {
+    /// No project database in `db_dir`.
+    Missing,
+    /// A database from an older build: it needs a migration, which only [`open`] does.
+    Outdated,
+    /// A current database, opened read-only.
+    Ready(Connection),
+}
+
+/// Opens the existing project database read-only, for questions that must change nothing
+/// (ADR-027). Unlike [`open`] it creates no directory, does not switch the journal mode,
+/// migrate, settle interrupted file operations or touch the `projects` row, and the
+/// connection cannot write. A database from a newer build is refused (`DbMessage`), as
+/// [`open`] does. SQLite may still create the `-wal` / `-shm` side files of a WAL database
+/// to read it; the database file itself is never written.
+pub fn open_read_only(db_dir: &Path) -> Result<ReadOnly, Error> {
+    let path = db_path(db_dir);
+    if !path.is_file() {
+        return Ok(ReadOnly::Missing);
+    }
+    let flags =
+        rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY | rusqlite::OpenFlags::SQLITE_OPEN_NO_MUTEX;
+    let conn = Connection::open_with_flags(&path, flags).map_err(|_| db_err(db_dir))?;
+    conn.busy_timeout(std::time::Duration::from_secs(5)).map_err(|_| db_err(db_dir))?;
+    let version: i64 =
+        conn.query_row("PRAGMA user_version", [], |r| r.get(0)).map_err(|_| db_err(db_dir))?;
+    match version.cmp(&SCHEMA_VERSION) {
+        std::cmp::Ordering::Less => Ok(ReadOnly::Outdated),
+        std::cmp::Ordering::Greater => Err(db_err(db_dir)),
+        std::cmp::Ordering::Equal => Ok(ReadOnly::Ready(conn)),
+    }
+}
+
 /// Open (creating if needed) the project database at `db_dir/timelapse.db` and run
 /// any outstanding migrations. `name`, `source_root` and `project_path` describe
 /// the project row — they are upserted on every open so a rename of the source
@@ -1181,6 +1216,49 @@ mod tests {
             .query_row("PRAGMA user_version", [], |r| r.get(0))
             .unwrap();
         assert_eq!(v, 99);
+    }
+
+    #[test]
+    fn the_read_only_opener_changes_nothing_and_refuses_to_write() {
+        // Nothing there: missing, and no directory is created.
+        let none = tmp_dir("ro-missing").join("db");
+        assert!(matches!(open_read_only(&none), Ok(ReadOnly::Missing)));
+        assert!(!none.exists());
+
+        let root = tmp_dir("ro-current");
+        let _ = fs::remove_file(db_path(&root));
+        drop(open(&root, "p", &root, Some(&root)).unwrap());
+        let before = fs::read(db_path(&root)).unwrap();
+        let mtime = fs::metadata(db_path(&root)).unwrap().modified().unwrap();
+        std::thread::sleep(std::time::Duration::from_millis(20));
+        {
+            let ReadOnly::Ready(conn) = open_read_only(&root).unwrap() else {
+                panic!("a current database opens")
+            };
+            timeline_summary(&conn).unwrap();
+            // The connection cannot write.
+            assert!(conn.execute("UPDATE projects SET name = 'x'", []).is_err());
+        }
+        assert_eq!(fs::read(db_path(&root)).unwrap(), before);
+        assert_eq!(fs::metadata(db_path(&root)).unwrap().modified().unwrap(), mtime);
+
+        // An older database is reported, not migrated.
+        let old = tmp_dir("ro-outdated");
+        let _ = fs::remove_file(db_path(&old));
+        {
+            let conn = Connection::open(db_path(&old)).unwrap();
+            conn.execute_batch(MIGRATION_V1).unwrap();
+            conn.pragma_update(None, "user_version", 1).unwrap();
+        }
+        let before = fs::read(db_path(&old)).unwrap();
+        assert!(matches!(open_read_only(&old), Ok(ReadOnly::Outdated)));
+        assert_eq!(fs::read(db_path(&old)).unwrap(), before);
+
+        // A newer one is refused, as `open` does.
+        let new = tmp_dir("ro-future");
+        let _ = fs::remove_file(db_path(&new));
+        Connection::open(db_path(&new)).unwrap().pragma_update(None, "user_version", 99).unwrap();
+        assert!(matches!(open_read_only(&new), Err(Error::DbMessage { .. })));
     }
 
     #[test]

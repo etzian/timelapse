@@ -123,6 +123,8 @@ error-output = { $reason ->
     [not-a-file] Ce n’est pas un fichier que l’application peut ouvrir.
     [outside-exports] Par sécurité, seuls les fichiers du dossier « Timelapse exports » de ce projet peuvent être ouverts.
     [open-failed] Le fichier n’a pas pu être ouvert. Vérifiez qu’une application de cet ordinateur peut lire des vidéos, ou affichez le fichier dans son dossier et ouvrez-le à partir de là.
+    [unsupported-type] Seules les vidéos, leurs fiches et les planches contact créées par l’application peuvent être ouvertes.
+    [unsupported-name] Le nom du fichier contient des caractères qui ne peuvent pas être transmis à une autre application. Renommez-le dans le Finder, puis réessayez.
    *[other] Le fichier n’a pas pu être ouvert.
 }
 
