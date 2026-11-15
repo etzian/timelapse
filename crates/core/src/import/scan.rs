@@ -25,6 +25,11 @@ pub struct Candidate {
     pub modified_at_unix: i64,
 }
 
+/// A file or folder name starting with `.` (hidden by Finder and by `ls`).
+pub fn is_hidden(name: &std::ffi::OsStr) -> bool {
+    name.as_encoded_bytes().first() == Some(&b'.')
+}
+
 /// Recursively walk `root` and return every supported image found.
 pub fn scan(root: &Path) -> Result<Vec<Candidate>, Error> {
     if !root.is_dir() {
@@ -46,6 +51,12 @@ fn walk(dir: &Path, root: &Path, is_root: bool, out: &mut Vec<Candidate>) -> Res
 
     for entry in entries.flatten() {
         let path = entry.path();
+        // Hidden entries are never photographs of the collection: macOS AppleDouble files
+        // (`._IMG_0001.JPG`, written beside every file on exFAT/FAT drives), `.Trashes`,
+        // `.Spotlight-V100`, `.fseventsd`, and the project's own `.timelapse/`.
+        if is_hidden(&entry.file_name()) {
+            continue;
+        }
         if path.is_dir() {
             // The project's own data (database, thumbnails, quarantine) lives in
             // `<root>/.timelapse/` (ADR-007) and is never part of the collection: a

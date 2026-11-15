@@ -9,6 +9,8 @@ export interface AppInfo {
 
 export interface ImportReport {
   scanned_count: number;
+  /** Rows for hidden files (macOS `._*`) left by an earlier import, removed. */
+  hidden_removed: number;
   hash_computed: number;
   duplicates_found: number;
   duplicate_groups: string[][];

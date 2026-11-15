@@ -57,6 +57,8 @@ pub struct ImportReport {
     /// Files present on disk that could not be hashed (permissions / I/O). They are still
     /// imported without a hash so they can be inspected.
     pub skipped_unreadable: usize,
+    /// Rows for hidden files (macOS `._*` and the like) left by an earlier import, removed.
+    pub hidden_removed: usize,
 }
 
 /// Phase 1 "import": scan `root`, SHA-256 the supported files, deduplicate on byte equality
@@ -68,6 +70,7 @@ pub fn import_folder(root: &Path) -> Result<ImportReport> {
 
     let candidates = scan::scan(root)?;
     let n = candidates.len();
+    let hidden_removed = store::remove_hidden_entries(&conn)?;
 
     let mut hashes: Vec<Option<String>> = Vec::with_capacity(n);
     let mut skipped_unreadable = 0usize;
@@ -112,6 +115,7 @@ pub fn import_folder(root: &Path) -> Result<ImportReport> {
         new_rows: counts.new_rows,
         unchanged: counts.unchanged,
         skipped_unreadable,
+        hidden_removed,
     })
 }
 
@@ -209,6 +213,65 @@ mod tests {
     }
 
     #[test]
+    fn hidden_files_are_skipped_and_old_rows_for_them_removed() {
+        let root = tmp("hidden");
+        std::fs::write(root.join("G001.JPG"), b"photo").unwrap();
+        // What macOS writes on an exFAT/FAT drive, and the system folders it creates.
+        std::fs::write(root.join("._G001.JPG"), b"\x00\x05\x16\x07appledouble").unwrap();
+        std::fs::create_dir_all(root.join(".Trashes/501")).unwrap();
+        std::fs::write(root.join(".Trashes/501/old.jpg"), b"trashed").unwrap();
+        let report = import_folder(&root).unwrap();
+        assert_eq!((report.scanned_count, report.new_rows, report.hidden_removed), (1, 1, 0));
+
+        // A project imported by an earlier build holds a `._` row (with a status), and
+        // another one that a saved selection uses.
+        let conn = open_root(&root).unwrap();
+        for (i, name) in ["._G001.JPG", "._G002.JPG"].iter().enumerate() {
+            conn.execute(
+                "INSERT INTO images (original_path, relative_path, filename, extension, file_size,
+                                     import_status, created_at)
+                 VALUES (?1, ?2, ?2, 'jpg', 4, 'imported', 0)",
+                rusqlite::params![root.join(name).to_string_lossy(), name],
+            )
+            .unwrap();
+            let id = conn.last_insert_rowid();
+            conn.execute(
+                "INSERT INTO image_status (image_id, status, updated_at) VALUES (?1, 'flagged', 0)",
+                [id],
+            )
+            .unwrap();
+            if i == 1 {
+                conn.execute(
+                    "INSERT INTO sampling_runs (id, method, configuration_json, algorithm_version,
+                         input_count, input_fingerprint, excluded_json, target_count,
+                         selected_count, unmatched_count, unmatched_json, status, created_at)
+                     VALUES (1, 'every-nth', '{}', 1, 1, '', '{}', 1, 1, 0, '[]', 'completed', 0)",
+                    [],
+                )
+                .unwrap();
+                conn.execute(
+                    "INSERT INTO sampling_items (sampling_run_id, image_id, sequence_index,
+                                                 actual_datetime)
+                     VALUES (1, ?1, 0, '2024-01-01T00:00:00.000Z')",
+                    [id],
+                )
+                .unwrap();
+            }
+        }
+        let again = import_folder(&root).unwrap();
+        assert_eq!(again.hidden_removed, 1, "the one a saved selection uses stays");
+        let names: Vec<String> =
+            list_for_root(&root).unwrap().into_iter().map(|r| r.filename).collect();
+        assert_eq!(names.len(), 2);
+        assert!(
+            names.contains(&"G001.JPG".to_string()) && names.contains(&"._G002.JPG".to_string())
+        );
+        let statuses: i64 =
+            conn.query_row("SELECT COUNT(*) FROM image_status", [], |r| r.get(0)).unwrap();
+        assert_eq!(statuses, 1, "the removed row's status went with it");
+    }
+
+    #[test]
     fn empty_folder_is_a_valid_import() {
         let root = tmp("empty");
         let report = import_folder(&root).unwrap();
@@ -247,13 +310,15 @@ mod tests {
         let q = project_dir(&root).join("quarantine");
         std::fs::create_dir_all(&q).unwrap();
         std::fs::write(q.join("moved.jpg"), b"b").unwrap();
-        // A sub-folder that merely shares the name is still part of the collection.
+        // A nested project's data (another `.timelapse/`, with its thumbnails) is hidden
+        // too: like every hidden folder, it is not part of the collection.
         let nested = root.join("trip").join(".timelapse");
         std::fs::create_dir_all(&nested).unwrap();
         std::fs::write(nested.join("x.jpg"), b"c").unwrap();
+        std::fs::write(root.join("trip").join("y.jpg"), b"d").unwrap();
 
         let report = import_folder(&root).unwrap();
-        assert_eq!(report.scanned_count, 2, "keep.jpg and trip/.timelapse/x.jpg only");
+        assert_eq!(report.scanned_count, 2, "keep.jpg and trip/y.jpg only");
         let rows = list_for_root(&root).unwrap();
         assert!(rows.iter().all(|r| !r.relative_path.contains("moved")));
     }

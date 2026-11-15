@@ -79,6 +79,10 @@
         <div><dt>{t('home-stat-duplicates')}</dt><dd>{report.duplicates_found}</dd></div>
       </dl>
 
+      {#if report.hidden_removed > 0}
+        <p class="note">{t('home-hidden-removed', { count: report.hidden_removed })}</p>
+      {/if}
+
       {#if report.skipped_unreadable > 0}
         <p class="note">{t('home-skipped-unreadable', { count: report.skipped_unreadable })}</p>
       {/if}

@@ -23,6 +23,10 @@ home-stat-hashed = Files hashed
 home-stat-new = New entries
 home-stat-unchanged = Already present
 home-stat-duplicates = Duplicate files
+home-hidden-removed = { $count ->
+    [one] { $count } hidden macOS file (a “._” copy of a photo’s metadata) imported earlier was removed from the project. Your photographs are not affected.
+   *[other] { $count } hidden macOS files (“._” copies of photos’ metadata) imported earlier were removed from the project. Your photographs are not affected.
+}
 home-skipped-unreadable = { $count } file(s) could not be read and were imported without a hash.
 home-duplicate-groups-summary = Duplicate groups found in this import
 home-integrity-missing = { $count } inventory entry(ies) has/have no file on disk

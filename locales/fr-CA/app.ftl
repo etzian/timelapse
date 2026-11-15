@@ -24,6 +24,10 @@ home-stat-hashed = Fichiers hachés
 home-stat-new = Nouvelles entrées
 home-stat-unchanged = Déjà présentes
 home-stat-duplicates = Fichiers en doublon
+home-hidden-removed = { $count ->
+    [one] { $count } fichier macOS caché (une copie « ._ » des métadonnées d’une photo) importé plus tôt a été retiré du projet. Vos photographies ne sont pas touchées.
+   *[other] { $count } fichiers macOS cachés (des copies « ._ » des métadonnées de photos) importés plus tôt ont été retirés du projet. Vos photographies ne sont pas touchées.
+}
 home-skipped-unreadable = { $count } fichier(s) n’ont pas pu être lus et ont été importés sans hachage.
 home-duplicate-groups-summary = Groupes de doublons trouvés lors de cet import
 home-integrity-missing = { $count } entrée(s) de l’inventaire n’a/ont plus de fichier sur disque

@@ -14,6 +14,24 @@ use super::metadata::{Candidates, Confidence, TimestampSource, resolver};
 use super::scan::Candidate;
 use crate::Error;
 
+/// Rows for hidden files (an AppleDouble `._IMG.JPG`, or anything under a hidden folder)
+/// imported by builds that did not skip them. They are removed with their analysis and
+/// status, unless a saved selection or a recorded file operation refers to them (that
+/// history is never rewritten). Returns how many were removed.
+pub fn remove_hidden_entries(conn: &Connection) -> Result<usize, Error> {
+    conn.execute(
+        r#"
+            DELETE FROM images
+            WHERE (filename LIKE '.%' OR relative_path LIKE '.%'
+                   OR relative_path LIKE '%/.%' OR relative_path LIKE '%\.%')
+              AND NOT EXISTS (SELECT 1 FROM sampling_items s WHERE s.image_id = images.id)
+              AND NOT EXISTS (SELECT 1 FROM file_operations f WHERE f.image_id = images.id)
+        "#,
+        [],
+    )
+    .map_err(|_| Error::StoreTransaction)
+}
+
 /// Current schema version, tracked in `PRAGMA user_version` (docs/DATABASE_SCHEMA.md §6).
 pub const SCHEMA_VERSION: i64 = 7;
 
