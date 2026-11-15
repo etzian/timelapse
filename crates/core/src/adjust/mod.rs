@@ -2,3 +2,4 @@
 //! saved selection, stored in SQLite, and applied by the export while it prepares frames.
 
 pub mod deflicker;
+pub mod stabilize;
