@@ -3916,6 +3916,7 @@ version = "0.1.0"
 dependencies = [
  "image",
  "kamadak-exif",
+ "libc",
  "rayon",
  "rusqlite",
  "serde",

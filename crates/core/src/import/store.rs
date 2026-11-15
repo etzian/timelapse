@@ -15,7 +15,7 @@ use super::scan::Candidate;
 use crate::Error;
 
 /// Current schema version, tracked in `PRAGMA user_version` (docs/DATABASE_SCHEMA.md §6).
-pub const SCHEMA_VERSION: i64 = 5;
+pub const SCHEMA_VERSION: i64 = 6;
 
 /// v1: the Phase 1 tables. Phase 1 databases were created with `user_version = 0` and
 /// these exact statements, so `IF NOT EXISTS` makes the step a no-op for them.
@@ -169,6 +169,57 @@ const MIGRATION_V5: &str = r#"
     CREATE INDEX IF NOT EXISTS idx_video_exports_created ON video_exports (created_at);
 "#;
 
+/// v6 (Phase 6 consolidation, ADR-023): consolidation runs, and the file-operation journal
+/// rebuilt so it accepts the copy / move / undo operations (existing rows are kept; SQLite
+/// cannot alter a CHECK constraint in place).
+const MIGRATION_V6: &str = r#"
+    CREATE TABLE IF NOT EXISTS consolidation_runs (
+        id INTEGER PRIMARY KEY,
+        operation TEXT NOT NULL CHECK (operation IN ('copy', 'move')),
+        destination TEXT NOT NULL,
+        configuration_json TEXT NOT NULL,
+        sampling_run_id INTEGER REFERENCES sampling_runs (id),
+        plan_fingerprint TEXT NOT NULL,
+        planned INTEGER NOT NULL,
+        duplicates INTEGER NOT NULL,
+        already_present INTEGER NOT NULL,
+        unsafe_names INTEGER NOT NULL,
+        bytes INTEGER NOT NULL,
+        status TEXT NOT NULL
+            CHECK (status IN ('running', 'completed', 'partial', 'cancelled', 'interrupted')),
+        undo_status TEXT CHECK (undo_status IN ('undone', 'partially-undone')),
+        created_at INTEGER NOT NULL,
+        completed_at INTEGER,
+        undone_at INTEGER
+    );
+
+    CREATE TABLE file_operations_v6 (
+        id INTEGER PRIMARY KEY,
+        job_id INTEGER REFERENCES consolidation_runs (id),
+        image_id INTEGER REFERENCES images (id),
+        operation_type TEXT NOT NULL CHECK (operation_type IN
+            ('quarantine', 'restore', 'copy', 'move', 'move-back', 'remove-copy')),
+        source_path TEXT NOT NULL,
+        destination_path TEXT NOT NULL,
+        status TEXT NOT NULL CHECK (status IN ('pending', 'completed', 'failed')),
+        checksum TEXT,
+        failure TEXT,
+        created_at INTEGER NOT NULL,
+        completed_at INTEGER
+    );
+    INSERT INTO file_operations_v6 (id, job_id, image_id, operation_type, source_path,
+                                    destination_path, status, checksum, failure, created_at,
+                                    completed_at)
+        SELECT id, NULL, image_id, operation_type, source_path, destination_path, status,
+               checksum, failure, created_at, completed_at
+        FROM file_operations;
+    DROP TABLE file_operations;
+    ALTER TABLE file_operations_v6 RENAME TO file_operations;
+    CREATE INDEX idx_file_operations_job ON file_operations (job_id);
+    CREATE INDEX idx_file_operations_status ON file_operations (status);
+    CREATE INDEX idx_file_operations_image ON file_operations (image_id, operation_type);
+"#;
+
 /// Apply every outstanding step in order, each in its own transaction together with its
 /// `user_version` bump, so a failed step leaves the database at the previous version.
 /// A database from a newer build (`user_version > SCHEMA_VERSION`) is refused, not touched.
@@ -188,6 +239,7 @@ fn migrate(conn: &Connection) -> rusqlite::Result<()> {
         (3, MIGRATION_V3),
         (4, MIGRATION_V4),
         (5, MIGRATION_V5),
+        (6, MIGRATION_V6),
     ] {
         if version < target {
             let tx = rusqlite::Transaction::new_unchecked(
@@ -418,7 +470,7 @@ pub struct PendingImage {
 pub fn pending_timestamps(conn: &Connection) -> Result<Vec<PendingImage>, Error> {
     let mut stmt = conn
         .prepare(
-            "SELECT id, original_path, modified_at FROM images WHERE timestamp_source IS NULL ORDER BY id",
+            "SELECT id, COALESCE(current_path, original_path), modified_at FROM images WHERE timestamp_source IS NULL ORDER BY id",
         )
         .map_err(|_| Error::StoreTransaction)?;
     let rows = stmt
@@ -936,6 +988,57 @@ mod tests {
         }
         let r = gaps(&conn, GapOptions { factor: f64::MAX, min_seconds: i64::MAX }).unwrap();
         assert!(r.gaps.is_empty());
+    }
+
+    #[test]
+    fn v6_rebuilds_the_journal_and_keeps_its_rows() {
+        let root = tmp_dir("migrate-v6");
+        let _ = fs::remove_file(db_path(&root));
+        {
+            let conn = Connection::open(db_path(&root)).unwrap();
+            for sql in [MIGRATION_V1, MIGRATION_V2, MIGRATION_V3, MIGRATION_V4, MIGRATION_V5] {
+                conn.execute_batch(sql).unwrap();
+            }
+            conn.pragma_update(None, "user_version", 5).unwrap();
+            conn.execute(
+                "INSERT INTO images (id, original_path, relative_path, filename, extension, file_size, import_status, created_at)
+                 VALUES (1, '/c/a.jpg', 'a.jpg', 'a.jpg', 'jpg', 1, 'imported', 0)",
+                [],
+            )
+            .unwrap();
+            conn.execute(
+                "INSERT INTO file_operations (id, image_id, operation_type, source_path, destination_path, status, checksum, created_at, completed_at)
+                 VALUES (41, 1, 'quarantine', '/c/a.jpg', '/c/.timelapse/quarantine/a.jpg', 'completed', 'abc', 10, 11)",
+                [],
+            )
+            .unwrap();
+        }
+        let conn = open(&root, "p", &root, Some(&root)).unwrap();
+        let row: (i64, Option<i64>, String, String, Option<String>) = conn
+            .query_row(
+                "SELECT id, job_id, operation_type, status, checksum FROM file_operations",
+                [],
+                |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?)),
+            )
+            .unwrap();
+        assert_eq!(row, (41, None, "quarantine".into(), "completed".into(), Some("abc".into())));
+        // The rebuilt table accepts the consolidation operations and still refuses others.
+        for (kind, ok) in [("copy", true), ("move-back", true), ("delete", false)] {
+            let r = conn.execute(
+                "INSERT INTO file_operations (image_id, operation_type, source_path, destination_path, status, created_at)
+                 VALUES (1, ?1, 's', 'd', 'failed', 0)",
+                [kind],
+            );
+            assert_eq!(r.is_ok(), ok, "{kind}");
+        }
+        let indexes: i64 = conn
+            .query_row(
+                "SELECT count(*) FROM sqlite_master WHERE type = 'index' AND tbl_name = 'file_operations'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(indexes, 3);
     }
 
     #[test]

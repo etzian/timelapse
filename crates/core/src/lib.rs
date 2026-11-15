@@ -5,6 +5,7 @@
 //! adapters over this module's API.
 
 pub mod clean;
+pub mod consolidate;
 pub mod export;
 pub mod files;
 pub mod import;
@@ -40,6 +41,9 @@ pub enum Error {
 
     #[error("video export failed: {reason}")]
     Export { reason: &'static str },
+
+    #[error("consolidation refused or failed: {reason}")]
+    Consolidation { reason: &'static str },
 }
 
 impl Error {
@@ -54,6 +58,7 @@ impl Error {
             Self::InvalidSampling { .. } => "invalid-sampling",
             Self::UnknownRun { .. } => "unknown-run",
             Self::Export { .. } => "export",
+            Self::Consolidation { .. } => "consolidation",
         }
     }
 
@@ -66,7 +71,9 @@ impl Error {
             | Self::DbMessage { path }
             | Self::ImageUndecodable { path } => serde_json::json!({ "path": path }),
             Self::UnknownImage { id } | Self::UnknownRun { id } => serde_json::json!({ "id": id }),
-            Self::InvalidSampling { reason } | Self::Export { reason } => {
+            Self::InvalidSampling { reason }
+            | Self::Export { reason }
+            | Self::Consolidation { reason } => {
                 serde_json::json!({ "reason": reason })
             }
             Self::StoreTransaction => serde_json::json!({}),

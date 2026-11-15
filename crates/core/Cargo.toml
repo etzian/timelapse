@@ -24,3 +24,8 @@ time = "0.3"
 # formats we import are compiled in.
 image = { version = "0.25", default-features = false, features = ["jpeg", "png", "tiff"] }
 rayon = "1"
+
+# Phase 6 — consolidation (ADR-023). MIT OR Apache-2.0, already in the lockfile through
+# Tauri: `clonefile` (APFS copy-on-write clones, macOS) and `statvfs` (free space).
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
