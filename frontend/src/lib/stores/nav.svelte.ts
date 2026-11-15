@@ -8,6 +8,7 @@ export type Page = 'home' | 'cleaning' | 'organize' | 'sampling' | 'adjust' | 'e
 export const NAV_ORDER: readonly Page[] = ['home', 'cleaning', 'sampling', 'adjust', 'export', 'organize', 'sheets', 'settings'];
 
 let active = $state<Page>('home');
+let importRequested = $state(false);
 
 export const nav = {
   get active(): Page {
@@ -15,5 +16,16 @@ export const nav = {
   },
   go(page: Page): void {
     active = page;
+  },
+  /** True once the menu asked for the folder picker; Home takes it and opens the picker. */
+  get importRequested(): boolean {
+    return importRequested;
+  },
+  requestImport(): void {
+    importRequested = true;
+    active = 'home';
+  },
+  clearImportRequest(): void {
+    importRequested = false;
   }
 };

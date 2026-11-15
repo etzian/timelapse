@@ -113,3 +113,18 @@ body {
   clip-path: inset(50%);
   white-space: nowrap;
 }
+
+/* Page changes: a short cross-fade through the View Transitions API (feature-detected in
+   App.svelte; skipped there under reduced motion, and switched off here as well). */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: var(--ez-duration-fast);
+  animation-timing-function: var(--ez-ease-in-out);
+}
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none;
+  }
+}

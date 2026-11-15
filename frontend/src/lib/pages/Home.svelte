@@ -11,6 +11,7 @@
   import { errorText } from '../i18n/errors';
   import { backfillMetadata, pickFolder, importRoot, integrityCheck } from '../ipc/app';
   import type { IpcError } from '../ipc/invoke';
+  import { nav } from '../stores/nav.svelte';
   import { forgetProject, openProject, project, rememberProject, resetProjectState } from '../stores/project.svelte';
   import TimelineSection from './TimelineSection.svelte';
 
@@ -73,6 +74,14 @@
     if (project.report) await doBackfill();
     scanVersion += 1;
   }
+
+  // File > Open folder (⌘O) lands here and starts the same picker as the button.
+  $effect(() => {
+    if (nav.importRequested && idle) {
+      nav.clearImportRequest();
+      void doImport();
+    }
+  });
 
   // The folder can also be dropped on the window (webview drag-and-drop; needs no extra permission).
   let dragging = $state(false);

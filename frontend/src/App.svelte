@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { flushSync, untrack } from 'svelte';
   import { AppShell, Sidebar, TabBar, Toast } from '@etzianco/ui';
 
   import Adjust from './lib/pages/Adjust.svelte';
@@ -9,7 +10,9 @@
   import Organize from './lib/pages/Organize.svelte';
   import Sampling from './lib/pages/Sampling.svelte';
   import Settings from './lib/pages/Settings.svelte';
-  import { t } from './lib/i18n';
+  import { getLocale, t } from './lib/i18n';
+  import { installMenu } from './lib/menuNative';
+  import type { MenuAction } from './lib/menu';
   import { NAV_ORDER, nav } from './lib/stores/nav.svelte';
   import { JOB_IDS, JOB_PAGE, NO_JOBS, endedJobs, stepStates } from './lib/pipeline';
   import type { Running, StepId, StepState } from './lib/pipeline';
@@ -19,6 +22,31 @@
 
   // The page shown lives in a store, so a page can send the user to another one.
   const active = $derived(nav.active);
+
+  // The page drawn follows `active` through a view transition where the webview has one
+  // (GUIDELINES §5.4); under reduced motion, or without the API, it swaps at once.
+  let shown = $state<Page>(nav.active);
+  $effect(() => {
+    const next = nav.active;
+    if (next === untrack(() => shown)) return;
+    const swap = () => {
+      shown = next;
+      flushSync();
+    };
+    const calm = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    if (!calm && typeof document.startViewTransition === 'function') document.startViewTransition(swap);
+    else swap();
+  });
+
+  // The native menu: rebuilt when the language changes so its labels follow.
+  function runMenu(action: MenuAction): void {
+    if (action.type === 'go') nav.go(action.page);
+    else nav.requestImport();
+  }
+  $effect(() => {
+    void getLocale();
+    installMenu(runMenu).catch(() => {}); // no menu outside the desktop shell
+  });
 
   const GLYPH_RUNNING = '↻';
   const STATE_GLYPH: Record<StepState, string> = { 'not-started': '○', 'in-progress': '◐', done: '✓' };
@@ -91,19 +119,19 @@
     <TabBar items={tabs} {active} onselect={(id: string) => nav.go(id as Page)} />
   {/snippet}
 
-  {#if active === 'home'}
+  {#if shown === 'home'}
     <Home />
-  {:else if active === 'cleaning'}
+  {:else if shown === 'cleaning'}
     <Cleaning ongohome={() => nav.go('home')} />
-  {:else if active === 'organize'}
+  {:else if shown === 'organize'}
     <Organize ongohome={() => nav.go('home')} />
-  {:else if active === 'sampling'}
+  {:else if shown === 'sampling'}
     <Sampling ongohome={() => nav.go('home')} />
-  {:else if active === 'adjust'}
+  {:else if shown === 'adjust'}
     <Adjust ongohome={() => nav.go('home')} />
-  {:else if active === 'export'}
+  {:else if shown === 'export'}
     <Export ongohome={() => nav.go('home')} ongosampling={() => nav.go('sampling')} />
-  {:else if active === 'sheets'}
+  {:else if shown === 'sheets'}
     <ContactSheets ongohome={() => nav.go('home')} />
   {:else}
     <Settings />

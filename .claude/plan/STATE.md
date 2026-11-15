@@ -52,7 +52,7 @@ STATUS: RUNNING
 | P9 | Presets and summaries | sonnet | GATE-UI | done |
 | P10 | Open and reveal commands | opus | full | done |
 | P11 | Progress and the export finish | sonnet | GATE-UI | done |
-| P12 | Motion, menu and shortcuts | sonnet | GATE-UI | pending |
+| P12 | Motion, menu and shortcuts | sonnet | GATE-UI | done |
 | P13 | Copy pass, en and fr-CA | sonnet | GATE-UI | pending |
 | P14 | Review slice | opus | full + sign-off | pending |
 | P15 | Polish | sonnet | full | pending |
@@ -130,6 +130,12 @@ STATUS: RUNNING
 - DECISIONS: ExportProgress carries only {done,total}, so the in-export thumbnail is the selection item at the same fraction and the poster is the middle item; both approximate. Open/reveal failures are inline alerts (the runner found no toast store; P8 mounted `<Toast />` so P12/P13 may switch if wanted). The export-record kind is not offered, so writeExportRecord is not called. Platform label uses navigator.userAgent. Only Export shows a thumbnail. Progress is not a live region (P4 announcements reused). Failed/cancelled results still use the Banner.
 - DEFERRED: The open-failed hint mentions Finder on every OS (macOS-first). P13 reviews the new strings.
 - MANUAL: In the real app with a finished export: Play opens the default player, Show in Finder selects the file, the poster shows, the thumbnail beside the bar moves during an export. Check a missing-file error in en and fr-CA.
+
+### P12 — pass
+- CHANGED: pure `menu.ts` (menu model from NAV_ORDER and a label function, shortcut helpers) with 4 vitest cases; `menuNative.ts` builds the native menu with `@tauri-apps/api/menu` and `setAsAppMenu()`, rebuilt on locale change; App.svelte swaps pages in a feature-detected View Transition, skipped under reduced motion; `requestImport` / `importRequested` / `clearImportRequest` in nav store, and Home opens the existing `doImport` picker on request; view-transition CSS on `--ez-duration-fast` and `--ez-ease-in-out`; menu-* keys in en and fr-CA.
+- DECISIONS: Menu is built in JS; `core:default` includes `core:menu:default` (checked by the orchestrator in the generated schema), so capabilities/default.json is unchanged and no Rust was touched. Shortcuts: CmdOrCtrl+1–5 for the workflow steps, CmdOrCtrl+, Settings, CmdOrCtrl+O Open folder. App.svelte renders `shown` (updated inside the transition); the sidebar highlight follows `nav.active` immediately. Predefined items (Hide, Quit, Undo, Copy, Window) keep OS labels. Every menu action also has a visible control.
+- DEFERRED: Localizing the predefined menu item labels; per-page `view-transition-name` for shared elements.
+- MANUAL: In the real app (`make dev`): the menu shows with shortcuts; ⌘1–⌘5, ⌘, and ⌘O work; labels switch with the language; the cross-fade is absent under reduced motion.
 
 ## Open user items
 
