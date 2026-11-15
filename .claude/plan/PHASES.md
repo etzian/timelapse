@@ -1,90 +1,106 @@
 # PHASES
 
-Phases 0–4 are **complete** and archived in [archive/](./archive/). This file tracks **Phase 5 — FFmpeg video generation**. The canonical scope and exit criteria stay in [docs/DEVELOPMENT_ROADMAP.md](../../docs/DEVELOPMENT_ROADMAP.md); the slices implement them and nothing more.
+Phases 0–5 are **complete** and archived in [archive/](./archive/). This file tracks **Phase 6 — Consolidation & file management**. The canonical scope and exit criteria stay in [docs/DEVELOPMENT_ROADMAP.md](../../docs/DEVELOPMENT_ROADMAP.md), quoted below; the slices implement that scope and nothing more.
 
-> ## Phase 5 — FFmpeg video generation
-> **Scope:** Sequence → MP4 (H.264/HEVC hardware path; AV1 tier per selected option); duration calculation; FFmpeg safety (explicit args, no shell interpolation). (Pipeline §10.)
-> **Entry:** ADR-017 adopted; pre-Phase-5 prerequisites (a)–(c) resolved before Phase 5 begins. Phase 4 exit.
-> **Exit:** A valid MP4 is produced from a sampled sequence; encode uses the committed encoder path (hardware H.264/HEVC; SVT-AV1 if AV1 tier enabled); no GPL/denied-licence encoder linked in the shipped binary.
+> ## Phase 6 — Consolidation & file management  *(cross-cutting; pull forward)*
+> **Scope:** Copy/move originals into the project store, hardlink/symlink policy, recovery of moves, dedup, and the "originals immutable" invariant end-to-end. (Pipeline §4, §12.)
+> **Entry:** Phase 1 exit (need the inventory to manage); should **land before Phase 3** so cleaning/quarantine can rely on recoverable file ops.
+> **Exit:** A move/copy is reversible; originals remain byte-identical and their path of record in SQLite never points at a mutated file.
+
+The minimal primitive (journaled no-clobber quarantine move, reconciliation) already landed in Phase 3 (ADR-020). Phase 6 builds consolidation on it. PRD §5.5 and Pipeline §5 (Stage 4 — Consolidation) and §12 (Recovery) are the functional spec.
 
 **User decisions, 2026-11-14:**
-1. **ADR-021 approved:** the app may start FFmpeg/ffprobe as child processes, under these limits:
-   - only the bundled binaries, by absolute path;
-   - an explicit argv (no shell, no interpolation), started from `crates/core`;
-   - no Tauri shell plugin and no capability change;
-   - output only into `<root>/.timelapse/exports/`;
-   - each spawn site marked `verify:allow` citing ADR-021.
-2. **Licences:**
-   - Draft (undated) `licence-exceptions.yaml` entries for FFmpeg (LGPL-2.1-or-later) and SVT-AV1 (BSD-3-Clause-Clear + AOM Patent License 1.0). **Only the user dates them**, and until then the licence audit may stay red.
-   - Correct ADR-017's "SVT-AV1 = BSD-3-Clause" statement.
-3. **Build and test on the macOS CI runner.** `tools/build-ffmpeg/` builds FFmpeg 9.0.2 and SVT-AV1 v4.2.0 from pinned, checksummed tarballs, then:
-   - runs the licence/GPL scan;
-   - encodes real MP4s;
-   - uploads the binaries and their exact sources.
-
-   On this Windows host, encode tests are skipped when no FFmpeg is configured; argv building, duration maths, frame fitting and ffprobe parsing are tested everywhere.
-4. **Pin:** FFmpeg **9.0.2** "Lei" (`sha256 8c3850283eb25fa026482078a04051e0be17347b09ef81a0849bec15a96e002e`); SVT-AV1 **v4.2.0** (`sha256 c7b13c4a84bd3751aa35fcc72be13e6875467e7c2216879251a486e5b1e4e740`, GitLab archive). v4.3.0 (2026-11-02) is too recent to pin.
+1. **Destination:** a folder the user picks with the existing folder dialog. It must lie **outside** the imported collection (the import rescans the collection, so copies inside it would be re-imported). Nothing there is ever overwritten; collisions appear in the dry run. No capability change.
+2. **Operations:** **copy** (default) and **move** (a second confirmation). A move verifies the file at its new place before the old name is removed, and `images.current_path` records where it is now. `original_path` stays the path of record and is never rewritten. Each run can be **undone**: copies we made are removed only while still byte-identical to what we wrote; moved originals go back to where they came from, never overwriting.
+3. **Link policy:** an **APFS clone** (copy-on-write, an independent file) where the volume supports it, otherwise a byte copy. Both refuse to overwrite. **Never a hard link or a symlink into the working collection**: either would let an edit of the "copy" change the original (ADR-006). New direct dependency: **`libc` 0.2** (MIT OR Apache-2.0, already in the lockfile through Tauri), only for `clonefile` and `statvfs`.
+4. **Input:** by default every photograph except rejected and quarantined ones (as in Phase 4), or a saved sampling selection in its sequence order. Exact duplicates (same SHA-256) go in once; the dry run lists the skipped copies.
 
 ---
 
 ## Slices
 
-Gate names are as before: `GATE-FAST`, `GATE-UI`, `GATE-FULL` (see Phase 4).
+Gate names are as before: `GATE-FAST` = fmt + clippy `-D warnings` + `cargo test`; `GATE-UI` = GATE-FAST + svelte-check / vitest / build + `verify.sh` + `ez i18n-check`; `GATE-FULL` = GATE-UI + `ez legal check/gen` + `ez licence-audit`.
 
-### P5.0 — Prerequisites (a)–(c), ADR-021/022, licence drafts
-- **ADR-021:** the subprocess rule.
-- **ADR-022** resolves ADR-017's open items:
-  - **(a) provenance:** pinned tarballs + checksums; LGPL build, shared libraries (per ffmpeg.org/legal.html, dynamic linking), `--disable-autodetect`, only the components we use;
-  - **(b) no software fallback:** a runtime encoder probe; `-allow_sw 0` for VideoToolbox; refuse a tier whose encoder is missing;
-  - **(c) notices:** `LICENSES/` placement (COPYING.LGPLv2.1, configure line, source URLs + checksums, SVT-AV1 LICENSE + PATENTS) and an About-box mention.
-- Draft exception entries; correct ADR-017.
+### P6.0 — ADR-023, plan
+ADR-023 records decisions 1–4, the naming rules, the journal states, the undo rules and the recovery table.
+**Gate:** GATE-FAST (docs only).
 
-**Gate:** GATE-FAST (docs only, plus `ez licence-audit .` run and its result recorded).
+### P6.1 — Plan (pure)
+`crates/core/src/consolidate/plan.rs`:
+- **Naming** (PRD §5.5):
+  - `preserve`: the original folder structure;
+  - `original`: flat, original filenames;
+  - `folder-prefix`: flat, `<source folder>_<filename>`;
+  - `sequence`: flat, `000001.jpg`… in chronological (or selection) order, zero-padded to at least 6 digits.
+- **Collisions:** within the plan, compared case-insensitively (APFS default); resolved with `_2`, `_3`… Every target is a safe relative path (normal components only).
+- **Duplicates:** the first photo of each SHA-256 group in order is kept; the others are skipped, each with the id it duplicates. Photos with no hash are never treated as duplicates.
+- **Plan fingerprint:** SHA-256 of the ordered `(image id, operation, target)` lines.
 
-### P5.1 — Build script + CI job
-- `tools/build-ffmpeg/build.sh`: download, verify sha256, build SVT-AV1 (shared, no apps) and FFmpeg (LGPL, shared, minimal), set `@rpath`, collect licence files.
-- `tools/build-ffmpeg/check-licence.sh`, failing when:
-  - `-L` does not report the LGPL;
-  - `-buildconf` contains `--enable-gpl`/`--enable-nonfree`;
-  - any binary references or contains x264/x265;
-  - a required encoder is missing, or `libx264`/`libx265` is present.
-- CI job (macos-latest) that caches by pin hash, exports `TIMELAPSE_FFMPEG_DIR` to the test run, and uploads the binaries and sources.
+Unit tests cover each naming rule, collisions, duplicates, unsafe names, determinism and an empty input.
+**Gate:** GATE-FAST.
 
-**Gate:** the CI run is green (watched with `gh run`).
+### P6.2 — Placement + journal + store v6
+- **`files::clone_or_copy_no_clobber`:** `clonefile` on macOS (it fails if the target exists), otherwise a `create_new` copy that keeps the mtime. Never a hard link.
+- **`free_space`:** `statvfs` on Unix; `None` elsewhere.
+- **Migration v6:**
+  - `consolidation_runs`: operation, destination, source, naming, configuration, plan fingerprint, counts, bytes, status, undo status, times;
+  - `file_operations` is rebuilt to allow `copy`, `move`, `remove-copy` and `move-back` (the existing rows are kept). `job_id` names the consolidation run.
+- **Quarantine/restore generalised to moved photos:** quarantine starts from the current location, and restore returns to where the quarantine started (`current_path = NULL` only when that is `original_path`).
 
-### P5.2 — Core export engine
-`crates/core/src/export/`:
-- **Locate and probe:** version, encoders, LGPL.
-- **Settings:** codec `av1` (default) | `h264` | `hevc`; fps; playback multiplier (separate from fps, PRD §5.7); resolution preset; quality.
-- **Frame preparation:** decode with EXIF orientation applied, fit with letterbox, piped as raw RGB on stdin, so file paths never reach FFmpeg's argv for inputs.
-- **argv builder (pure):** `-n` (never overwrite), output to `.part`, then a no-clobber rename.
-- **Process control:** progress, cancellation, bounded stderr capture.
-- **Validation:** ffprobe checks codec, dimensions and packet count.
-- **Store v5:** `video_exports`, recording settings, ffmpeg version, argv, encoder, output, status and probe results.
-- **Duration maths** matching the Sampling estimate.
+**Gate:** GATE-FAST.
 
-**Gate:** GATE-FAST, plus the CI encode tests for each available tier.
+### P6.3 — Consolidation engine
+`crates/core/src/consolidate/mod.rs`:
+- **`preview`** (dry run, no write):
+  - destination checks: absolute, a directory or creatable, not inside the collection;
+  - per-item conflicts at the destination: an identical file already there is `already-present` and skipped (never ours, never undone); a different file gets the next free suffix;
+  - bytes needed vs free space;
+  - counts, the first 200 items, and the fingerprint.
+- **`execute`:**
+  - refuses if the re-computed plan's fingerprint differs from the confirmed one (`plan-changed`), if space is short, or if another run is going (`busy`);
+  - runs under the file-operation lock, journaled per item before any file is touched;
+  - copy: verify the source hash, place, verify the target hash;
+  - move: the same, then remove the source name and set `current_path`;
+  - progress and cancellation between items; run status `completed` · `partial` · `cancelled` · `failed`.
+- **`undo`:**
+  - copy: remove each copy still byte-identical to what we wrote (`modified` and `missing` are left and reported);
+  - move: move back only if the photo is still where the run put it (`moved-since`), never overwriting;
+  - then remove the directories we left empty under the destination.
+- **Reconciliation** extended to the new operation types.
+- **Checks:**
+  - `verify_originals`: re-hash every photograph at its location of record against its import hash (`ok` · `changed` · `missing` · `unhashed`);
+  - `verify_run`: re-hash every copy against what was written.
 
-### P5.3 — Tauri commands + resources
-- `ffmpeg_info`, `start_export` (async, progress Channel), `cancel_export`, `list_exports`.
-- FFmpeg is resolved from the bundle's resource dir. A `TIMELAPSE_FFMPEG_DIR` override exists for dev and tests only.
-- `bundle.resources` carries `resources/ffmpeg/**` (a placeholder README keeps non-mac builds working).
+**Gate:** GATE-FAST.
 
-No capability change. **Gate:** GATE-UI.
-
-### P5.4 — Export page (both locales) + About notice
-Pick a saved selection, codec tier (unavailable tiers disabled with the reason), FPS, speed, resolution, quality; estimated duration; export with progress and cancel; result (path, codec, duration, size); history; every GUIDELINES §4 state. Settings → About mentions FFmpeg/SVT-AV1 and their licences.
+### P6.4 — Tauri commands
+`preview_consolidation`, `start_consolidation` (token + progress Channel), `cancel_consolidation`, `undo_consolidation` (Channel), `list_consolidations`, `verify_consolidation`, `verify_originals`. TS types and wrappers. No capability change.
 **Gate:** GATE-UI.
 
-### P5.5 — Exit tests + independent review
-CI encode tests: a sampled sequence → MP4 per available tier, validated with ffprobe (codec, size, frame count ≈ the duration maths); no GPL symbols (P5.1 scan); an unavailable tier is refused, never substituted. Then an independent reviewer pass.
-**Gate:** reviewer sign-off; GATE-FULL (with the licence audit pending the user's approval dates, recorded as such); CI green.
+### P6.5 — Organise page (both locales)
+Destination picker; operation (move behind a second confirmation); input (all or a saved selection); naming; dry run (counts, duplicates skipped, already present, renamed, bytes vs free space, the first items' targets); run with progress and cancel; result; run history with undo and verify; the originals check. Every GUIDELINES §4 state. The data map gains `consolidations`.
+**Gate:** GATE-UI + `ez legal check/gen`.
 
-### P5.6 — Final gate, status, commit, push
+### P6.6 — Exit tests + independent review
+Integration tests on real files: import → consolidate → modify → undo. They check:
+- a copy, then its undo, leaves the destination as it was and the originals byte-identical;
+- a move puts `current_path` on a file with the import hash, and its undo restores `current_path = NULL` with the bytes unchanged;
+- editing a copy never changes an original (clone/copy independence, checked by inode on Unix);
+- no overwrite at the destination;
+- a modified copy survives undo;
+- every interruption state is reconciled;
+- quarantine and restore of a moved photo;
+- `verify_originals` reports a tampered original.
+
+Then an independent reviewer pass.
+**Gate:** reviewer sign-off; GATE-FULL; CI green on the macOS runner (the clone path).
+
+### P6.7 — Final gate, status, commit, push
 
 ---
 
 ## Out of scope
-- Code signing and notarisation of the bundled FFmpeg (it ships with the app's signing, later).
-- Audio, overlays, frame interpolation, deflicker (Phase 8+), contact sheets (Phase 7).
-- Publishing the exact source tarballs on a download page: CI uploads them as an artifact, and the release process must publish them (LGPL §6). Flagged for the lawyer review.
+- Consolidating outside one project (multi-project merges), HEIC/RAW.
+- Making the working collection the project's source (later stages keep reading the originals at their location of record).
+- Any capability change; deleting originals; hard or symbolic links into a working collection.
+- Free-space checks on Windows (not a target; reported as unknown).

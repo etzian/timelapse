@@ -270,7 +270,80 @@ The app may start **only** the FFmpeg and ffprobe executables that ship inside i
 
 Settings → About names FFmpeg (LGPL-2.1-or-later) and SVT-AV1 (BSD-3-Clause-Clear, AOM Patent License 1.0) and says where those texts are.
 
-**Licence exceptions:** FFmpeg (restricted LGPL) and SVT-AV1 (BSD-3-Clause-Clear + AOMPL-1.0, not allow-listed) are drafted in `licence-exceptions.yaml` without an approval date. Only the user approves them.
+**Licence exceptions:** FFmpeg (restricted LGPL) and SVT-AV1 (BSD-3-Clause-Clear + AOMPL-1.0, not allow-listed) are recorded in `licence-exceptions.yaml`, approved by the user on 2026-11-14.
+
+## ADR-023 — Consolidation: copy or move into a picked folder, clones never links, undoable runs
+
+**Status:** Accepted (2026-11-14, approved by the user: destination, operations, link policy, input, `libc`)
+
+**What it does.** It gathers photographs from the collection's folders into one working folder (PRD §5.5, Pipeline §5). The flow is: preview → dry run → confirmation → execute → verify → history.
+
+**Destination.** A folder the user picks with the existing folder dialog. It must be absolute and must not be the collection or lie inside it: the import rescans the collection, so copies there would be imported again. It may be outside the project folder (ADR-007 allows originals and working files elsewhere), and the core does the file work, so there is no capability change.
+
+**Operations.**
+- **Copy** (default). The originals stay where they are.
+- **Move** (after a second confirmation). `images.current_path` records the new place. `original_path` stays the path of record and is never rewritten, and every reader already uses `COALESCE(current_path, original_path)`.
+
+**Link policy.** A copy is made by **APFS `clonefile`** when the volume supports it: copy-on-write, so it is an independent file that only takes space once edited. Otherwise it is a **`create_new` byte copy** that keeps the modification time. Both fail when the target exists, so there is no check-then-act window. Moves into the working folder are placed the same way, before the old name is removed.
+- **Hard links** are **never** used for the working collection: the "copy" would be the same file, so an edit in another app would change the original (ADR-006). Only the quarantine move (ADR-020) still uses one, inside the project folder, and only for the instant before the old name goes.
+- **Symlinks** are never created: they dangle when the original moves, and editors write through them.
+
+**`libc` 0.2** (MIT OR Apache-2.0, already in the lockfile through Tauri) becomes a direct dependency of the core for `clonefile` (macOS) and `statvfs` (free space, Unix).
+
+**Input.** By default, every photograph except rejected and quarantined ones; alternatively, a saved sampling selection in its sequence order. Exact duplicates (same SHA-256) are kept once (the first in order), and the dry run lists the skipped ones. Photos without a hash are never treated as duplicates.
+
+**Naming.**
+- `preserve`: the relative path in the collection;
+- `original`: flat, original filenames;
+- `folder-prefix`: flat, `<parent folder>_<filename>`;
+- `sequence`: flat, `000001.ext`… with at least 6 digits.
+
+Names that collide within the plan, compared case-insensitively, get `_2`, `_3`… A file already at the destination:
+- that is byte-identical is `already-present`. It is skipped, and an undo never touches it;
+- otherwise, the next free suffix is used.
+
+Every target is a relative path of normal components joined under the destination.
+
+**Confirmation.** The dry run returns a plan fingerprint (SHA-256 of the ordered id/operation/target lines). Execution re-plans and refuses with `plan-changed` if the fingerprint differs, and with `insufficient-space` if the bytes needed exceed the free space (when it is known).
+
+**Execution.** Execution runs under the process-wide file-operation lock (ADR-020), one run at a time, journaled before any file is touched. For each photo:
+1. verify the source has the import hash;
+2. journal a `pending` row (`job_id` = the run);
+3. place the file without replacing anything;
+4. verify the target hash;
+5. for a move only: remove the old name (if it is in use, the placed file is removed instead), then complete the row and set `current_path` in one transaction.
+
+Cancellation and progress happen between photos. A run ends `completed`, `partial` (some photos failed), `cancelled` or `failed`.
+
+**Undo.** A run can be undone once.
+- **Copy:** a copy we made is removed only while it still has the hash we wrote. `modified` and `missing` copies are left and reported.
+- **Move:** a moved photo goes back only while `current_path` is still the run's target (`moved-since` otherwise), never overwriting.
+
+Each removal or move-back is journaled (`remove-copy`, `move-back`). Afterwards, the directories left empty under the destination are removed; `remove_dir` cannot remove a non-empty one. The run's undo state is `undone` or `partially-undone`.
+
+**Quarantine of a moved photo.** Quarantine now starts from the current location, and restore returns to where that quarantine started. `current_path` becomes `NULL` only when that place is `original_path`.
+
+**Recovery** (Pipeline §12). Reconciliation, when a project opens while no operation runs, settles `pending` rows from the disk state:
+
+| Operation | Disk state | Outcome |
+| --- | --- | --- |
+| `copy` | target has the journaled hash | completed |
+| `copy` | target shorter than the source | removed, `interrupted` |
+| `copy` | target absent | `interrupted` |
+| `move` / `move-back` | as for quarantine (ADR-020) | as for quarantine (ADR-020) |
+| `remove-copy` | target gone | completed |
+| `remove-copy` | target still has the hash | `interrupted` |
+| any | anything else | `inconsistent`; no file is touched |
+
+Execution checks that the target is absent just before journaling, so a pending row whose target has the hash is ours. Only a file dropped in that exact place within that instant, followed by a crash, could defeat this, and that file's bytes would equal the original's.
+
+**Checks.** "Originals immutable" end to end:
+- `verify_originals` re-hashes every photograph at its location of record and reports it as `ok`, `changed`, `missing` or `unhashed`;
+- `verify_run` re-hashes a run's copies.
+
+No byte of an original is written; the only files ever removed are copies this app made, or the old name of a moved original once its new place has been verified.
+
+**Out of scope:** multi-project merges, making a working folder the project's source, links, HEIC/RAW, free space on Windows (reported as unknown).
 
 ---
 
