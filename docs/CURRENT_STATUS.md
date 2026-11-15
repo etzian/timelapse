@@ -4,7 +4,7 @@
 
 **Version:** 0.1  
 **Last updated:** 2026-11-14  
-**Development status:** Phases 0–5 complete (Phase 5 — FFmpeg video generation, 2026-11-15); Phase 6 not started
+**Development status:** Phases 0–6 complete (Phase 6 — Consolidation & file management, 2026-11-15); Phase 7 not started
 
 ---
 
@@ -14,7 +14,7 @@ The product concept and initial architecture are defined, and implementation has
 
 **Phase 0 — Baseline is complete (2026-11-10).** The generated application builds and its verification gate passes: `make gate` is green locally and CI (`ci.yml`) is green on main. See `.claude/plan/STATE.md` for the authoritative record.
 
-**Phase 1 — Import & inventory is complete (2026-11-12)** and **Phase 2 — EXIF & timeline is complete (2026-11-14)**: capture times resolved per image (EXIF → filename → filesystem, with source, confidence and time-zone basis), schema v2, timeline / distribution / gap queries, and the timeline view in both locales. **Phase 3 — Brightness analysis & cleaning is complete (2026-11-14)**: luma analysis, Lightroom XMP reject flags, reproducible classification, user decisions, a journaled no-overwrite quarantine with restore (the minimal Phase 6 primitive, ADR-020), and the Cleaning page in both locales. **Phase 4 — Temporal sampling is complete (2026-11-14)**: fixed-interval / every-Nth / uniform selection, deterministic and stored with its configuration and input fingerprint, with a reproducibility check and the Sampling page in both locales. **Phase 5 — FFmpeg video generation is complete (2026-11-15)**: the LGPL FFmpeg 9.0.2 + SVT-AV1 4.2.0 build is made and licence-checked in CI; sampled selections are exported to MP4 in AV1 (default) or VideoToolbox H.264/HEVC, each verified with ffprobe; ADR-021/022. The FFmpeg and SVT-AV1 licence exceptions are approved (2026-11-14). Phase 6 requires an approved slice plan before implementation (see §6).
+**Phase 1 — Import & inventory is complete (2026-11-12)** and **Phase 2 — EXIF & timeline is complete (2026-11-14)**: capture times resolved per image (EXIF → filename → filesystem, with source, confidence and time-zone basis), schema v2, timeline / distribution / gap queries, and the timeline view in both locales. **Phase 3 — Brightness analysis & cleaning is complete (2026-11-14)**: luma analysis, Lightroom XMP reject flags, reproducible classification, user decisions, a journaled no-overwrite quarantine with restore (the minimal Phase 6 primitive, ADR-020), and the Cleaning page in both locales. **Phase 4 — Temporal sampling is complete (2026-11-14)**: fixed-interval / every-Nth / uniform selection, deterministic and stored with its configuration and input fingerprint, with a reproducibility check and the Sampling page in both locales. **Phase 5 — FFmpeg video generation is complete (2026-11-15)**: the LGPL FFmpeg 9.0.2 + SVT-AV1 4.2.0 build is made and licence-checked in CI; sampled selections are exported to MP4 in AV1 (default) or VideoToolbox H.264/HEVC, each verified with ffprobe; ADR-021/022. The FFmpeg and SVT-AV1 licence exceptions are approved (2026-11-14). **Phase 6 — Consolidation & file management is complete (2026-11-15)**: photographs are copied (APFS clones) or moved into a working folder outside the collection after a dry run, with no overwrite, verification, undo and an originals check; schema v6; ADR-023. Phase 7 requires an approved slice plan before implementation (see §6).
 
 ## 2. Confirmed technology direction
 
@@ -82,7 +82,7 @@ Advanced capabilities:
 
 The FFmpeg/AV1 licensing decision is settled: **ADR-017** (adopted 2026-11-09) — LGPL-only FFmpeg sidecar, SVT-AV1 (BSD-3-Clause) default, VideoToolbox for H.264/HEVC compatibility. See `docs/DECISIONS.md` (ADR-017) and `docs/FFMPEG_AV1_ANALYSIS.md`. ADR-017 remains adopted and is not reopened by this reconciliation; three open *technical implementation* items are carried forward as pre-Phase-5 prerequisites (see `docs/FFMPEG_AV1_ANALYSIS.md` §4).
 
-Status of record: per `.claude/plan/STATE.md` — Phase 0 **done (2026-11-10)**, Phase 1 **done (2026-11-12)**, Phase 2 **done (2026-11-14)**, Phase 3 **done (2026-11-14)**, Phase 4 **done (2026-11-14)**, Phase 5 **done (2026-11-15)**.
+Status of record: per `.claude/plan/STATE.md` — Phase 0 **done (2026-11-10)**, Phase 1 **done (2026-11-12)**, Phase 2 **done (2026-11-14)**, Phase 3 **done (2026-11-14)**, Phase 4 **done (2026-11-14)**, Phase 5 **done (2026-11-15)**, Phase 6 **done (2026-11-15)**.
 
 ## 6. Immediate next actions
 
@@ -96,7 +96,7 @@ The Phase 0 documentation review is complete; its findings are recorded in `docs
 
 ## 7. Current milestone
 
-**Milestone:** Phase 6 — Consolidation & file management (slice plan pending; see `docs/DEVELOPMENT_ROADMAP.md`).
+**Milestone:** Phase 7 — Advanced UI & contact sheets (slice plan pending; see `docs/DEVELOPMENT_ROADMAP.md`).
 
 Phase 0 — Baseline was completed on 2026-11-10: the generated application builds and `make gate` passes locally and in CI (see `.claude/plan/STATE.md`). The Phase 0 documentation review required by this file's former §7 produced the reports in `docs/audit/` and is considered satisfied.
 
