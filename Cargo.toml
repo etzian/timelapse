@@ -8,3 +8,8 @@ edition = "2024"
 rust-version = "1.90"
 license = "UNLICENSED"
 publish = false
+
+# `make dev` builds our crates quickly but the dependencies optimised: SHA-256 (import),
+# JPEG decoding (analysis, thumbnails) and SQLite are otherwise many times slower.
+[profile.dev.package."*"]
+opt-level = 2
