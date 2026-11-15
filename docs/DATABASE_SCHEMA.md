@@ -303,6 +303,7 @@ whose version is newer than the build (left untouched, never recreated).
 | 3 | Phase 3 cleaning (ADR-020): `image_analysis`, `image_status`, `file_operations` (below), indexes `idx_image_status_status`, `idx_file_operations_job`, `idx_file_operations_status`; new column `images.current_path` — where the original is now (`NULL` = at `original_path`; the quarantine path while quarantined). `original_path` stays the path of record and is never rewritten. |
 | 4 | Phase 4 sampling: `sampling_runs`, `sampling_items` (below), index `idx_sampling_items_run`. |
 | 5 | Phase 5 export: `video_exports` (below), index `idx_video_exports_created`. |
+| 6 | Phase 6 consolidation (ADR-023): `consolidation_runs` (below). `file_operations` is rebuilt in the same step (SQLite cannot alter a CHECK in place): its rows are copied, `operation_type` also accepts `copy` · `move` · `move-back` · `remove-copy`, `job_id` references `consolidation_runs`, and the new index `idx_file_operations_image` serves restore. `images.current_path` may now point into a working folder (a moved original). |
 
 **Timestamp columns as written by the Phase 2 backfill** (rows with `timestamp_source IS NULL` only — idempotent):
 
@@ -342,6 +343,14 @@ whose version is newer than the build (left untouched, never recreated).
 | --- | --- | --- |
 | `video_exports` | `id`, `sampling_run_id` (FK), `settings_json` (codec, fps, speed, width, height, quality), `ffmpeg_version`, `argv_json` (the exact FFmpeg arguments), `output_path`, `status` (`running` · `completed` · `failed` · `cancelled`), `input_photos`, `output_frames`, `duration_seconds`, `file_size`, `probe_json` (ffprobe: codec, size, packets, duration), `failure`, `stderr_tail`, `created_at`, `completed_at` | One row per attempt, written before FFmpeg starts. A row left `running` by a crash becomes `failed`/`interrupted` the next time exports are listed while none is running. |
 
+**Phase 6 table (v6):**
+
+| Table | Columns | Notes |
+| --- | --- | --- |
+| `consolidation_runs` | `id`, `operation` (`copy` · `move`), `destination`, `configuration_json` (destination, operation, naming, sampling run), `sampling_run_id` (FK, `NULL` = all eligible photographs), `plan_fingerprint` (SHA-256 of the confirmed plan), `planned`, `duplicates`, `already_present`, `unsafe_names`, `bytes`, `status` (`running` · `completed` · `partial` · `cancelled` · `interrupted`), `undo_status` (`undone` · `partially-undone`), `created_at`, `completed_at`, `undone_at` | What a run planned. What it did is the journal: `file_operations` rows with `job_id` = the run (placements `copy` / `move`, undo steps `remove-copy` / `move-back`), counted when the run is read. A row left `running` by a crash becomes `interrupted` the next time runs are listed while none is running. |
+
+**Location of record:** every reader uses `COALESCE(current_path, original_path)`. `current_path` is `NULL` exactly when the file is at `original_path`. A quarantine starts from the current location and its restore returns there (the source of the last completed `quarantine` row).
+
 **Read queries (Phase 2):**
 
 - *Timeline* — every image `ORDER BY normalized_datetime IS NULL, normalized_datetime, original_path`, with `unixepoch(normalized_datetime, 'subsec')` as epoch milliseconds; unresolved images last, never dropped.
@@ -352,7 +361,7 @@ whose version is newer than the build (left untouched, never recreated).
 
 - Whether file metadata should be stored in one table or separated further.
 
-- How to represent multiple source directories.
+- How to represent multiple source directories. (Phase 6 gathers the folders of one collection into a working folder; several collections per project remain open.)
 
 - Whether image statuses require a full audit history.
 

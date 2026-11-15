@@ -34,7 +34,11 @@ export const FILE_FAILURES = [
   'source-in-use',
   'record-failed',
   'interrupted',
-  'inconsistent'
+  'inconsistent',
+  'missing',
+  'modified',
+  'moved-since',
+  'remove-failed'
 ] as const;
 
 export function fileFailureText(kind: string): string {

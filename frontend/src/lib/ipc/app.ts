@@ -204,8 +204,10 @@ export interface OpOutcome {
 
 export interface FileOperation {
   id: number;
+  /** The consolidation run a copy / move / undo step belongs to. */
+  job_id: number | null;
   image_id: number | null;
-  operation_type: 'quarantine' | 'restore';
+  operation_type: 'quarantine' | 'restore' | 'copy' | 'move' | 'move-back' | 'remove-copy';
   source_path: string;
   destination_path: string;
   status: 'pending' | 'completed' | 'failed';
@@ -422,3 +424,143 @@ export function startExport(
 
 export const cancelExport = (token: number) => invoke<void>('cancel_export', { token });
 export const listExports = (root: string) => invoke<ExportRecord[]>('list_exports', { root });
+
+// ---- Phase 6 — consolidation -------------------------------------------------------------
+
+export type Operation = 'copy' | 'move';
+export type Naming = 'preserve' | 'original' | 'folder-prefix' | 'sequence';
+
+export interface ConsolidationConfig {
+  /** An absolute folder outside the collection (it may not exist yet). */
+  destination: string;
+  operation: Operation;
+  naming: Naming;
+  /** A saved sampling selection; null = every photograph except rejected and quarantined ones. */
+  sampling_run: number | null;
+}
+
+export type PlanAction = { kind: 'place' } | { kind: 'duplicate'; of: number } | { kind: 'already-present' } | { kind: 'unsafe' };
+
+export interface PlannedItem {
+  image_id: number;
+  relative_path: string;
+  /** Relative to the destination, `/`-separated; null for duplicates and unsafe names. */
+  target: string | null;
+  size: number;
+  action: PlanAction;
+  renamed: boolean;
+}
+
+export interface PlanCounts {
+  planned: number;
+  duplicates: number;
+  already_present: number;
+  unsafe_names: number;
+  bytes: number;
+}
+
+export interface ConsolidationExcluded {
+  rejected: number;
+  quarantined: number;
+  missing: number;
+}
+
+export interface ConsolidationPreview {
+  config: ConsolidationConfig;
+  fingerprint: string;
+  input_count: number;
+  excluded: ConsolidationExcluded;
+  counts: PlanCounts;
+  renamed: number;
+  free_bytes: number | null;
+  enough_space: boolean;
+  /** The first 200 items of the plan. */
+  items: PlannedItem[];
+  /** Up to 200 items that are skipped or renamed. */
+  notable: PlannedItem[];
+}
+
+export interface ConsolidationProgress {
+  done: number;
+  total: number;
+  failed: number;
+}
+
+export type ConsolidationStatus = 'running' | 'completed' | 'partial' | 'cancelled' | 'interrupted';
+
+export interface ConsolidationRecord {
+  id: number;
+  config: ConsolidationConfig;
+  plan: PlanCounts;
+  status: ConsolidationStatus;
+  undo_status: 'undone' | 'partially-undone' | null;
+  placed: number;
+  failed: number;
+  undone: number;
+  undo_failed: number;
+  created_at: number;
+  completed_at: number | null;
+  undone_at: number | null;
+}
+
+export interface Problem {
+  image_id: number;
+  path: string;
+  state: 'modified' | 'missing' | 'moved-since' | 'changed';
+}
+
+export interface RunCheck {
+  run_id: number;
+  checked: number;
+  ok: number;
+  modified: number;
+  missing: number;
+  moved_since: number;
+  problems: Problem[];
+}
+
+export interface OriginalsCheck {
+  total: number;
+  ok: number;
+  changed: number;
+  missing: number;
+  unhashed: number;
+  problems: Problem[];
+}
+
+/** Copying a large collection takes a while; progress arrives on the channel meanwhile. */
+const CONSOLIDATE_TIMEOUT_MS = 6 * 60 * 60_000;
+const PLAN_TIMEOUT_MS = 120_000;
+
+function progressChannel(onProgress: (p: ConsolidationProgress) => void): Channel<ConsolidationProgress> {
+  const channel = new Channel<ConsolidationProgress>();
+  channel.onmessage = onProgress;
+  return channel;
+}
+
+export const previewConsolidation = (root: string, config: ConsolidationConfig) =>
+  invoke<ConsolidationPreview>('preview_consolidation', { root, config }, PLAN_TIMEOUT_MS);
+
+/** `fingerprint` is the confirmed dry run's; `token` identifies the run for `cancelConsolidation`. */
+export const startConsolidation = (
+  root: string,
+  config: ConsolidationConfig,
+  fingerprint: string,
+  token: number,
+  onProgress: (p: ConsolidationProgress) => void
+) =>
+  invoke<ConsolidationRecord>(
+    'start_consolidation',
+    { root, config, fingerprint, token, onProgress: progressChannel(onProgress) },
+    CONSOLIDATE_TIMEOUT_MS
+  );
+
+export const undoConsolidation = (root: string, run: number, token: number, onProgress: (p: ConsolidationProgress) => void) =>
+  invoke<ConsolidationRecord>('undo_consolidation', { root, run, token, onProgress: progressChannel(onProgress) }, CONSOLIDATE_TIMEOUT_MS);
+
+export const cancelConsolidation = (token: number) => invoke<void>('cancel_consolidation', { token });
+export const listConsolidations = (root: string) => invoke<ConsolidationRecord[]>('list_consolidations', { root });
+export const verifyConsolidation = (root: string, run: number) =>
+  invoke<RunCheck>('verify_consolidation', { root, run }, CONSOLIDATE_TIMEOUT_MS);
+export const verifyOriginals = (root: string, onProgress: (p: ConsolidationProgress) => void) =>
+  invoke<OriginalsCheck>('verify_originals', { root, onProgress: progressChannel(onProgress) }, CONSOLIDATE_TIMEOUT_MS);

@@ -47,6 +47,8 @@ Voici ce que l'application conserve sur votre appareil :
 
 | Les vidéos que vous créez (dossier .timelapse/exports/) et le journal de chaque exportation (réglages, version de FFmpeg, commande, résultat) | Autre | Produire votre vidéo timelapse et pouvoir la reproduire à l'identique | Nécessaire pour fournir le service demandé | Sur votre appareil | Jusqu'à ce que vous supprimiez vous-même les vidéos ou le dossier .timelapse/ du projet |
 
+| Les copies ou originaux placés dans le dossier de travail que vous choisissez, et le journal de chaque organisation (dossier de travail, réglages, chemins d'origine et de destination, empreintes des fichiers, résultat) | Autre | Regrouper vos photographies dans un dossier de travail, vérifier les fichiers et pouvoir annuler l'opération | Nécessaire pour fournir le service demandé | Sur votre appareil | Les fichiers placés restent jusqu'à ce que vous annuliez l'organisation ou les supprimiez vous-même; le journal reste jusqu'à ce que vous supprimiez le dossier .timelapse/ du projet |
+
 
 
 

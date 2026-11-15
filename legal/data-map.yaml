@@ -79,6 +79,13 @@ data:
     basis: necessary-for-service
     storage: { location: device }
     retention: { fr-CA: "Jusqu'à ce que vous supprimiez vous-même les vidéos ou le dossier .timelapse/ du projet", en: "Until you delete the videos or the project's .timelapse/ folder yourself" }
+  - id: consolidations
+    label: { fr-CA: "Les copies ou originaux placés dans le dossier de travail que vous choisissez, et le journal de chaque organisation (dossier de travail, réglages, chemins d'origine et de destination, empreintes des fichiers, résultat)", en: "The copies or originals placed in the working folder you choose, and the record of each organization (working folder, settings, source and target paths, file fingerprints, result)" }
+    category: other
+    purpose: { fr-CA: "Regrouper vos photographies dans un dossier de travail, vérifier les fichiers et pouvoir annuler l'opération", en: "Gather your photographs into a working folder, verify the files and be able to undo the operation" }
+    basis: necessary-for-service
+    storage: { location: device }
+    retention: { fr-CA: "Les fichiers placés restent jusqu'à ce que vous annuliez l'organisation ou les supprimiez vous-même; le journal reste jusqu'à ce que vous supprimiez le dossier .timelapse/ du projet", en: "Placed files stay until you undo the organization or delete them yourself; the record stays until you delete the project's .timelapse/ folder" }
 security_measures:
   - fr-CA: "Vos données restent sur votre appareil et ne sont transmises à personne."
     en: "Your data stays on your device and is sent to no one."

@@ -8,6 +8,7 @@ company-name = Etzian inc.
 
 nav-home = Home
 nav-cleaning = Cleaning
+nav-organize = Organize
 nav-sampling = Sampling
 nav-export = Export
 nav-settings = Settings
@@ -188,6 +189,10 @@ files-failure-record-failed = the file was moved but not yet recorded; the app s
 files-failure-verify-failed = the copy did not match the original and was discarded; the original is still where it was
 files-failure-interrupted = the move was interrupted and undone; the file is still where it was
 files-failure-inconsistent = the move was interrupted and left an unexpected state; no file was touched
+files-failure-missing = the copy is no longer there
+files-failure-modified = the copy was changed since it was made, so it was kept
+files-failure-moved-since = the photograph was moved again since (for example into quarantine), so it was left where it is
+files-failure-remove-failed = the copy could not be removed; it is still there
 files-failure-other = the operation failed
 
 ## Phase 4 — sampling
@@ -350,3 +355,150 @@ error-export = { $reason ->
     [interrupted] The app closed while this video was being created.
    *[other] The video could not be created.
 }
+error-consolidation = { $reason ->
+    [destination-invalid] Choose an existing folder, or a new one, by its full path (not a file).
+    [destination-overlaps-collection] The working folder must be outside the imported collection, and must not contain it: the import would pick the copies up again.
+    [destination-unwritable] The working folder could not be created or written to.
+    [insufficient-space] There is not enough free space in the working folder for these photographs.
+    [plan-changed] The folder or the photographs changed since the dry run. Run the dry run again, then confirm.
+    [nothing-to-do] There is nothing to place: every photograph is already in the working folder, or skipped.
+    [busy] Another organization or undo is already running.
+    [unknown-consolidation] This organization no longer exists.
+    [already-undone] This organization has already been undone.
+   *[other] The photographs could not be organized.
+}
+
+organize-title = Organize
+organize-no-project-description = Import a folder of photographs first; you can then gather them into one working folder.
+organize-intro = Gather photographs from the collection's folders into one working folder, as copies or by moving the originals. A dry run shows exactly what will happen before anything is written, every file is checked, nothing is ever overwritten, and each run can be undone.
+organize-settings-title = Settings
+organize-destination = Working folder
+organize-destination-none = No folder chosen
+organize-destination-choose = Choose a folder…
+organize-destination-help = Choose a folder outside the imported collection, for example on another drive.
+organize-operation = Operation
+organize-operation-copy = Copy (the originals stay)
+organize-operation-move = Move the originals
+organize-operation-copy-help = Each photograph is copied; on a Mac drive the copy takes no extra space until it is edited. Editing a copy never changes the original.
+organize-operation-move-help = Each original moves to the working folder once its copy there is verified; the project follows it. You can move it back with Undo.
+organize-source = Photographs
+organize-source-all = All, except rejected and quarantined
+organize-naming = Names
+organize-naming-preserve = Keep the folder structure
+organize-naming-original = Original names, in one folder
+organize-naming-folder-prefix = Folder name + original name
+organize-naming-sequence = Sequence numbers
+organize-naming-preserve-help = The collection's subfolders are recreated in the working folder.
+organize-naming-original-help = All photographs go into one folder under their own names; a name already taken gets _2, _3…
+organize-naming-folder-prefix-help = All photographs go into one folder, named after their source folder (for example 157GOPRO_G0010001.JPG).
+organize-naming-sequence-help = All photographs go into one folder as 000001.jpg, 000002.jpg… in chronological order, or in the order of the selection.
+organize-preview = Dry run
+organize-previewing = Planning…
+organize-preview-title = Dry run
+organize-stat-planned = To place
+organize-stat-duplicates = Duplicates skipped
+organize-stat-present = Already there
+organize-stat-renamed = Renamed
+organize-stat-bytes = Size
+organize-stat-free = Free space
+organize-free-unknown = Unknown
+organize-excluded = Left out: { $rejected } rejected, { $quarantined } quarantined, { $missing } not found where expected.
+organize-unsafe-names = { $count ->
+    [one] One photograph has a name that cannot be used safely; it is skipped.
+   *[other] { $count } photographs have names that cannot be used safely; they are skipped.
+}
+organize-items-title = First { $shown } of { $total } photographs
+organize-notable-title = Skipped or renamed ({ $count })
+organize-item-renamed = Renamed: the name was already taken
+organize-item-duplicate = Skipped: identical to an earlier photograph
+organize-item-already-present = Skipped: an identical file is already there
+organize-item-unsafe = Skipped: its name cannot be used safely
+organize-run-copy = { $count ->
+    [one] Copy one photo
+   *[other] Copy { $count } photos
+}
+organize-run-move = { $count ->
+    [one] Move one photo
+   *[other] Move { $count } photos
+}
+organize-preview-stale = The settings changed since the dry run. Run it again to see what will happen.
+organize-busy-run = Organizing…
+organize-busy-undo = Undoing…
+organize-confirm-title-copy = Copy the photographs?
+organize-confirm-title-move = Move the originals?
+organize-confirm-body-copy = { $count ->
+    [one] One photograph will be copied to { $path }.
+   *[other] { $count } photographs will be copied to { $path }.
+}
+organize-confirm-body-move = { $count ->
+    [one] One original will be moved to { $path }. It will no longer be in the collection's folder.
+   *[other] { $count } originals will be moved to { $path }. They will no longer be in the collection's folders.
+}
+organize-confirm-safety = Each file is checked before and after; nothing is ever overwritten, and the run can be undone from the history.
+organize-confirm-move-understood = I understand the originals will leave the collection's folders
+organize-result-copy = { $failed ->
+    [0] { $placed } photographs copied.
+   *[other] { $placed } photographs copied; { $failed } could not be (see the history).
+}
+organize-result-move = { $failed ->
+    [0] { $placed } originals moved.
+   *[other] { $placed } originals moved; { $failed } could not be (see the history).
+}
+organize-undo-result = { $failed ->
+    [0] Undone: { $undone } files taken back.
+   *[other] { $undone } files taken back; { $failed } were left as they are (changed or moved since).
+}
+organize-history-title = History
+organize-history-empty-title = Nothing organized yet
+organize-history-empty-description = Each copy or move appears here, with a check and an undo.
+organize-history-line-copy = { $count ->
+    [one] One photograph copied, { $naming }
+   *[other] { $count } photographs copied, { $naming }
+}
+organize-history-line-move = { $count ->
+    [one] One original moved, { $naming }
+   *[other] { $count } originals moved, { $naming }
+}
+organize-history-failed = { $count } failed
+organize-history-undone = { $count } undone
+organize-status-running = Running
+organize-status-completed = Done
+organize-status-partial = Partly done
+organize-status-cancelled = Cancelled
+organize-status-interrupted = Interrupted
+organize-undo-status-undone = Undone
+organize-undo-status-partially-undone = Partly undone
+organize-check = Check
+organize-checking = Checking…
+organize-check-ok = { $count ->
+    [one] The file is intact.
+   *[other] All { $count } files are intact.
+}
+organize-check-problems = { $ok } intact, { $modified } changed, { $missing } missing, { $moved } moved since.
+organize-undo = Undo
+organize-undo-title = Undo this organization?
+organize-undo-body-copy = { $count ->
+    [one] The copy made in { $path } will be removed.
+   *[other] The { $count } copies made in { $path } will be removed.
+}
+organize-undo-body-move = { $count ->
+    [one] The original will be moved back from { $path } to where it was.
+   *[other] The { $count } originals will be moved back from { $path } to where they were.
+}
+organize-undo-safety = Only files still exactly as they were made are taken back; anything changed since is left in place and listed. Nothing else in the folder is touched.
+organize-originals-title = Originals check
+organize-originals-help = Re-reads every original where the project says it is and compares it with its fingerprint from the import.
+organize-originals-check = Check the originals
+organize-originals-ok = Intact
+organize-originals-changed = Changed
+organize-originals-missing = Missing
+organize-originals-unhashed = Not checkable
+organize-originals-all-ok = { $count ->
+    [one] The original is intact.
+   *[other] All { $count } originals are intact.
+}
+organize-originals-problems = { $changed } changed and { $missing } missing. The app never writes to an original: these were changed or removed outside the app.
+organize-problem-modified = Changed since it was made
+organize-problem-missing = Not found
+organize-problem-moved-since = Moved again since
+organize-problem-changed = Changed since the import

@@ -9,6 +9,7 @@ company-name = Etzian inc.
 
 nav-home = Accueil
 nav-cleaning = Nettoyage
+nav-organize = Organisation
 nav-sampling = Échantillonnage
 nav-export = Exportation
 nav-settings = Réglages
@@ -189,6 +190,10 @@ files-failure-record-failed = le fichier a été déplacé, mais pas encore cons
 files-failure-verify-failed = la copie ne correspondait pas à l’original et a été écartée; l’original est toujours au même endroit
 files-failure-interrupted = le déplacement a été interrompu et annulé; le fichier est toujours au même endroit
 files-failure-inconsistent = le déplacement a été interrompu dans un état inattendu; aucun fichier n’a été touché
+files-failure-missing = la copie n’est plus là
+files-failure-modified = la copie a été modifiée depuis sa création; elle a donc été conservée
+files-failure-moved-since = la photographie a été déplacée de nouveau depuis (par exemple en quarantaine); elle a été laissée où elle est
+files-failure-remove-failed = la copie n’a pas pu être supprimée; elle est toujours là
 files-failure-other = l’opération a échoué
 
 ## Phase 4 — échantillonnage
@@ -351,3 +356,150 @@ error-export = { $reason ->
     [interrupted] L’application s’est fermée pendant la création de cette vidéo.
    *[other] La vidéo n’a pas pu être créée.
 }
+error-consolidation = { $reason ->
+    [destination-invalid] Choisissez un dossier existant ou nouveau par son chemin complet (pas un fichier).
+    [destination-overlaps-collection] Le dossier de travail doit être hors de la collection importée et ne pas la contenir : l’importation reprendrait les copies.
+    [destination-unwritable] Le dossier de travail n’a pas pu être créé ou n’est pas accessible en écriture.
+    [insufficient-space] Il n’y a pas assez d’espace libre dans le dossier de travail pour ces photographies.
+    [plan-changed] Le dossier ou les photographies ont changé depuis la simulation. Relancez la simulation, puis confirmez.
+    [nothing-to-do] Il n’y a rien à placer : chaque photographie est déjà dans le dossier de travail ou écartée.
+    [busy] Une autre organisation ou annulation est déjà en cours.
+    [unknown-consolidation] Cette organisation n’existe plus.
+    [already-undone] Cette organisation a déjà été annulée.
+   *[other] Les photographies n’ont pas pu être organisées.
+}
+
+organize-title = Organisation
+organize-no-project-description = Importez d’abord un dossier de photographies; vous pourrez ensuite les regrouper dans un dossier de travail.
+organize-intro = Regroupez les photographies des dossiers de la collection dans un seul dossier de travail, en copies ou en déplaçant les originaux. Une simulation montre exactement ce qui se passera avant toute écriture, chaque fichier est vérifié, rien n’est jamais écrasé et chaque opération peut être annulée.
+organize-settings-title = Réglages
+organize-destination = Dossier de travail
+organize-destination-none = Aucun dossier choisi
+organize-destination-choose = Choisir un dossier…
+organize-destination-help = Choisissez un dossier hors de la collection importée, par exemple sur un autre disque.
+organize-operation = Opération
+organize-operation-copy = Copier (les originaux restent)
+organize-operation-move = Déplacer les originaux
+organize-operation-copy-help = Chaque photographie est copiée; sur un disque de Mac, la copie n’occupe aucun espace supplémentaire tant qu’elle n’est pas modifiée. Modifier une copie ne change jamais l’original.
+organize-operation-move-help = Chaque original va dans le dossier de travail une fois sa copie vérifiée; le projet le suit. Vous pouvez le remettre en place avec Annuler.
+organize-source = Photographies
+organize-source-all = Toutes, sauf les rejetées et celles en quarantaine
+organize-naming = Noms
+organize-naming-preserve = Conserver la structure des dossiers
+organize-naming-original = Noms d’origine, dans un seul dossier
+organize-naming-folder-prefix = Nom du dossier + nom d’origine
+organize-naming-sequence = Numéros de séquence
+organize-naming-preserve-help = Les sous-dossiers de la collection sont recréés dans le dossier de travail.
+organize-naming-original-help = Toutes les photographies vont dans un seul dossier sous leur propre nom; un nom déjà pris reçoit _2, _3…
+organize-naming-folder-prefix-help = Toutes les photographies vont dans un seul dossier, nommées d’après leur dossier d’origine (par exemple 157GOPRO_G0010001.JPG).
+organize-naming-sequence-help = Toutes les photographies vont dans un seul dossier sous les noms 000001.jpg, 000002.jpg… en ordre chronologique ou dans l’ordre de la sélection.
+organize-preview = Simulation
+organize-previewing = Planification…
+organize-preview-title = Simulation
+organize-stat-planned = À placer
+organize-stat-duplicates = Doublons écartés
+organize-stat-present = Déjà présentes
+organize-stat-renamed = Renommées
+organize-stat-bytes = Taille
+organize-stat-free = Espace libre
+organize-free-unknown = Inconnu
+organize-excluded = Exclues : { $rejected } rejetées, { $quarantined } en quarantaine, { $missing } introuvables à l’endroit prévu.
+organize-unsafe-names = { $count ->
+    [one] { $count } photographie a un nom qui ne peut pas être utilisé de façon sûre; elle est écartée.
+   *[other] { $count } photographies ont un nom qui ne peut pas être utilisé de façon sûre; elles sont écartées.
+}
+organize-items-title = { $shown } premières photographies sur { $total }
+organize-notable-title = Écartées ou renommées ({ $count })
+organize-item-renamed = Renommée : le nom était déjà pris
+organize-item-duplicate = Écartée : identique à une photographie précédente
+organize-item-already-present = Écartée : un fichier identique est déjà là
+organize-item-unsafe = Écartée : son nom ne peut pas être utilisé de façon sûre
+organize-run-copy = { $count ->
+    [one] Copier { $count } photo
+   *[other] Copier { $count } photos
+}
+organize-run-move = { $count ->
+    [one] Déplacer { $count } photo
+   *[other] Déplacer { $count } photos
+}
+organize-preview-stale = Les réglages ont changé depuis la simulation. Relancez-la pour voir ce qui se passera.
+organize-busy-run = Organisation en cours…
+organize-busy-undo = Annulation en cours…
+organize-confirm-title-copy = Copier les photographies?
+organize-confirm-title-move = Déplacer les originaux?
+organize-confirm-body-copy = { $count ->
+    [one] { $count } photographie sera copiée vers { $path }.
+   *[other] { $count } photographies seront copiées vers { $path }.
+}
+organize-confirm-body-move = { $count ->
+    [one] { $count } original sera déplacé vers { $path }. Il ne sera plus dans le dossier de la collection.
+   *[other] { $count } originaux seront déplacés vers { $path }. Ils ne seront plus dans les dossiers de la collection.
+}
+organize-confirm-safety = Chaque fichier est vérifié avant et après; rien n’est jamais écrasé et l’opération peut être annulée depuis l’historique.
+organize-confirm-move-understood = Je comprends que les originaux quitteront les dossiers de la collection
+organize-result-copy = { $failed ->
+    [0] { $placed } photographies copiées.
+   *[other] { $placed } photographies copiées; { $failed } n’ont pas pu l’être (voir l’historique).
+}
+organize-result-move = { $failed ->
+    [0] { $placed } originaux déplacés.
+   *[other] { $placed } originaux déplacés; { $failed } n’ont pas pu l’être (voir l’historique).
+}
+organize-undo-result = { $failed ->
+    [0] Annulé : { $undone } fichiers repris.
+   *[other] { $undone } fichiers repris; { $failed } ont été laissés tels quels (modifiés ou déplacés depuis).
+}
+organize-history-title = Historique
+organize-history-empty-title = Rien n’a encore été organisé
+organize-history-empty-description = Chaque copie ou déplacement apparaît ici, avec une vérification et une annulation.
+organize-history-line-copy = { $count ->
+    [one] { $count } photographie copiée, { $naming }
+   *[other] { $count } photographies copiées, { $naming }
+}
+organize-history-line-move = { $count ->
+    [one] { $count } original déplacé, { $naming }
+   *[other] { $count } originaux déplacés, { $naming }
+}
+organize-history-failed = { $count } en échec
+organize-history-undone = { $count } annulés
+organize-status-running = En cours
+organize-status-completed = Terminé
+organize-status-partial = Partiellement terminé
+organize-status-cancelled = Annulé
+organize-status-interrupted = Interrompu
+organize-undo-status-undone = Annulé
+organize-undo-status-partially-undone = Partiellement annulé
+organize-check = Vérifier
+organize-checking = Vérification…
+organize-check-ok = { $count ->
+    [one] Le fichier est intact.
+   *[other] Les { $count } fichiers sont intacts.
+}
+organize-check-problems = { $ok } intacts, { $modified } modifiés, { $missing } manquants, { $moved } déplacés depuis.
+organize-undo = Annuler
+organize-undo-title = Annuler cette organisation?
+organize-undo-body-copy = { $count ->
+    [one] La copie faite dans { $path } sera supprimée.
+   *[other] Les { $count } copies faites dans { $path } seront supprimées.
+}
+organize-undo-body-move = { $count ->
+    [one] L’original sera remis de { $path } à son emplacement d’origine.
+   *[other] Les { $count } originaux seront remis de { $path } à leur emplacement d’origine.
+}
+organize-undo-safety = Seuls les fichiers encore exactement tels qu’ils ont été créés sont repris; tout ce qui a changé depuis reste en place et est listé. Rien d’autre dans le dossier n’est touché.
+organize-originals-title = Vérification des originaux
+organize-originals-help = Relit chaque original à l’endroit indiqué par le projet et le compare à son empreinte prise à l’importation.
+organize-originals-check = Vérifier les originaux
+organize-originals-ok = Intacts
+organize-originals-changed = Modifiés
+organize-originals-missing = Manquants
+organize-originals-unhashed = Non vérifiables
+organize-originals-all-ok = { $count ->
+    [one] L’original est intact.
+   *[other] Les { $count } originaux sont intacts.
+}
+organize-originals-problems = { $changed } modifiés et { $missing } manquants. L’application n’écrit jamais dans un original : ils ont été modifiés ou retirés hors de l’application.
+organize-problem-modified = Modifié depuis sa création
+organize-problem-missing = Introuvable
+organize-problem-moved-since = Déplacé de nouveau depuis
+organize-problem-changed = Modifié depuis l’importation
