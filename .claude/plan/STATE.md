@@ -1,6 +1,6 @@
 # STATE
 
-STATUS: RUNNING
+STATUS: DONE
 <!-- PENDING | RUNNING | DONE | BLOCKED -->
 
 ## Contract
@@ -23,24 +23,44 @@ STATUS: RUNNING
 | 5 | FFmpeg video generation | **done (2026-11-15)**, exit criterion proven on the macOS CI runner (run 43664224239). Review BLOCK → fixed → SIGN-OFF WITH NOTES. ffmpeg + svt-av1 licence exceptions approved by the user 2026-11-14 |
 | 6 | Consolidation & file management | **done (2026-11-15)**, exit criterion proven by the consolidation exit tests on Windows and the macOS CI runner (run 43679518712, APFS clone path). Review BLOCK → fixed → SIGN-OFF WITH NOTES → notes A–C fixed |
 | 7 | Advanced UI & contact sheets | **done (2026-11-15)**, exit criterion proven by the contact-sheet exit tests on Windows and the macOS CI runner (run 43713955977). Review SIGN-OFF WITH NOTES → defects 1–7 fixed |
-| 8 | Flicker reduction & stabilization | **running** (branch `phase-8-flicker-stabilization`) |
+| 8 | Flicker reduction & stabilization | **done (2026-11-15)**, exit criterion proven by the adjust and export exit tests on Windows and the macOS CI runner (run 43733756772, adjusted AV1 encode included). Review SIGN-OFF WITH NOTES → fixed. **User item open:** real GoPro check |
 
 ## Slice status (Phase 8)
 
 | Slice | Status | Gate |
 | --- | --- | --- |
 | P8.0 ADR-025, plan | done | GATE-FAST |
-| P8.1 Deflicker (pure) | pending | GATE-FAST |
-| P8.2 Stabilization (pure) | pending | GATE-FAST |
-| P8.3 Runs, store v8, analysis | pending | GATE-FAST |
-| P8.4 Encode integration | pending | GATE-FAST |
-| P8.5 Commands | pending | GATE-UI |
-| P8.6 UI | pending | GATE-UI + legal check/gen |
-| P8.7 Exit tests + review | pending | reviewer sign-off; GATE-FULL; CI green |
-| P8.8 Final gate + commit/push | pending | GATE-FULL; user item: real GoPro check |
+| P8.1 Deflicker (pure) | done | GATE-FAST |
+| P8.2 Stabilization (pure) | done | GATE-FAST |
+| P8.3 Runs, store v8, analysis | done | GATE-FAST |
+| P8.4 Encode integration | done | GATE-FAST |
+| P8.5 Commands | done | GATE-UI |
+| P8.6 UI | done | GATE-UI + legal check/gen |
+| P8.7 Exit tests + review | done | reviewer sign-off; GATE-FULL; CI green |
+| P8.8 Final gate + commit/push | done (user item open) | GATE-FULL; user item: real GoPro check |
 
 ## Handoff log
 
+- **2026-11-15 — Phase 8 DONE** (one item is the user's).
+  - **ADR-025:** deflicker (luminance + colour, against a trend of running median then mean in log space; exposure capped at ±1 stop, colour at ±⅓ stop and renormalised to keep luminance) and translation-only stabilization (block matching on 512 px normalised grayscale, a 4-level pyramid, sub-pixel fit, confidence, cuts ignored; the smoothed path; one crop of at most 5% per side). Series are extended at both ends along a robust line, so the first and last frames are corrected too. No new dependency; vidstab (GPL) excluded.
+  - **Core** (`crates/core/src/adjust/`): `deflicker.rs`, `stabilize.rs`, `series.rs` (pure); `mod.rs` (analyses of a saved selection from the cached review thumbnails, in parallel batches, with progress, cancel and a lock); `store.rs` (schema v8: `flicker_runs`/`flicker_frames`, `stabilization_runs`/`stabilization_frames`, each run written whole in one transaction); `preview.rs` (downsampled chart series, before/after stills).
+  - **Encode (D5):** `ExportSettings.flicker_run` / `stabilization_run`. Values are read from SQLite and checked: `adjustment-mismatch` for another selection or one with a missing frame; `adjustment-stale` when the selection's sequence fingerprint changed since. The shift and crop apply before EXIF orientation, the LUTs after fitting. There is no manifest; the runs used are in `settings_json` and the export record.
+  - **Shell:** 7 commands. The spec's single `adjustment_series` became `flicker_series` + `stabilization_series`.
+  - **UI:** the Adjust page with analyses, figures, brightness/colour/path charts (LineChart: one axis, legend + direct labels, crosshair as a slider, table view; colours derived from design-system hues and validated by the dataviz palette check in light and dark) and before/after stills; on the Export page, run selects. 669 keys in both locales. Data map: `adjustments`.
+  - **Exit criterion:**
+    - identical configuration gives identical stored values (deflicker and stabilization);
+    - flicker is reduced;
+    - shake is recovered within 0.3 px;
+    - prepared frames are steadier and more even;
+    - another selection's runs and stale runs are refused;
+    - an AV1 export with both runs completes on the macOS runner and leaves only the video (no manifest);
+    - cancel stores nothing.
+  - **Review:** SIGN-OFF WITH NOTES. Fixed: uncorrected sequence ends, view resets on refresh, chart text outside Fluent, slider value before hover, the stale fingerprint, per-frame preview cost, colour gains moving luminance, the measured count.
+  - **Notes left:**
+    - `app.css` carries its `verify:allow` exemptions in a dummy `--app-why` property, because verify.sh blanks CSS comments; extending verify.sh (a template file) to accept relative colour from `--ez-*` would be cleaner;
+    - no test with an EXIF-rotated source plus a shift (correct by construction);
+    - `shift_crop` copies the full-size image once per frame.
+  - **User item:** check deflicker and stabilization visually on a real GoPro sequence on the Mac (PRD §5.9).
 - **2026-11-15 — Phase 8 kicked off.** Phase 7 plan/state archived. Since Phase 7, on main: import skips hidden files (`._*`), large imports run off the main thread with a 6 h limit, dev builds optimise dependencies, bulk keep/reject, a Stop button for the analysis, Sampling dates default to the photographs' span. User decisions: translation-only stabilization in Rust (no new dependency; vidstab is GPL); deflicker on luminance and colour; the user's real-GoPro visual check is a phase item.
 - **2026-11-15 — Phase 7 DONE.**
   - **ADR-024:** contact sheets are a streamed PDF (`pdf-writer` 0.15, MIT OR Apache-2.0, approved) with the standard Helvetica font in WinAnsi (no bundled font; other scripts print `?`), written to `.timelapse/contact-sheets/<id>.pdf` with a history.
