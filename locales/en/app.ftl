@@ -346,6 +346,7 @@ error-export = { $reason ->
     [invalid-output] The finished file did not pass the check (format, size or frame count) and was discarded.
     [output-exists] A file with this name already exists; nothing was overwritten.
     [image-unreadable] A photograph of the selection could not be read.
+    [write-failed] The video could not be written to the project's exports folder (disk full or not writable).
     [interrupted] The app closed while this video was being created.
    *[other] The video could not be created.
 }

@@ -83,7 +83,9 @@ Read: Phases 2→4 are strictly sequential (each consumes the prior stage's SQLi
 ## Cross-phase release gate (applies to every phase exit that ships a user build)
 
 - Locale: fr-CA + en catalogs complete (fr-CA is a **release blocker**; see ADR-016).
-- `ez licence-audit` green for the shipped dependency set.
+- `ez licence-audit` green for the shipped dependency set; the FFmpeg and SVT-AV1 exceptions in `licence-exceptions.yaml` approved by the user (ADR-022).
+- FFmpeg (ADR-022): `tools/build-ffmpeg/check-licence.sh` passes on the release build, and the exact source tarballs from the CI artifact (`sources/`) are attached to the release with `LICENSES/` (LGPL-2.1 §6).
+- Hardware export path verified on Apple Silicon: `TIMELAPSE_FFMPEG_DIR=<bundle>/resources/ffmpeg TIMELAPSE_REQUIRE_VIDEOTOOLBOX=1 cargo test -p timelapse-core export:: -- --nocapture` green (CI's virtual Macs may lack a media engine).
 - Apple signing inputs present (`etzian.yaml:66,68`); notarization attempted for non-MAS builds.
 - No ADR in `DECISIONS.md` is contradicted by merged code; open ADRs are tracked here, not resolved silently.
 

@@ -19,8 +19,8 @@ pub mod store;
 
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::sync::Mutex;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::{Mutex, MutexGuard, TryLockError};
 
 use rayon::prelude::*;
 
@@ -33,7 +33,9 @@ pub use settings::{Codec, ExportSettings, Quality, duration_seconds, frame_plan,
 pub use store::ExportRecord;
 
 static EXPORT_LOCK: Mutex<()> = Mutex::new(());
-static CANCEL: AtomicBool = AtomicBool::new(false);
+/// The token of the export the user asked to stop (0 = none). Each export carries its own
+/// token, so a cancel can never be lost to, or leak into, another export.
+static CANCEL_TOKEN: AtomicU64 = AtomicU64::new(0);
 /// Frames decoded ahead in parallel.
 const DECODE_AHEAD: usize = 6;
 
@@ -43,6 +45,16 @@ pub fn exports_dir(root: &Path) -> PathBuf {
 
 fn fail(reason: &'static str) -> Error {
     Error::Export { reason }
+}
+
+/// The export lock, or `None` while an export runs. A panic in an earlier export only
+/// poisons the lock; the lock guards no data, so it is taken back.
+fn try_export_lock() -> Option<MutexGuard<'static, ()>> {
+    match EXPORT_LOCK.try_lock() {
+        Ok(g) => Some(g),
+        Err(TryLockError::Poisoned(p)) => Some(p.into_inner()),
+        Err(TryLockError::WouldBlock) => None,
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
@@ -56,43 +68,67 @@ pub fn info(paths: &FfmpegPaths) -> FfmpegInfo {
     ffmpeg::probe(paths)
 }
 
-/// Ask the running export (if any) to stop; it removes its partial file.
-pub fn cancel() {
-    CANCEL.store(true, Ordering::SeqCst);
+/// Ask the export started with `token` to stop; it removes its partial file.
+pub fn cancel(token: u64) {
+    CANCEL_TOKEN.store(token, Ordering::SeqCst);
+}
+
+fn cancelled(token: u64) -> bool {
+    token != 0 && CANCEL_TOKEN.load(Ordering::SeqCst) == token
 }
 
 pub fn exports_for_root(root: &Path) -> Result<Vec<ExportRecord>> {
     let conn = open_root(root)?;
-    if EXPORT_LOCK.try_lock().is_ok() {
+    // Only while no export runs (the guard is held across the update): otherwise a live
+    // `running` row is not abandoned.
+    if let Some(_idle) = try_export_lock() {
         store::mark_interrupted(&conn)?;
     }
     store::list(&conn)
 }
 
-/// Encode saved sampling run `run` of `root` into an MP4.
+/// If anything unwinds out of an export, the partial file goes and the row says so.
+struct Cleanup<'a> {
+    conn: &'a rusqlite::Connection,
+    id: i64,
+    part: PathBuf,
+    armed: bool,
+}
+
+impl Drop for Cleanup<'_> {
+    fn drop(&mut self) {
+        if self.armed {
+            let _ = fs::remove_file(&self.part);
+            let _ = store::failed(self.conn, self.id, "interrupted", "");
+        }
+    }
+}
+
+/// Encode saved sampling run `run` of `root` into an MP4. `token` identifies this export
+/// for [`cancel`].
 pub fn export_run(
     root: &Path,
     paths: &FfmpegPaths,
     run: i64,
     settings: ExportSettings,
+    token: u64,
     mut on_progress: impl FnMut(ExportProgress),
 ) -> Result<ExportRecord> {
-    let _guard = EXPORT_LOCK.try_lock().map_err(|_| fail("busy"))?;
-    CANCEL.store(false, Ordering::SeqCst);
+    let _guard = try_export_lock().ok_or_else(|| fail("busy"))?;
     settings.check().map_err(fail)?;
-    let probe = ffmpeg::probe(paths);
-    if !probe.available {
-        return Err(fail("ffmpeg-missing"));
-    }
-    if !probe.supports(settings.codec) {
-        return Err(fail("encoder-unavailable"));
-    }
 
     let conn = open_root(root)?;
     store::mark_interrupted(&conn)?;
     let items = sampling_store::run_items(&conn, run)?;
     if items.is_empty() {
         return Err(fail("empty-run"));
+    }
+    let probe = ffmpeg::probe(paths);
+    if !probe.available {
+        return Err(fail("ffmpeg-missing"));
+    }
+    if !probe.supports(settings.codec) {
+        return Err(fail("encoder-unavailable"));
     }
     let sources: Vec<PathBuf> = items
         .iter()
@@ -104,7 +140,7 @@ pub fn export_run(
     let plan = frame_plan(sources.len(), settings.speed);
 
     let dir = exports_dir(root);
-    fs::create_dir_all(&dir).map_err(|_| fail("ffmpeg-failed"))?;
+    fs::create_dir_all(&dir).map_err(|_| fail("write-failed"))?;
     let stamp = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_millis())
@@ -115,12 +151,14 @@ pub fn export_run(
     let args = ffmpeg::encode_args(&settings, &part);
     let id =
         store::begin(&conn, run, &settings, &probe, &args, &output, sources.len(), plan.len())?;
+    let mut cleanup = Cleanup { conn: &conn, id, part: part.clone(), armed: true };
 
-    let result = encode(paths, &args, &sources, &plan, &settings, &part, &mut on_progress);
+    let result = encode(paths, &args, &sources, &plan, &settings, &part, token, &mut on_progress);
     let outcome = match result {
         Ok(()) => finish(paths, &settings, &part, &output, plan.len()),
         Err(e) => Err(e),
     };
+    cleanup.armed = false;
     match outcome {
         Ok(probed) => {
             let size = fs::metadata(&output).map(|m| m.len()).unwrap_or(0);
@@ -136,6 +174,7 @@ pub fn export_run(
 
 type Failure = (&'static str, String);
 
+#[allow(clippy::too_many_arguments)]
 fn encode(
     paths: &FfmpegPaths,
     args: &[std::ffi::OsString],
@@ -143,6 +182,7 @@ fn encode(
     plan: &[usize],
     s: &ExportSettings,
     part: &Path,
+    token: u64,
     on_progress: &mut impl FnMut(ExportProgress),
 ) -> std::result::Result<(), Failure> {
     if part.exists() {
@@ -171,7 +211,7 @@ fn encode(
             .collect();
         let mut decoded = decoded.into_iter().peekable();
         while k < total {
-            if CANCEL.load(Ordering::SeqCst) {
+            if cancelled(token) {
                 return Err(("cancelled", enc.kill()));
             }
             let i = plan[k];
@@ -212,19 +252,36 @@ fn finish(
     if !valid {
         return Err(("invalid-output", format!("{probed:?}")));
     }
+    // No-clobber placement: a hard link, or (no links, e.g. exFAT) a `create_new` copy.
+    // Both fail if a file already has that name; `rename` (which replaces) is never used.
     match fs::hard_link(part, output) {
-        Ok(()) => {
-            let _ = fs::remove_file(part);
-        }
+        Ok(()) => {}
         Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {
             return Err(("output-exists", String::new()));
         }
-        Err(_) if !output.exists() => {
-            fs::rename(part, output).map_err(|_| ("ffmpeg-failed", String::new()))?
-        }
-        Err(_) => return Err(("output-exists", String::new())),
+        Err(_) => copy_new(part, output)?,
     }
+    let _ = fs::remove_file(part);
     Ok(probed)
+}
+
+fn copy_new(from: &Path, to: &Path) -> std::result::Result<(), Failure> {
+    let mut out = match fs::OpenOptions::new().write(true).create_new(true).open(to) {
+        Ok(f) => f,
+        Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {
+            return Err(("output-exists", String::new()));
+        }
+        Err(_) => return Err(("write-failed", String::new())),
+    };
+    let copied = fs::File::open(from)
+        .and_then(|mut i| std::io::copy(&mut i, &mut out))
+        .and_then(|_| out.sync_all());
+    if copied.is_err() {
+        drop(out);
+        let _ = fs::remove_file(to); // the copy we just created
+        return Err(("write-failed", String::new()));
+    }
+    Ok(())
 }
 
 #[cfg(test)]

@@ -27,6 +27,7 @@ export const EXPORT_FAILURES = [
   'invalid-output',
   'output-exists',
   'image-unreadable',
+  'write-failed',
   'interrupted'
 ] as const;
 

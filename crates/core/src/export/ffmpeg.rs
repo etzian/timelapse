@@ -233,6 +233,16 @@ pub struct Encoder {
 
 const STDERR_LINES: usize = 40;
 
+impl Drop for Encoder {
+    /// Never leave FFmpeg running: if an export unwinds, the child is killed and reaped.
+    /// (After `finish`/`kill` this is a no-op on an already-reaped child.)
+    fn drop(&mut self) {
+        drop(self.stdin.take());
+        let _ = self.child.kill();
+        let _ = self.child.wait();
+    }
+}
+
 impl Encoder {
     pub fn start(paths: &FfmpegPaths, args: &[OsString]) -> Result<Self> {
         // ADR-021: the bundled ffmpeg, explicit argv, no shell.

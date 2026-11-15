@@ -5,10 +5,11 @@
   import type { ResolutionKey } from '../export';
   import { formatDate, formatNumber, t } from '../i18n';
   import { errorText } from '../i18n/errors';
-  import { cancelExport, ffmpegInfo, listExports, listSamplingRuns, startExport } from '../ipc/app';
-  import type { Codec, ExportProgress, ExportRecord, FfmpegInfo, Quality, RunSummary } from '../ipc/app';
+  import { ffmpegInfo, listExports, listSamplingRuns } from '../ipc/app';
+  import type { Codec, ExportRecord, FfmpegInfo, Quality, RunSummary } from '../ipc/app';
   import type { IpcError } from '../ipc/invoke';
   import { FPS_OPTIONS, MULTIPLIERS } from '../sampling';
+  import { exportJob, runExport, stopExport } from '../stores/export.svelte';
   import { project } from '../stores/project.svelte';
   import { formatDuration } from '../timeline';
 
@@ -18,7 +19,6 @@
 
   let info = $state<FfmpegInfo | null>(null);
   let runs = $state<RunSummary[] | null>(null);
-  let history = $state<ExportRecord[] | null>(null);
   let loadError = $state('');
 
   let runId = $state('');
@@ -28,11 +28,15 @@
   let resolution = $state<ResolutionKey>('1080');
   let quality = $state<Quality>('standard');
 
-  let exporting = $state(false);
-  let cancelling = $state(false);
-  let progress = $state<ExportProgress | null>(null);
-  let result = $state<ExportRecord | null>(null);
-  let error = $state('');
+  // The running export lives in a store, so it survives leaving this page.
+  const job = $derived(exportJob.state);
+  const mine = $derived(job.root === root);
+  const exporting = $derived(job.exporting);
+  const cancelling = $derived(job.cancelling);
+  const progress = $derived(mine ? job.progress : null);
+  const result = $derived(mine ? job.result : null);
+  const error = $derived(mine && job.error ? errorText(job.error) : '');
+  const history = $derived(mine ? job.history : null);
 
   const run = $derived(runs?.find((r) => String(r.id) === runId) ?? null);
   const frames = $derived(run ? outputFrames(run.selected_count, Number(speed)) : 0);
@@ -64,7 +68,10 @@
       if (forRoot !== root) return;
       info = i;
       runs = r;
-      history = h;
+      if (exportJob.state.root === forRoot || !exportJob.state.exporting) {
+        exportJob.state.root = forRoot;
+        exportJob.history = h;
+      }
       if (!runId && r.length > 0) runId = String(r[0].id);
       if (!supports(i, codec)) codec = CODECS.find((c) => supports(i, c)) ?? 'av1';
     } catch (err) {
@@ -76,47 +83,18 @@
     if (!root) return;
     info = null;
     runs = null;
-    history = null;
     runId = '';
-    result = null;
-    error = '';
     void load();
   });
 
-  async function start(): Promise<void> {
+  function start(): void {
     if (!run || !canExport) return;
-    const forRoot = root;
     const r = RESOLUTIONS.find((x) => x.key === resolution) ?? RESOLUTIONS[2];
-    exporting = true;
-    cancelling = false;
-    error = '';
-    result = null;
-    progress = null;
-    try {
-      const rec = await startExport(
-        forRoot,
-        run.id,
-        { codec, fps: Number(fps), speed: Number(speed), width: r.width, height: r.height, quality },
-        (p) => (progress = p)
-      );
-      if (forRoot !== root) return;
-      result = rec;
-      history = await listExports(forRoot);
-    } catch (err) {
-      if (forRoot === root) error = errorText(err as IpcError);
-    } finally {
-      exporting = false;
-      cancelling = false;
-    }
+    void runExport(root, run.id, { codec, fps: Number(fps), speed: Number(speed), width: r.width, height: r.height, quality });
   }
 
-  async function cancel(): Promise<void> {
-    cancelling = true;
-    try {
-      await cancelExport();
-    } catch {
-      cancelling = false;
-    }
+  function cancel(): void {
+    void stopExport();
   }
 
   const statusVariant = (s: ExportRecord['status']) =>
@@ -206,7 +184,7 @@
             size: formatBytes(result.file_size ?? 0),
             codec: t(`export-codec-${result.settings.codec}`)
           })}
-          ondismiss={() => (result = null)}
+          ondismiss={() => exportJob.dismiss()}
           dismissLabel={t('clean-dismiss')}
         >
           <p class="app-export__path">{result.output_path}</p>

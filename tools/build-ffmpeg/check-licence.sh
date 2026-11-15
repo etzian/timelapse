@@ -28,16 +28,21 @@ for enc in libsvtav1 h264_videotoolbox hevc_videotoolbox; do
 done
 echo "$ENCODERS" | grep -qE ' lib(x264|x265|xvid|fdk_aac) ' && bad "GPL/nonfree encoder present" || ok "no libx264/libx265/libxvid/libfdk_aac encoder"
 
+BIN_FAIL_BEFORE=$FAIL
 for f in "$DIR"/bin/* "$DIR"/lib/*.dylib; do
-  [ -L "$f" ] && continue
+  [ -L "$f" ] && bad "$(basename "$f") is a symlink (the bundle must carry real files)"
   if otool -L "$f" 2>/dev/null | grep -qiE 'x264|x265|libpostproc'; then bad "$(basename "$f") links x264/x265/postproc"; fi
-  if strings "$f" 2>/dev/null | grep -qE 'x264 - core|x265 \(build'; then bad "$(basename "$f") contains x264/x265 code"; fi
+  # x264/x265 code would bring their entry points; FFmpeg's own h264 SEI code only
+  # carries an "x264 - core" format string, which is not x264 and is not looked for.
+  if nm -a "$f" 2>/dev/null | grep -qE '_?x26[45]_(encoder_open|encoder_encode|param_default)'; then
+    bad "$(basename "$f") contains x264/x265 symbols"
+  fi
   # Only system libraries and our own @rpath libraries may be loaded.
   if otool -L "$f" 2>/dev/null | tail -n +2 | awk '{print $1}' | grep -vE '^(/usr/lib/|/System/Library/|@rpath/)' | grep -q .; then
     bad "$(basename "$f") loads a library from outside the bundle"
   fi
 done
-[ "$FAIL" -eq 0 ] && ok "binaries: no x264/x265, only system and bundled libraries"
+[ "$FAIL" -eq "$BIN_FAIL_BEFORE" ] && ok "binaries: no x264/x265 code or links, only system and bundled libraries"
 
 for l in FFMPEG-COPYING.LGPLv2.1 SVT-AV1-LICENSE.md SVT-AV1-PATENTS.md CONFIGURE.txt SOURCES.txt; do
   [ -s "$DIR/LICENSES/$l" ] && ok "LICENSES/$l" || bad "LICENSES/$l missing"

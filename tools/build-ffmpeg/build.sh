@@ -63,7 +63,6 @@ CONFIGURE_ARGS=(
   --enable-decoder=rawvideo
   --enable-muxer=mp4,mov
   --enable-encoder=libsvtav1,h264_videotoolbox,hevc_videotoolbox
-  --enable-parser=av1,h264,hevc
   --enable-filter=scale,format,fps,null
   --install-name-dir=@rpath
   --extra-ldflags="-Wl,-rpath,@executable_path/../lib -mmacosx-version-min=$MACOS_MIN"
@@ -80,8 +79,13 @@ CONFIGURE_ARGS=(
 rm -rf "$OUT/bin" "$OUT/lib" "$OUT/LICENSES" "$OUT/sources"
 mkdir -p "$OUT/bin" "$OUT/lib" "$OUT/LICENSES" "$OUT/sources"
 cp "$PREFIX/bin/ffmpeg" "$PREFIX/bin/ffprobe" "$OUT/bin/"
-# Real files only (follow the versioned symlinks), plus the names the binaries load.
-for lib in "$PREFIX"/lib/*.dylib; do cp -P "$lib" "$OUT/lib/"; done
+# One real file per library, under the install name the binaries load (@rpath/<name>),
+# so the bundle carries no symlinks and no duplicate copies.
+for lib in "$PREFIX"/lib/*.dylib; do
+  [ -L "$lib" ] && continue
+  install_name="$(otool -D "$lib" | tail -n 1)"
+  cp "$lib" "$OUT/lib/$(basename "$install_name")"
+done
 cp "$WORK/ffmpeg-$FFMPEG_VERSION/COPYING.LGPLv2.1" "$OUT/LICENSES/FFMPEG-COPYING.LGPLv2.1"
 cp "$WORK/SVT-AV1-v$SVTAV1_VERSION/LICENSE.md" "$OUT/LICENSES/SVT-AV1-LICENSE.md"
 cp "$WORK/SVT-AV1-v$SVTAV1_VERSION/PATENTS.md" "$OUT/LICENSES/SVT-AV1-PATENTS.md"

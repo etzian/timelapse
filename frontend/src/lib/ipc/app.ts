@@ -407,16 +407,18 @@ const EXPORT_TIMEOUT_MS = 6 * 60 * 60_000;
 
 export const ffmpegInfo = () => invoke<FfmpegInfo>('ffmpeg_info', {}, 30_000);
 
+/** `token` identifies this export for `cancelExport` (any non-zero safe integer). */
 export function startExport(
   root: string,
   run: number,
   settings: ExportSettings,
+  token: number,
   onProgress: (p: ExportProgress) => void
 ): Promise<ExportRecord> {
   const channel = new Channel<ExportProgress>();
   channel.onmessage = onProgress;
-  return invoke<ExportRecord>('start_export', { root, run, settings, onProgress: channel }, EXPORT_TIMEOUT_MS);
+  return invoke<ExportRecord>('start_export', { root, run, settings, token, onProgress: channel }, EXPORT_TIMEOUT_MS);
 }
 
-export const cancelExport = () => invoke<void>('cancel_export');
+export const cancelExport = (token: number) => invoke<void>('cancel_export', { token });
 export const listExports = (root: string) => invoke<ExportRecord[]>('list_exports', { root });

@@ -262,22 +262,24 @@ use timelapse_core::export;
 /// The bundled FFmpeg: `<resources>/resources/ffmpeg`. Debug builds honour
 /// `TIMELAPSE_FFMPEG_DIR` so development on a machine without the bundle can still
 /// encode; release builds only ever use the bundle (ADR-021).
-fn ffmpeg_paths(app: &tauri::AppHandle) -> export::FfmpegPaths {
+/// `None` when the resource directory cannot be resolved: never fall back to a relative
+/// path (the working directory is not ours).
+fn ffmpeg_paths(app: &tauri::AppHandle) -> Option<export::FfmpegPaths> {
     use tauri::Manager as _;
     if cfg!(debug_assertions)
         && let Some(dir) = std::env::var_os("TIMELAPSE_FFMPEG_DIR")
     {
-        return export::FfmpegPaths::in_dir(std::path::Path::new(&dir));
+        return Some(export::FfmpegPaths::in_dir(std::path::Path::new(&dir)));
     }
-    let dir = app.path().resource_dir().unwrap_or_default().join("resources").join("ffmpeg");
-    export::FfmpegPaths::in_dir(&dir)
+    let dir = app.path().resource_dir().ok()?.join("resources").join("ffmpeg");
+    Some(export::FfmpegPaths::in_dir(&dir))
 }
 
 /// Which tiers the bundled FFmpeg can encode (unavailable ones are disabled in the UI).
 #[tauri::command]
 async fn ffmpeg_info(app: tauri::AppHandle) -> std::result::Result<export::FfmpegInfo, IpcError> {
     let paths = ffmpeg_paths(&app);
-    blocking(move || Ok(export::info(&paths))).await
+    blocking(move || Ok(paths.map(|p| export::info(&p)).unwrap_or_default())).await
 }
 
 /// Encode saved sampling run `run` into an MP4 under `<root>/.timelapse/exports/`.
@@ -287,20 +289,23 @@ async fn start_export(
     root: PathBuf,
     run: i64,
     settings: export::ExportSettings,
+    token: u64,
     on_progress: tauri::ipc::Channel<export::ExportProgress>,
 ) -> std::result::Result<export::ExportRecord, IpcError> {
-    let paths = ffmpeg_paths(&app);
+    let paths =
+        ffmpeg_paths(&app).ok_or(timelapse_core::Error::Export { reason: "ffmpeg-missing" })?;
     blocking(move || {
-        export::export_run(&root, &paths, run, settings, |p| {
+        export::export_run(&root, &paths, run, settings, token, |p| {
             let _ = on_progress.send(p);
         })
     })
     .await
 }
 
+/// Stop the export started with `token` (a token chosen by the UI per export).
 #[tauri::command]
-fn cancel_export() {
-    export::cancel();
+fn cancel_export(token: u64) {
+    export::cancel(token);
 }
 
 #[tauri::command]

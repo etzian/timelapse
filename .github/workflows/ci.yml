@@ -91,6 +91,9 @@ jobs:
           name: ffmpeg-9.0.2-lgpl-aarch64
           path: ffmpeg-dist
           if-no-files-found: error
+          # The exact sources must outlive the build; a release also attaches them
+          # (DEVELOPMENT_ROADMAP.md, release gate).
+          retention-days: 90
 
       - name: Upload the built .app for inspection
         uses: actions/upload-artifact@v4

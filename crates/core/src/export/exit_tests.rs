@@ -14,6 +14,14 @@ use crate::import::metadata::fixture::{ExifSpec, TempDir, write_jpeg};
 use crate::import::{backfill_for_root, import_folder};
 use crate::sampling::{Config, Method, create_run_for_root};
 
+/// Exports are one at a time by design (`EXPORT_LOCK` → `busy`); the test runner is
+/// parallel, so every test here runs under this lock.
+static SERIAL: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+fn serial() -> std::sync::MutexGuard<'static, ()> {
+    SERIAL.lock().unwrap_or_else(|e| e.into_inner())
+}
+
 fn ffmpeg_dir() -> Option<PathBuf> {
     std::env::var_os("TIMELAPSE_FFMPEG_DIR")
         .map(PathBuf::from)
@@ -45,9 +53,11 @@ fn settings(codec: Codec, speed: f64) -> ExportSettings {
 
 #[test]
 fn a_missing_ffmpeg_is_an_explicit_error_and_nothing_is_written() {
+    let _serial = serial();
     let (dir, run) = project();
     let nowhere = FfmpegPaths::in_dir(&dir.path().join("no-ffmpeg"));
-    let err = export_run(dir.path(), &nowhere, run, settings(Codec::Av1, 1.0), |_| {}).unwrap_err();
+    let err =
+        export_run(dir.path(), &nowhere, run, settings(Codec::Av1, 1.0), 1, |_| {}).unwrap_err();
     assert!(matches!(err, Error::Export { reason: "ffmpeg-missing" }));
     assert!(exports_for_root(dir.path()).unwrap().is_empty());
     assert!(!exports_dir(dir.path()).exists());
@@ -55,12 +65,26 @@ fn a_missing_ffmpeg_is_an_explicit_error_and_nothing_is_written() {
 
 #[test]
 fn invalid_settings_and_empty_runs_are_refused() {
+    let _serial = serial();
     let (dir, run) = project();
     let p = FfmpegPaths::in_dir(&dir.path().join("x"));
     let bad = ExportSettings { width: 321, ..settings(Codec::Av1, 1.0) };
     assert!(matches!(
-        export_run(dir.path(), &p, run, bad, |_| {}),
+        export_run(dir.path(), &p, run, bad, 1, |_| {}),
         Err(Error::Export { reason: "invalid-settings" })
+    ));
+    // A saved selection that selected nothing.
+    let none = Config {
+        method: Method::EveryNth { n: 1, offset: 0 },
+        from: Some("2030-01-01".into()),
+        to: None,
+        include_flagged: true,
+    };
+    let empty = create_run_for_root(dir.path(), &none).unwrap();
+    assert_eq!(empty.selected_count, 0);
+    assert!(matches!(
+        export_run(dir.path(), &p, empty.id, settings(Codec::Av1, 1.0), 1, |_| {}),
+        Err(Error::Export { reason: "empty-run" })
     ));
 }
 
@@ -78,7 +102,7 @@ fn encode_or_skip(codec: Codec, speed: f64) -> Option<(ExportRecord, usize)> {
     let (project, run) = project();
     let mut progress = Vec::new();
     let result =
-        export_run(project.path(), &paths, run, settings(codec, speed), |p| progress.push(p));
+        export_run(project.path(), &paths, run, settings(codec, speed), 7, |p| progress.push(p));
     let vt_required = std::env::var("TIMELAPSE_REQUIRE_VIDEOTOOLBOX").as_deref() == Ok("1");
     match result {
         Ok(rec) if rec.status == "completed" => {
@@ -88,10 +112,15 @@ fn encode_or_skip(codec: Codec, speed: f64) -> Option<(ExportRecord, usize)> {
             );
             Some((rec, 24))
         }
-        Ok(rec) if codec != Codec::Av1 && !vt_required => {
+        Ok(rec)
+            if codec != Codec::Av1
+                && !vt_required
+                && rec.failure.as_deref() == Some("ffmpeg-failed")
+                && is_videotoolbox_unavailable(rec.stderr_tail.as_deref().unwrap_or("")) =>
+        {
             eprintln!(
-                "SKIP {codec:?}: VideoToolbox unavailable here ({:?}): {}",
-                rec.failure,
+                "SKIP {codec:?}: this machine has no usable VideoToolbox encoder (set \
+                 TIMELAPSE_REQUIRE_VIDEOTOOLBOX=1 on Apple Silicon to require it):\n{}",
                 rec.stderr_tail.unwrap_or_default()
             );
             None
@@ -104,6 +133,14 @@ fn encode_or_skip(codec: Codec, speed: f64) -> Option<(ExportRecord, usize)> {
         }
         other => panic!("{codec:?} export failed: {other:?}"),
     }
+}
+
+/// FFmpeg's messages when a VideoToolbox session cannot be created (no media engine,
+/// e.g. a virtualised Mac). Anything else is a real failure and is not skipped.
+fn is_videotoolbox_unavailable(stderr: &str) -> bool {
+    // videotoolboxenc.c: "Error: cannot create compression session: %d".
+    let s = stderr.to_ascii_lowercase();
+    s.contains("cannot create compression session") || s.contains("vtcompressionsessioncreate")
 }
 
 fn assert_valid(rec: &ExportRecord, codec: Codec, photos: usize, speed: f64) {
@@ -124,6 +161,7 @@ fn assert_valid(rec: &ExportRecord, codec: Codec, photos: usize, speed: f64) {
 
 #[test]
 fn av1_tier_produces_a_valid_mp4_from_a_sampled_sequence() {
+    let _serial = serial();
     if let Some((rec, n)) = encode_or_skip(Codec::Av1, 1.0) {
         assert_valid(&rec, Codec::Av1, n, 1.0);
     }
@@ -131,6 +169,7 @@ fn av1_tier_produces_a_valid_mp4_from_a_sampled_sequence() {
 
 #[test]
 fn playback_speed_changes_frames_not_fps() {
+    let _serial = serial();
     if let Some((rec, n)) = encode_or_skip(Codec::Av1, 2.0) {
         assert_valid(&rec, Codec::Av1, n, 2.0);
         assert_eq!(rec.output_frames, 12);
@@ -139,6 +178,7 @@ fn playback_speed_changes_frames_not_fps() {
 
 #[test]
 fn h264_videotoolbox_tier_produces_a_valid_mp4() {
+    let _serial = serial();
     if let Some((rec, n)) = encode_or_skip(Codec::H264, 1.0) {
         assert_valid(&rec, Codec::H264, n, 1.0);
     }
@@ -146,6 +186,7 @@ fn h264_videotoolbox_tier_produces_a_valid_mp4() {
 
 #[test]
 fn hevc_videotoolbox_tier_produces_a_valid_mp4() {
+    let _serial = serial();
     if let Some((rec, n)) = encode_or_skip(Codec::Hevc, 1.0) {
         assert_valid(&rec, Codec::Hevc, n, 1.0);
     }

@@ -347,6 +347,7 @@ error-export = { $reason ->
     [invalid-output] Le fichier terminé n’a pas passé la vérification (format, taille ou nombre d’images) et a été écarté.
     [output-exists] Un fichier portant ce nom existe déjà; rien n’a été écrasé.
     [image-unreadable] Une photographie de la sélection n’a pas pu être lue.
+    [write-failed] La vidéo n’a pas pu être écrite dans le dossier d’exportation du projet (disque plein ou non accessible en écriture).
     [interrupted] L’application s’est fermée pendant la création de cette vidéo.
    *[other] La vidéo n’a pas pu être créée.
 }
