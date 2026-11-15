@@ -1,6 +1,6 @@
 # STATE
 
-STATUS: RUNNING
+STATUS: BLOCKED
 <!-- PENDING | RUNNING | DONE | BLOCKED -->
 
 ## Preconditions
@@ -44,7 +44,7 @@ STATUS: RUNNING
 | P1 | ADR-027 and baseline debts | sonnet | GATE-UI | done |
 | P2 | Project store and continuity | sonnet | GATE-UI + GATE-FAST + legal | done |
 | P3 | Home as the project overview | sonnet | GATE-UI | done |
-| P4 | Pipeline navigation | sonnet | GATE-UI | pending |
+| P4 | Pipeline navigation | sonnet | GATE-UI | blocked |
 | P5 | Next step and named selections | sonnet | GATE-UI | pending |
 | P6 | Flipbook | sonnet | GATE-UI | pending |
 | P7 | Flipbook in Adjust and Export, wipe | sonnet | GATE-UI | pending |
@@ -77,6 +77,11 @@ STATUS: RUNNING
 - DECISIONS: Drag-drop works with `core:default` (`onDragDropEvent` uses only `listen`); capabilities unchanged. Drop is accepted anywhere in the window and a dropped file surfaces the import error. Figures come from `projectSummary`, `classifyImages`, `listSamplingRuns`, `listExports`; `classifyImages` runs each time the steps load. Exports counts completed ones only. Rescan is `importPath(root)` and bumps `scanVersion`. Recent list sits at the bottom of Home, excluding the open project. No new `--app-*` tokens.
 - DEFERRED: Selections shows a run count, named labels come in P5. Photographs line has no link. Rendered pass (drop highlight, skeleton, fr-CA length) goes to P14/P15.
 - MANUAL: none
+
+### P4 — blocked
+- BLOCKER (verbatim from runner): The P4 spec needs Sidebar `groups`. The installed @etzianco/ui is 2.5.3, and its Sidebar.svelte takes only flat `items` `{label, icon?, href?, onclick?}` with no `groups`, no badge and no per-item state slot. `groups` exists only in ../_uidesign v2.6.0/2.6.1 (read-only). `npm view @etzianco/ui versions` lists up to 2.5.3 only, so 2.6.x is not published and the dependency cannot be bumped.
+- Options for the user: (a) publish @etzianco/ui 2.6.x, bump the pin in frontend/package.json and the lockfile, then re-run P4; (b) run P4 against 2.5.3 with flat items in the order Import, Clean, Select, Adjust, Export, Organize, Contact sheets, Settings, no group headings, step state as glyph in `icon` and a word in `label`, with an icon rule per page in app.css.
+- No files changed by the runner.
 
 ## Open user items
 
