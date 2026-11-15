@@ -26,6 +26,7 @@
     setDecision
   } from '../ipc/app';
   import type { AnalyzeProgress, Decision, ImageStatus, OpOutcome, ReviewItem, StatusCounts } from '../ipc/app';
+  import { openContactSheet } from '../stores/contactSheet.svelte';
   import type { IpcError } from '../ipc/invoke';
   import { project } from '../stores/project.svelte';
 
@@ -263,6 +264,12 @@
       {/if}
       <div class="app-clean__actions">
         <Button onclick={analyze} disabled={analyzing || moving}>{analyzing ? t('clean-analyzing') : t('clean-analyze')}</Button>
+        {#if items && counts.flagged > 0}
+          <Button variant="secondary" onclick={() => openContactSheet({ kind: 'flagged' })}>{t('clean-sheet-flagged')}</Button>
+        {/if}
+        {#if items && counts.quarantined > 0}
+          <Button variant="secondary" onclick={() => openContactSheet({ kind: 'quarantined' })}>{t('clean-sheet-quarantined')}</Button>
+        {/if}
         {#if analyzing && progress}
           <progress max={Math.max(progress.total, 1)} value={progress.done} aria-label={t('clean-analyzing')}></progress>
           <span aria-live="polite">{t('clean-progress', { done: formatNumber(progress.done), total: formatNumber(progress.total) })}</span>

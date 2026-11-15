@@ -12,6 +12,7 @@ nav-cleaning = Nettoyage
 nav-organize = Organisation
 nav-sampling = Échantillonnage
 nav-export = Exportation
+nav-sheets = Planches contact
 nav-settings = Réglages
 
 home-title = Importer une collection
@@ -359,6 +360,7 @@ error-export = { $reason ->
     [image-unreadable] Une photographie de la sélection n’a pas pu être lue.
     [write-failed] La vidéo n’a pas pu être écrite dans le dossier d’exportation du projet (disque plein ou non accessible en écriture).
     [interrupted] L’application s’est fermée pendant la création de cette vidéo.
+    [unknown-export] Cette vidéo n’existe plus.
    *[other] La vidéo n’a pas pu être créée.
 }
 error-consolidation = { $reason ->
@@ -508,3 +510,133 @@ organize-problem-modified = Modifié depuis sa création
 organize-problem-missing = Introuvable
 organize-problem-moved-since = Déplacé de nouveau depuis
 organize-problem-changed = Modifié depuis l’importation
+
+## Phase 7 — planches contact, périodes de la chronologie, registre d’exportation
+
+sheets-title = Planches contact
+sheets-no-project-description = Importez d’abord un dossier de photographies; vous pourrez ensuite les imprimer en planches contact.
+sheets-intro = Une planche contact est un PDF de vignettes avec leur nom de fichier et leur heure de prise de vue, établi à partir des registres du projet. Elle est enregistrée dans le dossier .timelapse/contact-sheets du projet.
+sheets-source-title = Quoi afficher
+sheets-source = Photographies
+sheets-source-all = Toutes les photographies
+sheets-source-period = Une période
+sheets-source-flagged = Photographies signalées
+sheets-source-quarantined = Photographies en quarantaine
+sheets-source-sampling = Une sélection enregistrée
+sheets-source-export = La séquence d’une vidéo
+sheets-source-period-line = Du { $from } au { $to } (UTC)
+sheets-source-sampling-line = Sélection no { $id }
+sheets-source-export-line = Vidéo no { $id }
+sheets-period-from = Du (UTC)
+sheets-period-to = Jusqu’au, exclu (UTC)
+sheets-period-help = Les photographies prises à partir de la première heure, jusqu’à la seconde exclue.
+sheets-period-invalid = Choisissez un début et une fin; la fin doit suivre le début.
+sheets-sampling-run = Sélection
+sheets-no-runs = Aucune sélection enregistrée pour l’instant. Enregistrez-en une à la page Échantillonnage.
+sheets-export = Vidéo
+sheets-export-option = Vidéo no { $id } (sélection no { $run }, { $count } photographies)
+sheets-no-exports = Aucune vidéo créée pour l’instant.
+sheets-layout-title = Mise en page
+sheets-page-size = Papier
+sheets-page-a4 = A4
+sheets-page-letter = Lettre
+sheets-orientation = Orientation
+sheets-orientation-portrait = Portrait
+sheets-orientation-landscape = Paysage
+sheets-columns = Colonnes
+sheets-rows = Rangées
+sheets-show-filename = Nom du fichier
+sheets-show-timestamp = Heure de prise de vue
+sheets-times-utc = Les heures de prise de vue sont imprimées en UTC, comme l’application les affiche.
+sheets-preview-title = Première page
+sheets-preview-none-title = Rien à prévisualiser pour l’instant
+sheets-preview-none-description = Terminez le choix des photographies pour voir la première page.
+sheets-preview-label = { $count ->
+    [one] Première page de la planche, { $count } photographie
+   *[other] Première page de la planche, { $count } photographies
+}
+sheets-preview-help = Survolez une vignette pour voir sa légende. Le PDF utilise la même grille.
+sheets-stat-photos = Photographies
+sheets-stat-pages = Pages
+sheets-stat-per-page = Par page
+sheets-empty-title = Aucune photographie ici
+sheets-empty-description = Ces photographies ne sont pas dans le projet, ou aucune ne correspond.
+sheets-generate = Créer la planche contact
+sheets-generating = Création…
+sheets-done-title = Planche contact créée
+sheets-done = { $pages ->
+    [one] { $pages } page, { $photos } photographies, { $size }.
+   *[other] { $pages } pages, { $photos } photographies, { $size }.
+}
+sheets-unreadable = { $count ->
+    [one] { $count } photographie n’a pas pu être lue; son emplacement est indiqué sur la planche.
+   *[other] { $count } photographies n’ont pas pu être lues; leurs emplacements sont indiqués sur la planche.
+}
+sheets-cancelled = La planche contact a été annulée; le fichier partiel a été supprimé.
+sheets-history-title = Planches contact créées
+sheets-history-empty-title = Aucune planche contact pour l’instant
+sheets-history-empty-description = Les planches que vous créez sont listées ici, avec leur fichier.
+sheets-history-line = { $pages ->
+    [one] { $pages } page, { $photos } photographies
+   *[other] { $pages } pages, { $photos } photographies
+}
+sheets-status-running = En cours
+sheets-status-completed = Créée
+sheets-status-failed = Échec
+sheets-status-cancelled = Annulée
+sheets-status-interrupted = Interrompue
+sheets-pdf-title = Planche contact
+sheets-pdf-source = { $count ->
+    [one] { $source } · { $photos } photographie
+   *[other] { $source } · { $photos } photographies
+}
+sheets-pdf-page = Page { $page } de { $pages }
+sheets-pdf-note = Heures de prise de vue en UTC · Timelapse Studio
+sheets-pdf-unreadable = Illisible
+
+timeline-zoom-all = Toute la collection
+timeline-zoom-help = Choisissez une barre pour voir ses photographies et l’agrandir.
+timeline-pick-help = Choisissez une barre pour voir ses photographies.
+timeline-period-title = Photographies de { $period }
+timeline-period-count = { $count ->
+    [one] { $photos } photographie dans cette période
+   *[other] { $photos } photographies dans cette période
+}
+timeline-period-sheet = Planche contact de cette période
+timeline-identical-none = Aucune photographie ne partage la même heure de prise de vue qu’une autre.
+timeline-identical-title = { $groups ->
+    [one] { $groups } heure de prise de vue partagée par plusieurs photographies ({ $photos } photographies)
+   *[other] { $groups } heures de prise de vue partagées par plusieurs photographies ({ $photos } photographies)
+}
+timeline-identical-help = Souvent une rafale, parfois un appareil dont l’horloge n’était pas réglée, ou des copies. Rien n’est modifié.
+timeline-identical-count = { $count ->
+    [one] { $photos } photographie
+   *[other] { $photos } photographies
+}
+timeline-identical-more = { $count ->
+    [one] Et { $count } autre heure.
+   *[other] Et { $count } autres heures.
+}
+
+clean-sheet-flagged = Planche contact des signalées
+clean-sheet-quarantined = Planche contact de la quarantaine
+sampling-run-sheet = Planche contact
+export-sheet = Planche contact
+export-record-show = Afficher le registre
+export-record-hide = Masquer le registre
+export-record-save = Enregistrer le registre
+export-record-saved = Registre enregistré :
+export-record-help = Établi à partir des registres du projet chaque fois qu’il est affiché; l’application ne le relit jamais.
+export-record-label = Registre de la vidéo no { $id }
+
+error-contact-sheet = { $reason ->
+    [busy] Une autre planche contact est déjà en cours de création.
+    [empty] Il n’y a aucune photographie à afficher pour ce choix.
+    [too-many] Une planche contact peut afficher au plus 100 000 photographies; choisissez-en moins.
+    [invalid-period] Choisissez un début et une fin; la fin doit suivre le début.
+    [unknown-export] Cette vidéo n’existe plus.
+    [write-failed] La planche contact n’a pas pu être enregistrée dans le dossier du projet (disque plein ou protégé en écriture).
+    [output-exists] Un fichier de ce nom existe déjà; rien n’a été écrasé.
+    [interrupted] L’application s’est fermée pendant la création de cette planche contact.
+   *[other] La planche contact n’a pas pu être créée.
+}

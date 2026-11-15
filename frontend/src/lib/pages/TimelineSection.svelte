@@ -1,12 +1,14 @@
 <script lang="ts">
   import { untrack } from 'svelte';
-  import { Badge, Button, Card, EmptyState, SectionLabel, Skeleton, Stat, StatGrid, Tabs } from '@etzianco/ui';
+  import { Badge, Breadcrumb, Button, Card, EmptyState, SectionLabel, Skeleton, Stat, StatGrid, Tabs } from '@etzianco/ui';
 
+  import { bucketPeriod, finer } from '../contactSheet';
   import { formatNumber, t } from '../i18n';
   import { errorText } from '../i18n/errors';
-  import { detectTimelineGaps, getTimeline, timelineDistribution } from '../ipc/app';
-  import type { BackfillReport, DistributionBucket, GapReport, Granularity, TimelineEntry } from '../ipc/app';
+  import { detectTimelineGaps, getThumbnail, getTimeline, identicalTimestamps, timelineDistribution, timelinePeriod } from '../ipc/app';
+  import type { BackfillReport, DistributionBucket, GapReport, Granularity, IdenticalReport, TimelineEntry, TimelinePage } from '../ipc/app';
   import type { IpcError } from '../ipc/invoke';
+  import { openContactSheet } from '../stores/contactSheet.svelte';
   import {
     CONFIDENCE_KEYS,
     CONFIDENCE_VARIANT,
@@ -33,18 +35,44 @@
   let distError = $state('');
   let distLoading = $state(false);
 
+  /** Photographs of the chosen period shown at a time. */
+  const PERIOD_PAGE = 48;
+  /** Identical-time groups listed. */
+  const IDENTICAL_LIMIT = 20;
+
+  /** A period zoomed into: its bounds, its label, and the granularity it was a bar of. */
+  interface Zoom {
+    from: string;
+    to: string;
+    label: string;
+    granularity: Granularity;
+  }
+
+  let zoom = $state<Zoom[]>([]);
+  let selected = $state<Omit<Zoom, 'granularity'> | null>(null);
+  let periodPage = $state<TimelinePage | null>(null);
+  let periodError = $state('');
+  let periodThumbs = $state<Record<number, string>>({});
+  let identical = $state<IdenticalReport | null>(null);
+
+  const range = $derived(zoom.at(-1) ?? null);
   const summary = $derived(backfill.summary);
   const maxCount = $derived(Math.max(0, ...(buckets ?? []).map((b) => b.count)));
   const granularityItems = $derived(
-    (['hour', 'day', 'month'] as const).map((key) => ({ key, label: t(GRANULARITY_KEYS[key]) }))
+    (['hour', 'day', 'week', 'month'] as const).map((key) => ({ key, label: t(GRANULARITY_KEYS[key]) }))
   );
+  const crumbs = $derived([
+    { label: t('timeline-zoom-all'), onclick: zoom.length > 0 ? () => zoomTo(0) : undefined },
+    ...zoom.map((z, i) => ({ label: z.label, onclick: i < zoom.length - 1 ? () => zoomTo(i + 1) : undefined }))
+  ]);
 
   async function load(): Promise<void> {
     error = '';
     try {
-      const [timeline, gaps] = await Promise.all([getTimeline(root), detectTimelineGaps(root)]);
+      const [timeline, gaps, same] = await Promise.all([getTimeline(root), detectTimelineGaps(root), identicalTimestamps(root, IDENTICAL_LIMIT)]);
       entries = timeline;
       gapReport = gaps;
+      identical = same;
       shown = PAGE;
     } catch (err) {
       error = errorText(err as IpcError);
@@ -56,11 +84,67 @@
     distLoading = true;
     distError = '';
     try {
-      buckets = await timelineDistribution(root, g);
+      buckets = await timelineDistribution(root, g, range?.from, range?.to);
     } catch (err) {
       distError = errorText(err as IpcError);
     } finally {
       distLoading = false;
+    }
+  }
+
+  /** A bar picks its period; a bar that can be split zooms into it at the next granularity. */
+  function pickBucket(b: DistributionBucket): void {
+    const p = bucketPeriod(b.bucket, granularity);
+    if (!p) return;
+    const label = formatBucket(b.bucket, granularity);
+    selected = { ...p, label };
+    void loadPeriod(0);
+    const f = finer(granularity);
+    if (f) {
+      zoom = [...zoom, { ...p, label, granularity }];
+      granularity = f;
+      void loadDistribution(f);
+    }
+  }
+
+  /** Back to the level with `n` zoom steps (0 = the whole collection). */
+  function zoomTo(n: number): void {
+    const back = zoom[n];
+    if (!back) return;
+    zoom = zoom.slice(0, n);
+    granularity = back.granularity;
+    const last = zoom.at(-1);
+    selected = last ? { from: last.from, to: last.to, label: last.label } : null;
+    if (selected) void loadPeriod(0);
+    else periodPage = null;
+    void loadDistribution(granularity);
+  }
+
+  async function loadPeriod(offset: number): Promise<void> {
+    const p = selected;
+    if (!p) return;
+    periodError = '';
+    if (offset === 0) periodPage = null;
+    try {
+      const page = await timelinePeriod(root, p.from, p.to, offset, PERIOD_PAGE);
+      if (selected !== p) return;
+      periodPage = offset === 0 || !periodPage ? page : { total: page.total, entries: [...periodPage.entries, ...page.entries] };
+      void loadPeriodThumbs(page.entries, p);
+    } catch (err) {
+      if (selected === p) periodError = errorText(err as IpcError);
+    }
+  }
+
+  async function loadPeriodThumbs(list: TimelineEntry[], p: typeof selected): Promise<void> {
+    const forRoot = root;
+    for (let i = 0; i < list.length; i += 6) {
+      if (selected !== p || forRoot !== root) return;
+      const batch = list.slice(i, i + 6).filter((e) => !(e.id in periodThumbs));
+      const urls = await Promise.all(batch.map((e) => getThumbnail(forRoot, e.id, 256).catch(() => '')));
+      if (forRoot !== root) return;
+      const next = { ...periodThumbs };
+      batch.forEach((e, k) => (next[e.id] = urls[k]));
+      periodThumbs = next;
     }
   }
 
@@ -70,6 +154,11 @@
     entries = null;
     gapReport = null;
     buckets = null;
+    identical = null;
+    zoom = [];
+    selected = null;
+    periodPage = null;
+    periodThumbs = {};
     // Re-run on a new root / backfill only; a granularity change reloads the bars alone.
     untrack(() => {
       void load();
@@ -127,17 +216,86 @@
     {:else if buckets === null}
       <Skeleton lines={4} label={t('timeline-loading')} />
     {:else}
+      <Breadcrumb items={crumbs} />
+      <p class="app-timeline__note">{finer(granularity) ? t('timeline-zoom-help') : t('timeline-pick-help')}</p>
       <ol class="app-timeline__bars" class:app-timeline__bars--refreshing={distLoading} aria-busy={distLoading}>
         {#each buckets as b (b.bucket)}
           <li>
-            <span class="app-timeline__bar-label">{formatBucket(b.bucket, granularity)}</span>
-            <span class="app-timeline__bar-track" aria-hidden="true">
-              <span class="app-timeline__bar" style:width="{barPercent(b.count, maxCount)}%"></span>
-            </span>
-            <span class="app-timeline__bar-count">{formatNumber(b.count)}</span>
+            <button
+              type="button"
+              class="app-timeline__bar-button"
+              class:app-timeline__bar-button--selected={selected?.label === formatBucket(b.bucket, granularity)}
+              onclick={() => pickBucket(b)}
+            >
+              <span class="app-timeline__bar-label">{formatBucket(b.bucket, granularity)}</span>
+              <span class="app-timeline__bar-track" aria-hidden="true">
+                <span class="app-timeline__bar" style:width="{barPercent(b.count, maxCount)}%"></span>
+              </span>
+              <span class="app-timeline__bar-count">{formatNumber(b.count)}</span>
+            </button>
           </li>
         {/each}
       </ol>
+    {/if}
+
+    {#if selected}
+      <section class="app-timeline__period" aria-label={t('timeline-period-title', { period: selected.label })}>
+        <h3 class="app-timeline__heading">{t('timeline-period-title', { period: selected.label })}</h3>
+        {#if periodError}
+          <div role="alert" class="app-timeline__error">
+            <p>{periodError}</p>
+            <Button onclick={() => loadPeriod(0)}>{t('timeline-retry')}</Button>
+          </div>
+        {:else if periodPage === null}
+          <Skeleton lines={3} label={t('timeline-loading')} />
+        {:else}
+          {@const chosen = selected}
+          <div class="app-timeline__period-head">
+            <span class="app-timeline__note">{t('timeline-period-count', { count: periodPage.total, photos: formatNumber(periodPage.total) })}</span>
+            <Button variant="secondary" onclick={() => openContactSheet({ kind: 'period', from: chosen.from, to: chosen.to })}>
+              {t('timeline-period-sheet')}
+            </Button>
+          </div>
+          <ul class="app-timeline__thumbs">
+            {#each periodPage.entries as e (e.id)}
+              <li title={e.relative_path}>
+                {#if periodThumbs[e.id]}
+                  <img src={periodThumbs[e.id]} alt={e.relative_path} />
+                {:else}
+                  <span class="app-timeline__thumb-placeholder" aria-hidden="true"></span>
+                {/if}
+                <span class="app-timeline__thumb-time">{e.epoch_ms !== null ? formatInstant(e.epoch_ms) : ''}</span>
+              </li>
+            {/each}
+          </ul>
+          {#if periodPage.entries.length < periodPage.total}
+            <Button onclick={() => loadPeriod(periodPage?.entries.length ?? 0)}>{t('timeline-show-more')}</Button>
+          {/if}
+        {/if}
+      </section>
+    {/if}
+
+    {#if identical}
+      {#if identical.groups === 0}
+        <p class="app-timeline__note">{t('timeline-identical-none')}</p>
+      {:else}
+        <h3 class="app-timeline__heading">{t('timeline-identical-title', { groups: identical.groups, photos: formatNumber(identical.photos) })}</h3>
+        <p class="app-timeline__note">{t('timeline-identical-help')}</p>
+        <ul class="app-timeline__gaps">
+          {#each identical.largest as g (g.normalized_datetime)}
+            <li>
+              <strong>{formatInstant(g.epoch_ms)}</strong>
+              · {t('timeline-identical-count', { count: g.count, photos: formatNumber(g.count) })}
+              <p class="app-timeline__note app-timeline__sample">
+                {g.sample.map((e) => e.relative_path).join(', ')}{g.count > g.sample.length ? ', …' : ''}
+              </p>
+            </li>
+          {/each}
+        </ul>
+        {#if identical.groups > identical.largest.length}
+          <p class="app-timeline__note">{t('timeline-identical-more', { count: identical.groups - identical.largest.length })}</p>
+        {/if}
+      {/if}
     {/if}
 
     {#if gapReport === null}
@@ -232,12 +390,65 @@
     margin: 0;
     padding: 0;
   }
-  .app-timeline__bars li {
+  .app-timeline__bar-button {
     display: grid;
     grid-template-columns: minmax(8rem, auto) minmax(0, 1fr) auto;
     align-items: center;
     gap: var(--ez-space-sm);
-    padding: var(--ez-space-2xs) 0;
+    width: 100%;
+    padding: var(--ez-space-2xs) var(--ez-space-xs);
+    border: 0;
+    border-radius: var(--ez-radius-sm);
+    background: none;
+    color: inherit;
+    font: inherit;
+    text-align: start;
+    cursor: pointer;
+  }
+  .app-timeline__bar-button:hover,
+  .app-timeline__bar-button--selected {
+    background: var(--ez-color-border-soft);
+  }
+  .app-timeline__period {
+    margin-top: var(--ez-space-md);
+  }
+  .app-timeline__period-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--ez-space-sm);
+  }
+  .app-timeline__thumbs {
+    list-style: none;
+    margin: var(--ez-space-sm) 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(7rem, 1fr));
+    gap: var(--ez-space-sm);
+  }
+  .app-timeline__thumbs li {
+    display: flex;
+    flex-direction: column;
+    gap: var(--ez-space-2xs);
+    min-width: 0;
+  }
+  .app-timeline__thumbs img,
+  .app-timeline__thumb-placeholder {
+    display: block;
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    object-fit: cover;
+    border-radius: var(--ez-radius-sm);
+    background: var(--ez-color-border-soft);
+  }
+  .app-timeline__thumb-time {
+    font-size: var(--ez-fs-xs);
+    font-variant-numeric: tabular-nums;
+    color: var(--ez-color-text-muted);
+  }
+  .app-timeline__sample {
+    overflow-wrap: anywhere;
   }
   .app-timeline__bars--refreshing {
     opacity: 0.6;

@@ -11,6 +11,7 @@ nav-cleaning = Cleaning
 nav-organize = Organize
 nav-sampling = Sampling
 nav-export = Export
+nav-sheets = Contact sheets
 nav-settings = Settings
 
 home-title = Import collection
@@ -359,6 +360,7 @@ error-export = { $reason ->
     [image-unreadable] A photograph of the selection could not be read.
     [write-failed] The video could not be written to the project's exports folder (disk full or not writable).
     [interrupted] The app closed while this video was being created.
+    [unknown-export] This video no longer exists.
    *[other] The video could not be created.
 }
 error-consolidation = { $reason ->
@@ -508,3 +510,134 @@ organize-problem-modified = Changed since it was made
 organize-problem-missing = Not found
 organize-problem-moved-since = Moved again since
 organize-problem-changed = Changed since the import
+
+## Phase 7 — contact sheets, timeline periods, export record
+
+sheets-title = Contact sheets
+sheets-no-project-description = Import a folder of photographs first; you can then print them as contact sheets.
+sheets-intro = A contact sheet is a PDF of thumbnails with their file names and capture times, made from the project’s records. It goes into the project’s .timelapse/contact-sheets folder.
+sheets-source-title = What to show
+sheets-source = Photographs
+sheets-source-all = All photographs
+sheets-source-period = A period
+sheets-source-flagged = Flagged photographs
+sheets-source-quarantined = Quarantined photographs
+sheets-source-sampling = A saved selection
+sheets-source-export = The sequence of a video
+sheets-source-period-line = From { $from } to { $to } (UTC)
+sheets-source-sampling-line = Selection #{ $id }
+sheets-source-export-line = Video #{ $id }
+sheets-period-from = From (UTC)
+sheets-period-to = Until, not included (UTC)
+sheets-period-help = Photographs taken from the first time up to, but not including, the second.
+sheets-period-invalid = Choose a start and an end; the end must come after the start.
+sheets-sampling-run = Selection
+sheets-no-runs = No selection saved yet. Save one on the Sampling page.
+sheets-export = Video
+sheets-export-option = Video #{ $id } (selection #{ $run }, { $count } photographs)
+sheets-no-exports = No video created yet.
+sheets-layout-title = Layout
+sheets-page-size = Paper
+sheets-page-a4 = A4
+sheets-page-letter = Letter
+sheets-orientation = Orientation
+sheets-orientation-portrait = Portrait
+sheets-orientation-landscape = Landscape
+sheets-columns = Columns
+sheets-rows = Rows
+sheets-show-filename = File name
+sheets-show-timestamp = Capture time
+sheets-times-utc = Capture times are printed in UTC, as the app shows them.
+sheets-preview-title = First page
+sheets-preview-none-title = Nothing to preview yet
+sheets-preview-none-description = Finish choosing the photographs to see the first page.
+sheets-preview-label = { $count ->
+    [one] First page of the sheet, { $count } photograph
+   *[other] First page of the sheet, { $count } photographs
+}
+sheets-preview-help = Hover a thumbnail to see its caption. The PDF uses the same grid.
+sheets-stat-photos = Photographs
+sheets-stat-pages = Pages
+sheets-stat-per-page = Per page
+sheets-empty-title = No photograph here
+sheets-empty-description = These photographs are not in the project, or none matches.
+sheets-generate = Create the contact sheet
+sheets-generating = Creating…
+sheets-done-title = Contact sheet created
+sheets-done = { $pages ->
+    [one] { $pages } page, { $photos } photographs, { $size }.
+   *[other] { $pages } pages, { $photos } photographs, { $size }.
+}
+sheets-unreadable = { $count ->
+    [one] { $count } photograph could not be read; its place is marked on the sheet.
+   *[other] { $count } photographs could not be read; their places are marked on the sheet.
+}
+sheets-cancelled = The contact sheet was cancelled; the partial file was removed.
+sheets-history-title = Contact sheets created
+sheets-history-empty-title = No contact sheet yet
+sheets-history-empty-description = The sheets you create are listed here, with their file.
+sheets-history-line = { $pages ->
+    [one] { $pages } page, { $photos } photographs
+   *[other] { $pages } pages, { $photos } photographs
+}
+sheets-status-running = Running
+sheets-status-completed = Created
+sheets-status-failed = Failed
+sheets-status-cancelled = Cancelled
+sheets-status-interrupted = Interrupted
+# Printed on the PDF.
+sheets-pdf-title = Contact sheet
+sheets-pdf-source = { $count ->
+    [one] { $source } · { $photos } photograph
+   *[other] { $source } · { $photos } photographs
+}
+sheets-pdf-page = Page { $page } of { $pages }
+sheets-pdf-note = Capture times in UTC · Timelapse Studio
+sheets-pdf-unreadable = Not readable
+
+timeline-zoom-all = Whole collection
+timeline-zoom-help = Choose a bar to see its photographs and zoom into it.
+timeline-pick-help = Choose a bar to see its photographs.
+timeline-period-title = Photographs of { $period }
+timeline-period-count = { $count ->
+    [one] { $photos } photograph in this period
+   *[other] { $photos } photographs in this period
+}
+timeline-period-sheet = Contact sheet of this period
+timeline-identical-none = No two photographs share the same capture time.
+timeline-identical-title = { $groups ->
+    [one] { $groups } capture time shared by several photographs ({ $photos } photographs)
+   *[other] { $groups } capture times shared by several photographs ({ $photos } photographs)
+}
+timeline-identical-help = Often a burst, sometimes a camera whose clock was not set, or copies. Nothing is changed.
+timeline-identical-count = { $count ->
+    [one] { $photos } photograph
+   *[other] { $photos } photographs
+}
+timeline-identical-more = { $count ->
+    [one] And { $count } more time.
+   *[other] And { $count } more times.
+}
+
+clean-sheet-flagged = Contact sheet of flagged
+clean-sheet-quarantined = Contact sheet of quarantined
+sampling-run-sheet = Contact sheet
+export-sheet = Contact sheet
+export-record-show = Show record
+export-record-hide = Hide record
+export-record-save = Save record
+export-record-saved = Record saved:
+export-record-help = Made from the project’s records each time it is shown; the app never reads it back.
+export-record-label = Record of video #{ $id }
+
+error-contact-sheet = { $reason ->
+    [busy] Another contact sheet is already being created.
+    [empty] There is no photograph to show for this choice.
+    [too-many] A contact sheet can show at most 100,000 photographs; choose fewer.
+    [invalid-period] Choose a start and an end; the end must come after the start.
+    [unknown-export] This video no longer exists.
+    [write-failed] The contact sheet could not be written to the project’s folder (disk full or not writable).
+    [output-exists] A file with this name already exists; nothing was overwritten.
+    [interrupted] The app closed while this contact sheet was being created.
+   *[other] The contact sheet could not be created.
+}

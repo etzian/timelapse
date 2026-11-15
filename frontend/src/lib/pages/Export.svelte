@@ -5,10 +5,11 @@
   import type { ResolutionKey } from '../export';
   import { formatDate, formatNumber, t } from '../i18n';
   import { errorText } from '../i18n/errors';
-  import { ffmpegInfo, listExports, listSamplingRuns } from '../ipc/app';
+  import { exportRecord, ffmpegInfo, listExports, listSamplingRuns, writeExportRecord } from '../ipc/app';
   import type { Codec, ExportRecord, FfmpegInfo, Quality, RunSummary } from '../ipc/app';
   import type { IpcError } from '../ipc/invoke';
   import { FPS_OPTIONS, MULTIPLIERS } from '../sampling';
+  import { openContactSheet } from '../stores/contactSheet.svelte';
   import { exportJob, runExport, stopExport } from '../stores/export.svelte';
   import { project } from '../stores/project.svelte';
   import { formatDuration } from '../timeline';
@@ -97,6 +98,36 @@
 
   function cancel(): void {
     void stopExport();
+  }
+
+  // The derived export record (ADR-015): fetched when opened, saved on request.
+  let records = $state<Record<number, { json?: string; saved?: string; error?: string; busy?: boolean }>>({});
+
+  async function toggleRecord(id: number): Promise<void> {
+    if (records[id]?.json !== undefined) {
+      const { [id]: _closed, ...rest } = records;
+      records = rest;
+      return;
+    }
+    const forRoot = root;
+    records = { ...records, [id]: { busy: true } };
+    try {
+      const json = await exportRecord(forRoot, id);
+      if (forRoot === root) records = { ...records, [id]: { json } };
+    } catch (err) {
+      if (forRoot === root) records = { ...records, [id]: { error: errorText(err as IpcError) } };
+    }
+  }
+
+  async function saveRecord(id: number): Promise<void> {
+    const forRoot = root;
+    records = { ...records, [id]: { ...records[id], busy: true, error: undefined } };
+    try {
+      const saved = await writeExportRecord(forRoot, id);
+      if (forRoot === root) records = { ...records, [id]: { ...records[id], saved, busy: false } };
+    } catch (err) {
+      if (forRoot === root) records = { ...records, [id]: { ...records[id], error: errorText(err as IpcError), busy: false } };
+    }
   }
 
   const statusVariant = (s: ExportRecord['status']) =>
@@ -227,6 +258,22 @@
                 </span>
                 {#if h.status === 'completed'}<span class="app-export__path">{h.output_path}</span>{/if}
               </div>
+              <div class="app-export__history-actions">
+                <Button size="sm" variant="ghost" onclick={() => toggleRecord(h.id)} disabled={records[h.id]?.busy}>
+                  {records[h.id]?.json !== undefined ? t('export-record-hide') : t('export-record-show')}
+                </Button>
+                <Button size="sm" variant="ghost" onclick={() => saveRecord(h.id)} disabled={records[h.id]?.busy}>{t('export-record-save')}</Button>
+                <Button size="sm" variant="ghost" onclick={() => openContactSheet({ kind: 'export', export: h.id })}>{t('export-sheet')}</Button>
+              </div>
+              {#if records[h.id]?.error}<p role="alert" class="app-export__error">{records[h.id].error}</p>{/if}
+              {#if records[h.id]?.saved}
+                <p class="app-export__note">{t('export-record-saved')}</p>
+                <span class="app-export__path">{records[h.id].saved}</span>
+              {/if}
+              {#if records[h.id]?.json !== undefined}
+                <p class="app-export__note">{t('export-record-help')}</p>
+                <pre class="app-export__record" aria-label={t('export-record-label', { id: h.id })}>{records[h.id].json}</pre>
+              {/if}
             </li>
           {/each}
         </ul>
@@ -285,6 +332,23 @@
   .app-export__history li {
     padding: var(--ez-space-sm) 0;
     border-bottom: 1px solid var(--ez-color-border);
+  }
+  .app-export__history-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--ez-space-2xs);
+    margin-top: var(--ez-space-2xs);
+  }
+  .app-export__record {
+    font-size: var(--ez-fs-xs);
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    max-height: 20rem;
+    overflow: auto;
+    margin: var(--ez-space-xs) 0 0;
+    padding: var(--ez-space-sm);
+    border-radius: var(--ez-radius-sm);
+    background: var(--ez-color-border-soft);
   }
   .app-export__history-main {
     display: flex;

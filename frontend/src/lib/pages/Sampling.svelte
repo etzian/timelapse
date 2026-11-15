@@ -5,6 +5,7 @@
   import { formatDate, formatNumber, t } from '../i18n';
   import { errorText } from '../i18n/errors';
   import { createSamplingRun, getSamplingItems, getThumbnail, listSamplingRuns, previewSampling, verifySamplingRun } from '../ipc/app';
+  import { openContactSheet } from '../stores/contactSheet.svelte';
   import type { DayCount, RunSummary, SampledItem, SamplingPreview, VerifyReport } from '../ipc/app';
   import type { IpcError } from '../ipc/invoke';
   import { FPS_OPTIONS, METHODS, MULTIPLIERS, POLICIES, UNIT_SECONDS, buildConfig, defaultForm, estimatedDurationSeconds } from '../sampling';
@@ -386,6 +387,7 @@
                 <Button size="sm" variant="ghost" onclick={() => verify(r.id)} disabled={verifying !== null}>
                   {verifying === r.id ? t('sampling-verifying') : t('sampling-run-verify')}
                 </Button>
+                <Button size="sm" variant="ghost" onclick={() => openContactSheet({ kind: 'sampling', run: r.id })}>{t('sampling-run-sheet')}</Button>
               </div>
             </li>
           {/each}

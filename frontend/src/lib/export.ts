@@ -28,7 +28,8 @@ export const EXPORT_FAILURES = [
   'output-exists',
   'image-unreadable',
   'write-failed',
-  'interrupted'
+  'interrupted',
+  'unknown-export'
 ] as const;
 
 export function exportFailureText(kind: string | null): string {
