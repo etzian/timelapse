@@ -29,6 +29,10 @@ rayon = "1"
 # only in Unicode normalisation (NFC vs NFD, as macOS may store them) compare equal.
 unicode-normalization = "0.1"
 
+# Phase 7 — contact sheets (ADR-024, approved 2026-11-15). MIT OR Apache-2.0: streamed
+# PDF with the standard Helvetica font, so no font file ships.
+pdf-writer = "0.15"
+
 # Phase 6 — consolidation (ADR-023). MIT OR Apache-2.0, already in the lockfile through
 # Tauri: `clonefile` (APFS copy-on-write clones, macOS) and `statvfs` (free space).
 [target.'cfg(unix)'.dependencies]

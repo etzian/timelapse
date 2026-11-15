@@ -6,6 +6,7 @@
 
 pub mod clean;
 pub mod consolidate;
+pub mod contact_sheet;
 pub mod export;
 pub mod files;
 pub mod import;
