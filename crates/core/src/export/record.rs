@@ -1,6 +1,6 @@
 //! The export record (ADR-015, ADR-024): a human-readable JSON document derived from
 //! `video_exports` and its sampling run, for portability and inspection. It is built on
-//! demand from SQLite only, written to `.timelapse/exports/<id>.record.json` when asked,
+//! demand from SQLite only, written to `Timelapse exports/<id>.record.json` when asked,
 //! and never read back.
 
 use std::fs;
@@ -104,8 +104,16 @@ pub fn record_json(root: &Path, id: i64) -> Result<String> {
     serde_json::to_string_pretty(&record(&conn, id)?).map_err(|_| Error::StoreTransaction)
 }
 
-pub fn record_path(root: &Path, id: i64) -> PathBuf {
-    super::exports_dir(root).join(format!("{id}.record.json"))
+/// `<video name>.record.json` beside the video, so a record always names its own video,
+/// even after the project data was erased and export numbers started again (ADR-026).
+pub fn record_path(root: &Path, id: i64) -> Result<PathBuf> {
+    let conn = open_root(root)?;
+    let rec = super::store::get(&conn, id)?.ok_or(Error::Export { reason: "unknown-export" })?;
+    let stem = Path::new(&rec.output_path)
+        .file_stem()
+        .map(|s| s.to_string_lossy().into_owned())
+        .unwrap_or_else(|| format!("export-{id}"));
+    Ok(super::exports_dir(root).join(format!("{stem}.record.json")))
 }
 
 /// Writes the record next to the exports (replacing an earlier record of the same export:
@@ -115,11 +123,14 @@ pub fn write_record(root: &Path, id: i64) -> Result<PathBuf> {
     let dir = super::exports_dir(root);
     let write_failed = || Error::Export { reason: "record-write-failed" };
     fs::create_dir_all(&dir).map_err(|_| write_failed())?;
-    let path = record_path(root, id);
-    let part = dir.join(format!("{id}.record.json.part"));
+    let path = record_path(root, id)?;
+    // Written whole, then put in place; an earlier record of the same export is replaced.
+    let temp = crate::layout::temp_dir(root);
+    fs::create_dir_all(&temp).map_err(|_| write_failed())?;
+    let part = temp.join(format!("{id}.record.json.part"));
     fs::write(&part, json.as_bytes()).map_err(|_| write_failed())?;
-    // `rename` replaces an earlier record on every platform (MoveFileEx on Windows).
-    fs::rename(&part, &path).map_err(|_| {
+    let _ = fs::remove_file(&path);
+    crate::layout::place_new(&part, &path).map_err(|_| {
         let _ = fs::remove_file(&part);
         write_failed()
     })?;
@@ -187,7 +198,8 @@ mod tests {
         );
 
         let path = write_record(dir.path(), id).unwrap();
-        assert_eq!(path, record_path(dir.path(), id));
+        assert_eq!(path, record_path(dir.path(), id).unwrap());
+        assert!(path.starts_with(crate::layout::exports_dir(dir.path())));
         let written: serde_json::Value = serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
         assert_eq!(written["export"]["id"], id);
         // Written again, it replaces itself.

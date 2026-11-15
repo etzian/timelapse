@@ -27,8 +27,8 @@ pub fn default_db_dir(root: &Path) -> PathBuf {
     project_dir(root).join("db")
 }
 
-/// `<root>/.timelapse`: everything the app writes for this project (database, thumbnails,
-/// quarantine). The import scan never descends into it.
+/// `<root>/.timelapse`: the project's own data (database, thumbnails, temporary files),
+/// erasable at any time (ADR-026). The import scan never descends into it.
 pub fn project_dir(root: &Path) -> PathBuf {
     root.join(scan::PROJECT_DIR)
 }
@@ -65,8 +65,8 @@ pub struct ImportReport {
 /// and upsert into the project's SQLite database (idempotent by original path). Returns
 /// a report. The connection is dropped when this function returns — the shell holds no state.
 pub fn import_folder(root: &Path) -> Result<ImportReport> {
-    let name = derive_name(root);
-    let conn = store::open(default_db_dir(root).as_path(), &name, root, Some(root))?;
+    let _work = crate::erase::job(root);
+    let conn = open_root(root)?;
 
     let candidates = scan::scan(root)?;
     let n = candidates.len();
@@ -121,20 +121,25 @@ pub fn import_folder(root: &Path) -> Result<ImportReport> {
 
 /// List the inventory for `root`. Opens (and migrates) the project database before reading.
 pub fn list_for_root(root: &Path) -> Result<Vec<store::ImageRow>> {
-    let name = derive_name(root);
-    let conn = store::open(default_db_dir(root).as_path(), &name, root, Some(root))?;
+    let conn = open_root(root)?;
     store::list_images(&conn)
 }
 
 /// Integrity snapshot for `root`: missing files + duplicate groups. Read-only against the DB.
 pub fn integrity_for_root(root: &Path) -> Result<store::IntegrityResult> {
-    let name = derive_name(root);
-    let conn = store::open(default_db_dir(root).as_path(), &name, root, Some(root))?;
+    let conn = open_root(root)?;
     store::integrity_check(&conn)
 }
 
+/// Opens (and migrates) the project database. A project made before ADR-026 first has its
+/// exports, contact sheets and quarantine moved out of `.timelapse/` ([`crate::layout`]).
 pub(crate) fn open_root(root: &Path) -> Result<rusqlite::Connection> {
-    store::open(default_db_dir(root).as_path(), &derive_name(root), root, Some(root))
+    let conn = store::open(default_db_dir(root).as_path(), &derive_name(root), root, Some(root))?;
+    if crate::layout::has_legacy(root) {
+        let _ops = crate::files::lock();
+        crate::layout::relocate_legacy(&conn, root)?;
+    }
+    Ok(conn)
 }
 
 /// Result of [`backfill_for_root`]: what this run did, and the state of the whole timeline.
@@ -151,6 +156,7 @@ pub struct BackfillReport {
 /// filename / filesystem candidates, resolve and persist them (one transaction). Reads
 /// originals only; never writes, moves or renames them. Idempotent.
 pub fn backfill_for_root(root: &Path) -> Result<BackfillReport> {
+    let _work = crate::erase::job(root);
     let conn = open_root(root)?;
     let items: Vec<(i64, metadata::Candidates)> = store::pending_timestamps(&conn)?
         .into_iter()
@@ -316,6 +322,11 @@ mod tests {
         std::fs::create_dir_all(&nested).unwrap();
         std::fs::write(nested.join("x.jpg"), b"c").unwrap();
         std::fs::write(root.join("trip").join("y.jpg"), b"d").unwrap();
+        // The visible folders of what the app made and of quarantined originals (ADR-026).
+        for dir in [crate::layout::quarantine_dir(&root), crate::layout::exports_dir(&root)] {
+            std::fs::create_dir_all(&dir).unwrap();
+            std::fs::write(dir.join("z.jpg"), b"e").unwrap();
+        }
 
         let report = import_folder(&root).unwrap();
         assert_eq!(report.scanned_count, 2, "keep.jpg and trip/y.jpg only");

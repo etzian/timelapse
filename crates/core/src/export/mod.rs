@@ -25,7 +25,7 @@ use std::sync::{Mutex, MutexGuard, TryLockError};
 
 use rayon::prelude::*;
 
-use crate::import::{open_root, project_dir};
+use crate::import::open_root;
 use crate::sampling::store as sampling_store;
 use crate::{Error, Result};
 
@@ -40,9 +40,7 @@ static CANCEL_TOKEN: AtomicU64 = AtomicU64::new(0);
 /// Frames decoded ahead in parallel.
 const DECODE_AHEAD: usize = 6;
 
-pub fn exports_dir(root: &Path) -> PathBuf {
-    project_dir(root).join("exports")
-}
+pub use crate::layout::exports_dir;
 
 fn fail(reason: &'static str) -> Error {
     Error::Export { reason }
@@ -116,6 +114,7 @@ pub fn export_run(
     mut on_progress: impl FnMut(ExportProgress),
 ) -> Result<ExportRecord> {
     let _guard = try_export_lock().ok_or_else(|| fail("busy"))?;
+    let _work = crate::erase::job(root);
     settings.check().map_err(fail)?;
 
     let conn = open_root(root)?;
@@ -151,7 +150,10 @@ pub fn export_run(
         .unwrap_or(0);
     let name = format!("selection-{run}-{}-{stamp}.mp4", settings.codec.probe_name());
     let output = dir.join(&name);
-    let part = dir.join(format!("{name}.part"));
+    // The partial file is temporary data (ADR-026); only the finished video goes to the exports.
+    let temp = crate::layout::temp_dir(root);
+    fs::create_dir_all(&temp).map_err(|_| fail("write-failed"))?;
+    let part = temp.join(format!("{name}.part"));
     let args = ffmpeg::encode_args(&settings, &part);
     let id =
         store::begin(&conn, run, &settings, &probe, &args, &output, sources.len(), plan.len())?;

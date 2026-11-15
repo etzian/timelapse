@@ -5,7 +5,7 @@
 //! the cached review thumbnail of the photograph at its location of record (ADR-020); the
 //! original is read only when no thumbnail is cached, and a photograph that cannot be read
 //! gets a placeholder cell instead of failing the sheet. The PDF goes to
-//! `<root>/.timelapse/contact-sheets/<id>.pdf` through a temporary name.
+//! `<root>/Timelapse exports/contact-sheets/<id>.pdf` through a temporary file (ADR-026).
 
 pub mod layout;
 pub mod pdf;
@@ -23,7 +23,7 @@ use std::sync::{Mutex, MutexGuard, TryLockError};
 
 use rayon::prelude::*;
 
-use crate::import::{open_root, project_dir};
+use crate::import::open_root;
 use crate::{Error, Result};
 
 pub use layout::{Geometry, Layout, Orientation, PageSize, Rect};
@@ -36,9 +36,7 @@ pub const MAX_PHOTOS: usize = 100_000;
 static SHEET_LOCK: Mutex<()> = Mutex::new(());
 static CANCEL_TOKEN: AtomicU64 = AtomicU64::new(0);
 
-pub fn sheets_dir(root: &Path) -> PathBuf {
-    project_dir(root).join("contact-sheets")
-}
+pub use crate::layout::sheets_dir;
 
 fn fail(reason: &'static str) -> Error {
     Error::ContactSheet { reason }
@@ -61,15 +59,16 @@ fn cancelled(token: u64) -> bool {
     token != 0 && CANCEL_TOKEN.load(Ordering::SeqCst) == token
 }
 
-fn part_path(dir: &Path, id: i64) -> PathBuf {
-    dir.join(format!("{id}.pdf.part"))
+/// The sheet being written, with the temporary data (ADR-026).
+fn part_path(root: &Path, id: i64) -> PathBuf {
+    crate::layout::temp_dir(root).join(format!("sheet-{id}.pdf.part"))
 }
 
 /// Rows left `running` by a crash become `interrupted` and their temporary files go. Only
 /// while the lock is held, so a live sheet is never touched.
 fn settle(conn: &rusqlite::Connection, root: &Path) -> Result<()> {
     for id in store::mark_interrupted(conn)? {
-        let _ = fs::remove_file(part_path(&sheets_dir(root), id));
+        let _ = fs::remove_file(part_path(root, id));
     }
     Ok(())
 }
@@ -185,6 +184,7 @@ pub fn generate(
     mut on_progress: impl FnMut(SheetProgress),
 ) -> Result<SheetRecord> {
     let _guard = try_lock().ok_or_else(|| fail("busy"))?;
+    let _work = crate::erase::job(root);
     let conn = open_root(root)?;
     settle(&conn, root)?;
     let layout = layout.clamped();
@@ -202,9 +202,16 @@ pub fn generate(
     let dir = sheets_dir(root);
     fs::create_dir_all(&dir).map_err(|_| fail("write-failed"))?;
     let id = store::begin(&conn, source, &layout, labels, items.len(), pages)?;
-    let output = dir.join(format!("{id}.pdf"));
+    // Timestamped: numbers start again after the project data is erased (ADR-026), and an
+    // earlier sheet in the exports folder must never be in the way.
+    let stamp = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis())
+        .unwrap_or(0);
+    let output = dir.join(format!("contact-sheet-{id}-{stamp}.pdf"));
+    fs::create_dir_all(crate::layout::temp_dir(root)).map_err(|_| fail("write-failed"))?;
     store::set_output(&conn, id, &output.to_string_lossy())?;
-    let part = part_path(&dir, id);
+    let part = part_path(root, id);
     // Either name already there is someone else's file: refuse before arming the cleanup.
     let file = match fs::OpenOptions::new().write(true).create_new(true).open(&part) {
         Ok(f) if !output.exists() => f,
@@ -228,7 +235,7 @@ pub fn generate(
     let outcome = write(root, &items, &layout, labels, pages, file, token, &mut on_progress);
     cleanup.armed = false;
     match outcome {
-        Ok(unreadable) => match fs::rename(&part, &output) {
+        Ok(unreadable) => match crate::layout::place_new(&part, &output) {
             Ok(()) => {
                 let size = fs::metadata(&output).map(|m| m.len()).unwrap_or(0);
                 // A sheet the database does not record as complete is not kept: the row

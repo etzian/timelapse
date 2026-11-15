@@ -364,7 +364,7 @@ whose version is newer than the build (left untouched, never recreated).
 
 | Table | Columns | Notes |
 | --- | --- | --- |
-| `contact_sheets` | `id`, `source_json` (`all` · `period` · `flagged` · `quarantined` · `sampling` · `export`, with its parameters), `layout_json` (page size, orientation, columns, rows, filename and timestamp captions), `labels_json` (the translated header and footer texts), `output_path` (`.timelapse/contact-sheets/<id>.pdf`), `photos`, `unreadable` (placeholder cells), `pages`, `file_size`, `status` (`running` · `completed` · `failed` · `cancelled` · `interrupted`), `failure`, `created_at`, `completed_at` | The PDF is derived data: the same state and row give the same bytes. A row left `running` by a crash becomes `interrupted` (and its `<id>.pdf.part` is removed) the next time sheets are listed or generated while none is running. |
+| `contact_sheets` | `id`, `source_json` (`all` · `period` · `flagged` · `quarantined` · `sampling` · `export`, with its parameters), `layout_json` (page size, orientation, columns, rows, filename and timestamp captions), `labels_json` (the translated header and footer texts), `output_path` (`Timelapse exports/contact-sheets/contact-sheet-<id>-<ms>.pdf`, ADR-026), `photos`, `unreadable` (placeholder cells), `pages`, `file_size`, `status` (`running` · `completed` · `failed` · `cancelled` · `interrupted`), `failure`, `created_at`, `completed_at` | The PDF is derived data: the same state and row give the same bytes. A row left `running` by a crash becomes `interrupted` (and its `.timelapse/tmp/sheet-<id>.pdf.part` is removed) the next time sheets are listed or generated while none is running. |
 
 **Phase 8 tables (v8):**
 

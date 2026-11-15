@@ -61,7 +61,10 @@ fn walk(dir: &Path, root: &Path, is_root: bool, out: &mut Vec<Candidate>) -> Res
             // The project's own data (database, thumbnails, quarantine) lives in
             // `<root>/.timelapse/` (ADR-007) and is never part of the collection: a
             // quarantined original must not come back as a new import.
-            if is_root && entry.file_name() == PROJECT_DIR {
+            if is_root
+                && (entry.file_name() == PROJECT_DIR
+                    || crate::layout::is_app_folder(&entry.file_name()))
+            {
                 continue;
             }
             walk(&path, root, false, out)?;

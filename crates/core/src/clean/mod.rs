@@ -69,6 +69,7 @@ pub fn analyze_for_root(
     token: u64,
     mut on_progress: impl FnMut(AnalyzeProgress),
 ) -> Result<AnalyzeReport> {
+    let _work = crate::erase::job(root);
     let conn = open_root(root)?;
     let pending = store::pending_analysis(&conn)?;
     let total = pending.len();
@@ -135,10 +136,12 @@ pub fn decide_for_root(root: &Path, ids: &[i64], decision: Decision) -> Result<S
 }
 
 pub fn quarantine_for_root(root: &Path, ids: &[i64]) -> Result<Vec<OpOutcome>> {
+    let _work = crate::erase::job(root);
     files::quarantine(&open_root(root)?, root, ids)
 }
 
 pub fn restore_for_root(root: &Path, ids: &[i64]) -> Result<Vec<OpOutcome>> {
+    let _work = crate::erase::job(root);
     files::restore(&open_root(root)?, ids)
 }
 

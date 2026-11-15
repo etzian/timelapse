@@ -117,6 +117,7 @@ pub fn deflicker_for_root(
     mut on_progress: impl FnMut(AdjustProgress),
 ) -> Result<Option<FlickerRun>> {
     let _guard = try_lock().ok_or_else(|| fail("busy"))?;
+    let _work = crate::erase::job(root);
     let config = config.clamped();
     let conn = open_root(root)?;
     let frames = frames_of(&conn, run)?;
@@ -153,6 +154,7 @@ pub fn stabilize_for_root(
     mut on_progress: impl FnMut(AdjustProgress),
 ) -> Result<Option<StabilizationRun>> {
     let _guard = try_lock().ok_or_else(|| fail("busy"))?;
+    let _work = crate::erase::job(root);
     let config = config.clamped();
     let conn = open_root(root)?;
     let frames = frames_of(&conn, run)?;

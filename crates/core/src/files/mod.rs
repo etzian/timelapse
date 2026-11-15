@@ -30,7 +30,7 @@ use std::sync::{Mutex, MutexGuard};
 
 use rusqlite::{Connection, OptionalExtension, params};
 
-use crate::import::{dedup_hash, project_dir};
+use crate::import::dedup_hash;
 use crate::{Error, Result};
 
 /// Serialises every file operation and reconciliation in this process.
@@ -42,10 +42,7 @@ pub(crate) fn lock() -> MutexGuard<'static, ()> {
     FILE_OPS.lock().unwrap_or_else(|e| e.into_inner())
 }
 
-/// `<root>/.timelapse/quarantine`.
-pub fn quarantine_dir(root: &Path) -> PathBuf {
-    project_dir(root).join("quarantine")
-}
+pub use crate::layout::quarantine_dir;
 
 /// What happened to one requested image. `failure` is a stable kind, mapped to the Fluent
 /// key `files-failure-<kind>` in the UI.
@@ -140,7 +137,7 @@ fn locate(conn: &Connection, id: i64) -> Result<Option<Located>> {
 }
 
 /// Move each *rejected* image's original, from wherever it is now, into
-/// `<root>/.timelapse/quarantine/<relative path>`. Only images the user explicitly
+/// `<root>/Timelapse quarantine/<relative path>` (ADR-026). Only images the user explicitly
 /// rejected qualify (ADR-011).
 pub fn quarantine(conn: &Connection, root: &Path, ids: &[i64]) -> Result<Vec<OpOutcome>> {
     let _guard = lock();

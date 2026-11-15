@@ -13,25 +13,25 @@ Law 25: personal information is destroyed or anonymized once the purpose is achi
 
 | Your language, theme and density choices | Other | On your device | Until you erase the app's data | _to complete_ | _date_ |
 
-| Your photograph inventory (paths, sizes, SHA-256 hash and import status) | Other | On your device | Until you delete the project's database (.timelapse/ folder) | _to complete_ | _date_ |
+| Your photograph inventory (paths, sizes, SHA-256 hash and import status) | Other | On your device | Until you erase the project data (Settings, Erase all data, or by deleting the hidden .timelapse/ folder yourself) | _to complete_ | _date_ |
 
-| Your photographs' capture dates (EXIF dates, date read from the file name, file date, recorded time zone) | Other | On your device | Until you delete the project's database (.timelapse/ folder) | _to complete_ | _date_ |
+| Your photographs' capture dates (EXIF dates, date read from the file name, file date, recorded time zone) | Other | On your device | Until you erase the project data (Settings, Erase all data, or by deleting the hidden .timelapse/ folder yourself) | _to complete_ | _date_ |
 
-| Your photographs' brightness measurements, the Lightroom rating read from their XMP metadata, your thresholds and your decisions (keep, reject) | Other | On your device | Until you delete the project's database (.timelapse/ folder) | _to complete_ | _date_ |
+| Your photographs' brightness measurements, the Lightroom rating read from their XMP metadata, your thresholds and your decisions (keep, reject) | Other | On your device | Until you erase the project data (Settings, Erase all data, or by deleting the hidden .timelapse/ folder yourself) | _to complete_ | _date_ |
 
-| The photographs you quarantine (moved into .timelapse/quarantine/) and the journal of every move and restore (paths, hash, status) | Other | On your device | Until you restore the photograph or delete the project's .timelapse/ folder yourself; nothing is deleted automatically | _to complete_ | _date_ |
+| The photographs you quarantine (moved into the source folder's “Timelapse quarantine” folder) and the journal of every move and restore (paths, hash, status) | Other | On your device | The photographs stay until you restore them or choose the quarantine in Settings, Erase all data (or delete the folder yourself); the journal stays until you erase the project data; nothing is deleted automatically | _to complete_ | _date_ |
 
-| Thumbnails of your photographs (.timelapse/thumbs/ folder) | Other | On your device | Until you delete the project's database (.timelapse/ folder) | _to complete_ | _date_ |
+| Thumbnails of your photographs (hidden .timelapse/thumbs/ folder) | Other | On your device | Until you erase the project data (Settings, Erase all data, or by deleting the hidden .timelapse/ folder yourself) | _to complete_ | _date_ |
 
-| Your saved sampling selections (method, settings, ordered list of the selected photographs and a fingerprint of the available photographs) | Other | On your device | Until you delete the project's database (.timelapse/ folder) | _to complete_ | _date_ |
+| Your saved sampling selections (method, settings, ordered list of the selected photographs and a fingerprint of the available photographs) | Other | On your device | Until you erase the project data (Settings, Erase all data, or by deleting the hidden .timelapse/ folder yourself) | _to complete_ | _date_ |
 
-| The videos you create (.timelapse/exports/ folder) and the record of each export (settings, FFmpeg version, command, result), which you can also save as a .record.json file in that folder | Other | On your device | Until you delete the videos or the project's .timelapse/ folder yourself | _to complete_ | _date_ |
+| The videos you create (the source folder's “Timelapse exports” folder) and the record of each export (settings, FFmpeg version, command, result), which you can also save as a .record.json file in that folder | Other | On your device | Videos and records stay until you delete them or choose the exports in Settings, Erase all data; the journal stays until you erase the project data | _to complete_ | _date_ |
 
-| The copies or originals placed in the working folder you choose, and the record of each organization (working folder, settings, source and target paths, file fingerprints, result) | Other | On your device | Placed files stay until you undo the organization or delete them yourself; the record stays until you delete the project's .timelapse/ folder | _to complete_ | _date_ |
+| The copies or originals placed in the working folder you choose, and the record of each organization (working folder, settings, source and target paths, file fingerprints, result) | Other | On your device | Placed files stay until you undo the organization or delete them yourself; unmodified copies can also be erased in Settings, Erase all data (moved originals never are); the record stays until you erase the project data | _to complete_ | _date_ |
 
-| The contact sheets you generate (PDF files in .timelapse/contact-sheets/, with thumbnails, file names and capture times) and the record of each sheet (source, layout, texts, result) | Other | On your device | Until you delete the sheets or the project's .timelapse/ folder yourself | _to complete_ | _date_ |
+| The contact sheets you generate (PDF files in the source folder's “Timelapse exports/contact-sheets”, with thumbnails, file names and capture times) and the record of each sheet (source, layout, texts, result) | Other | On your device | Sheets stay until you delete them or choose the exports in Settings, Erase all data; the record stays until you erase the project data | _to complete_ | _date_ |
 
-| The brightness and colour measurements of each frame of a selection, its motion from frame to frame and the corrections computed (flicker reduction, stabilization), with their settings | Other | On your device | Until you delete the project's database (.timelapse/ folder) | _to complete_ | _date_ |
+| The brightness and colour measurements of each frame of a selection, its motion from frame to frame and the corrections computed (flicker reduction, stabilization), with their settings | Other | On your device | Until you erase the project data (Settings, Erase all data, or by deleting the hidden .timelapse/ folder yourself) | _to complete_ | _date_ |
 
 
 

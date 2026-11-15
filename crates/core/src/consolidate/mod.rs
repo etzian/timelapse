@@ -352,6 +352,7 @@ pub fn execute(
     mut on_progress: impl FnMut(Progress),
 ) -> Result<RunRecord> {
     let _run = try_run_lock().ok_or_else(|| fail("busy"))?;
+    let _work = crate::erase::job(root);
     let conn = open_root(root)?;
     let _ops = files::lock();
     // Nothing else runs now: `pending` journal rows and `running` runs are a crash's
@@ -423,6 +424,17 @@ pub fn execute(
 /// (only while still where it put them). Steps already undone are skipped, so an undo
 /// that stopped part-way can be repeated.
 pub fn undo(
+    root: &Path,
+    run: i64,
+    token: u64,
+    on_progress: impl FnMut(Progress),
+) -> Result<RunRecord> {
+    let _work = crate::erase::job(root);
+    undo_unguarded(root, run, token, on_progress)
+}
+
+/// [`undo`] for a caller that already holds the erase lock ([`crate::erase`]).
+pub(crate) fn undo_unguarded(
     root: &Path,
     run: i64,
     token: u64,

@@ -525,3 +525,74 @@ fn the_v6_migration_keeps_the_existing_journal() {
     let v: i64 = conn.query_row("PRAGMA user_version", [], |r| r.get(0)).unwrap();
     assert_eq!(v, crate::import::store::SCHEMA_VERSION);
 }
+
+#[test]
+fn erasing_copies_removes_only_unmodified_copies_and_never_a_moved_photo() {
+    let _s = serial();
+    let f = Fixture::new("erase-copies");
+    let copy = f.run(&f.cfg(Operation::Copy, Naming::Original));
+    assert_eq!(copy.placed, 3);
+    fs::write(f.dest().join("G002.JPG"), b"edited by the user").unwrap();
+    let moved_dest = f.work.path().join("moved");
+    let mv = Config { destination: moved_dest.clone(), ..f.cfg(Operation::Move, Naming::Preserve) };
+    // Only the photographs the copy run did not already place elsewhere are moved.
+    let moved = f.run(&mv);
+
+    let inv = crate::erase::inventory(f.root()).unwrap();
+    assert_eq!(inv.copies.files, 3);
+    assert_eq!(inv.copies.folders, [f.dest().to_string_lossy().into_owned()]);
+    assert_eq!(inv.copies.moved, moved.placed as u64);
+
+    let targets = crate::erase::Targets { copies: true, ..Default::default() };
+    let report = crate::erase::erase(f.root(), targets).unwrap();
+    assert_eq!((report.copies_removed, report.copies_kept), (2, 1));
+    assert_eq!(files_under(&f.dest()), ["G002.JPG"], "the edited copy stays");
+    assert_eq!(files_under(&moved_dest).len(), moved.placed, "moved photos are never erased");
+    assert!(f.root().join(".timelapse").is_dir(), "only what was chosen goes");
+}
+
+#[test]
+fn a_project_from_before_adr_026_has_its_files_moved_out_of_the_project_data() {
+    let _s = serial();
+    let f = Fixture::new("legacy");
+    let id = f.id("157gopro/G001.JPG");
+    clean::decide_for_root(f.root(), &[id], Decision::Reject).unwrap();
+    assert!(clean::quarantine_for_root(f.root(), &[id]).unwrap()[0].ok());
+    let now = crate::layout::quarantine_dir(f.root()).join("157gopro").join("G001.JPG");
+    assert!(now.is_file(), "quarantine is visible, outside the project data");
+
+    // Put things back where an older version kept them.
+    let data = crate::import::project_dir(f.root());
+    let old = data.join("quarantine").join("157gopro").join("G001.JPG");
+    fs::create_dir_all(old.parent().unwrap()).unwrap();
+    fs::rename(&now, &old).unwrap();
+    fs::remove_dir_all(crate::layout::quarantine_dir(f.root())).unwrap();
+    fs::create_dir_all(data.join("exports")).unwrap();
+    fs::write(data.join("exports").join("v.mp4"), b"video").unwrap();
+    fs::write(data.join("exports").join("w.mp4.part"), b"half").unwrap();
+    {
+        // Straight to the database: opening the project would move the files at once.
+        let r = f.root();
+        let name = r.file_name().unwrap().to_string_lossy();
+        let conn = crate::import::store::open(&crate::import::default_db_dir(r), &name, r, Some(r))
+            .unwrap();
+        conn.execute(
+            "UPDATE images SET current_path = ?1 WHERE id = ?2",
+            rusqlite::params![old.to_string_lossy(), id],
+        )
+        .unwrap();
+    }
+    // The old folders are back, so opening the project moves them out again.
+    assert_eq!(f.current("157gopro/G001.JPG"), Some(now.to_string_lossy().into_owned()));
+    assert!(now.is_file() && !old.exists());
+    assert!(crate::layout::exports_dir(f.root()).join("v.mp4").is_file());
+    assert!(!crate::layout::exports_dir(f.root()).join("w.mp4.part").exists());
+    assert!(!data.join("exports").exists(), "the old folder is gone once empty");
+    // The quarantined photo is not imported again, and it restores.
+    import_folder(f.root()).unwrap();
+    let rows = crate::import::list_for_root(f.root()).unwrap();
+    assert_eq!(rows.len(), 4);
+    assert!(clean::restore_for_root(f.root(), &[id]).unwrap()[0].ok());
+    assert_eq!(fs::read(f.root().join("157gopro").join("G001.JPG")).unwrap(), b"photo one");
+    f.originals_ok();
+}

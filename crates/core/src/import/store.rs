@@ -241,7 +241,7 @@ const MIGRATION_V6: &str = r#"
 "#;
 
 /// v7 (Phase 7 contact sheets, ADR-024): one row per generated sheet. The PDF itself is
-/// derived data in `.timelapse/contact-sheets/`.
+/// derived data in `Timelapse exports/contact-sheets/` (ADR-026).
 const MIGRATION_V7: &str = r#"
     CREATE TABLE IF NOT EXISTS contact_sheets (
         id INTEGER PRIMARY KEY,

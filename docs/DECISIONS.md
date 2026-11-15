@@ -223,7 +223,7 @@ Two library choices underpin the Phase 2 EXIF capture and chronological-timeline
 5. Remove the source name; if the file is in use, undo step 3 instead.
 6. In one transaction, complete the row and set `images.current_path` and the status.
 
-Restore runs the same steps in reverse. All file operations of the process share one lock. Reconciliation of `pending` rows runs when a project is opened, but only while no operation holds that lock, so it only ever settles rows left by a crashed process. Journal updates only touch rows that are still `pending`. An image whose import could not hash it has no reference to check in step 1; its move is still verified byte-for-byte in step 4. A Lightroom `.xmp` sidecar stays in the collection when its photo is quarantined; quarantined images are therefore not re-analysed, and keep the rating already read. Decoding is bounded at 30 000 px a side and 768 MiB per image, with at most three images decoded at once. Nothing is ever deleted except the duplicate this process itself created (ADR-011), and no byte of an original is written (ADR-006). The import scan skips `<root>/.timelapse/`, so a quarantined file is never re-imported.
+Restore runs the same steps in reverse. All file operations of the process share one lock. Reconciliation of `pending` rows runs when a project is opened, but only while no operation holds that lock, so it only ever settles rows left by a crashed process. Journal updates only touch rows that are still `pending`. An image whose import could not hash it has no reference to check in step 1; its move is still verified byte-for-byte in step 4. A Lightroom `.xmp` sidecar stays in the collection when its photo is quarantined; quarantined images are therefore not re-analysed, and keep the rating already read. Decoding is bounded at 30 000 px a side and 768 MiB per image, with at most three images decoded at once. Nothing is ever deleted except the duplicate this process itself created (ADR-011), and no byte of an original is written (ADR-006). The import scan skips `<root>/.timelapse/` (and, since ADR-026, the quarantine's own visible folder), so a quarantined file is never re-imported.
 
 **Out of scope here:** consolidation, copy and link policy (Phase 6), contact sheets (Phase 7), HEIC/RAW decoding.
 
@@ -441,6 +441,39 @@ The Export page shows it and can write it to `.timelapse/exports/<id>.record.jso
 The real-GoPro check of PRD §5.9 is the user's (a phase item, not claimed by tests).
 
 **Out of scope:** rotation, local (per-region) deflicker, preview videos, auto-tuning, any new dependency.
+
+---
+
+## ADR-026 — Visible output folders; `.timelapse/` holds only erasable project data
+
+**Status:** Accepted (2026-11-15, decided by the user: exports at the top of the selected folder, `.timelapse/` only for the app's working data and erased from Settings; the user picks what Erase all data removes; quarantine and exports in two visible folders; only unmodified consolidation copies are erased)
+
+**Context.** Until now everything the app wrote for a project lived in `<root>/.timelapse/` (ADR-007): the database, thumbnails, but also the videos, contact sheets and the quarantine of rejected originals. The user cannot find a video in a hidden folder, and erasing that folder would have deleted photographs.
+
+**Layout** (`crates/core/src/layout.rs`).
+- `<root>/Timelapse exports/`: videos, their saved records (`<video name>.record.json`) and `contact-sheets/`. Sheet names carry a timestamp (`contact-sheet-<id>-<ms>.pdf`), as video names already did, so numbering that restarts after an erase never collides with an earlier file.
+- `<root>/Timelapse quarantine/<relative path>`: the rejected originals (ADR-011 otherwise unchanged).
+- `<root>/.timelapse/`: the database, review thumbnails and `tmp/` (every `.part` file of a running export, sheet or record). Videos and sheets are placed from `tmp/` without replacing anything (hard link or `create_new` copy for videos; rename or copy for sheets and records).
+- The folder names are fixed English names: the core does not know the UI language, and a name that changed with the language would lose the folder.
+- The import scan skips all three at the top of the source folder (names compared as the volume does: case and Unicode normalisation ignored).
+
+**Older projects.** Opening a project whose `.timelapse/` still has `quarantine/`, `exports/` or `contact-sheets/` moves their files to the new folders, file by file, never replacing one (a file already at the target stays where it was). Stale `.part` files are removed. Stored paths (`images.current_path`, the journal's paths, `video_exports.output_path`, `contact_sheets.output_path`) follow each file that moved. This runs under the file-operation lock, and only while legacy folders exist.
+
+**Erase all data** (Settings; `crates/core/src/erase.rs`). The user chooses among:
+- the app settings (on the device, as before);
+- for the open folder:
+  - the project data: `.timelapse/`;
+  - the exports folder;
+  - the quarantine folder (its rejected originals are deleted permanently);
+  - the photographs consolidation *copied*.
+
+Copies are removed through the copy runs' undo (ADR-023), so a copy that changed, went missing or is now an original is kept. Photographs consolidation *moved* are the only copy and are never erased. The confirmation lists exactly what goes, with counts and sizes.
+- Order: copies first (their journal is in the project data), then exports, quarantine, project data.
+- Nothing is erased while work runs on that folder: each job (import, timestamps, analysis, quarantine and restore, consolidation and undo, adjustments, contact sheet, export) holds a per-folder guard, and an erase needs the folder alone (`busy` otherwise). A job started during an erase waits for it.
+- The project data is refused (`quarantine-inside`) while rejected originals are still inside it (a legacy quarantine that could not be moved), unless the quarantine is erased too.
+- The app keeps no list of folders, so only the open folder can be erased.
+
+**Consequences.** ADR-007's "everything in `.timelapse/`" is narrowed: `.timelapse/` is the project's working data, safe to erase; what the user made or owns is visible. The data map's locations and retention texts say so.
 
 ---
 

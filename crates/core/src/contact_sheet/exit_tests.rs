@@ -308,11 +308,11 @@ fn a_crashed_sheet_is_settled_and_its_temporary_file_removed() {
     let f = Fixture::new("crash");
     let conn = f.conn();
     let id = store::begin(&conn, &Source::All, &Layout::default(), &labels_en(), 7, 1).unwrap();
-    fs::create_dir_all(sheets_dir(f.root())).unwrap();
-    fs::write(part_path(&sheets_dir(f.root()), id), b"half a pdf").unwrap();
+    fs::create_dir_all(crate::layout::temp_dir(f.root())).unwrap();
+    fs::write(part_path(f.root(), id), b"half a pdf").unwrap();
     let list = sheets_for_root(f.root()).unwrap();
     assert_eq!(list[0].status, "interrupted");
-    assert!(!part_path(&sheets_dir(f.root()), id).exists());
+    assert!(!part_path(f.root(), id).exists());
 }
 
 #[test]

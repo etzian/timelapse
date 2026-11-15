@@ -8,9 +8,11 @@ pub mod adjust;
 pub mod clean;
 pub mod consolidate;
 pub mod contact_sheet;
+pub mod erase;
 pub mod export;
 pub mod files;
 pub mod import;
+pub mod layout;
 pub mod sampling;
 
 /// Errors that can cross the IPC boundary into the UI. Every variant maps to a stable
@@ -52,6 +54,9 @@ pub enum Error {
 
     #[error("deflicker or stabilization refused or failed: {reason}")]
     Adjust { reason: &'static str },
+
+    #[error("erase refused or failed: {reason}")]
+    Erase { reason: &'static str },
 }
 
 impl Error {
@@ -69,6 +74,7 @@ impl Error {
             Self::Consolidation { .. } => "consolidation",
             Self::ContactSheet { .. } => "contact-sheet",
             Self::Adjust { .. } => "adjust",
+            Self::Erase { .. } => "erase",
         }
     }
 
@@ -85,7 +91,8 @@ impl Error {
             | Self::Export { reason }
             | Self::Consolidation { reason }
             | Self::ContactSheet { reason }
-            | Self::Adjust { reason } => {
+            | Self::Adjust { reason }
+            | Self::Erase { reason } => {
                 serde_json::json!({ "reason": reason })
             }
             Self::StoreTransaction => serde_json::json!({}),
