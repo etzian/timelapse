@@ -351,6 +351,50 @@ No byte of an original is written; the only files ever removed are copies this a
 
 ---
 
+## ADR-024 — Contact sheets as streamed PDF from SQLite state; derived export record; timeline additions
+
+**Status:** Accepted (2026-11-15, approved by the user: PDF only with `pdf-writer` and the built-in font, `.timelapse/contact-sheets/` with a history, all six sources)
+
+**Context.** PRD §5.11 asks for contact sheets of all photographs, a period, flagged, quarantined, a sampling selection and the final video sequence, with configurable thumbnail size, images per page, filename and timestamp, and leaves "PDF or image" to evaluate. The roadmap's exit asks that they come from SQLite state only and render correctly in both locales. ADR-015 makes the export record a derived document.
+
+**Format.** PDF only, written by **`pdf-writer` 0.15** (MIT OR Apache-2.0), the only new direct dependency.
+- Thumbnails are the cached review JPEGs (ADR-020), embedded as DCT images without re-encoding.
+- Text uses the standard font Helvetica with WinAnsi encoding, so no font file ships. English and French are covered completely; a character outside WinAnsi prints as `?`. Captions are measured with Helvetica's widths, shortened with `…`, and clipped to their cell.
+- PNG pages and embedded fonts were weighed and left out: they need a rasterizer or a subsetter and a bundled font, for scripts the product does not target.
+
+**From SQLite state only.** Which photographs, their order and every caption come from the database:
+- order: chronological (`normalized_datetime`, ties by path), or a sampling run's sequence order;
+- caption: the relative path, and the timestamp in UTC (as the app shows it), each optional.
+
+The images are the review thumbnails of each photograph at its location of record. Originals are only read when a thumbnail is not cached. A photograph that cannot be read gets a placeholder cell and is counted; it never fails the sheet. Labels (title, source line, "page n of m", the note) are translated by the UI and passed in, so the core stays free of Fluent.
+
+**Layout.** A4 or Letter, portrait or landscape, a grid of 1–12 columns × 1–12 rows, a header and a footer. Each thumbnail is fitted to its cell with its aspect ratio kept.
+
+**Streaming and determinism.**
+- Objects are written to the file one by one, with their offsets recorded; the xref and trailer are written at the end. Memory is bounded by one page.
+- The file carries no creation date and no random id, so identical state and configuration give identical bytes.
+- It is written under a temporary name and renamed when complete.
+
+At most 100 000 photographs per sheet (the design target).
+
+**Storage.** `.timelapse/contact-sheets/<id>.pdf`, and a row in **`contact_sheets`** (schema v7) holding the source, layout, labels, counts, pages, size, status and failure. Generation is cancellable between pages; a crash leaves the row `interrupted` and the temporary file is removed on the next start. Sheets are derived data: deleting them loses nothing.
+
+**Export record (ADR-015).** `export::record` builds a JSON document from `video_exports` and its sampling run:
+- settings, FFmpeg version, argv, output path, result probe and status;
+- the sampling configuration, its sequence fingerprint and photo count.
+
+The Export page shows it and can write it to `.timelapse/exports/<id>.record.json` on demand. It is never read back.
+
+**Timeline additions (PRD §5.3).**
+- Week buckets keyed by their Monday.
+- Groups of identical timestamps.
+- The photographs of a period, paginated.
+- In the UI: zoom from a bar into its period at the next finer granularity, with a breadcrumb back, and a contact sheet of the period.
+
+**Out of scope:** image pages, embedded fonts, printing or opening the PDF from the app (opener plugin or a CSP change), editing a sheet, sheets across projects.
+
+---
+
 ## Open decisions
 
 The following decisions must be investigated and presented for approval before implementation makes them difficult to change.

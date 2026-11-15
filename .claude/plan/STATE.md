@@ -1,6 +1,6 @@
 # STATE
 
-STATUS: DONE
+STATUS: RUNNING
 <!-- PENDING | RUNNING | DONE | BLOCKED -->
 
 ## Contract
@@ -22,22 +22,25 @@ STATUS: DONE
 | 4 | Temporal sampling | done (2026-11-14), `60b554f` |
 | 5 | FFmpeg video generation | **done (2026-11-15)**, exit criterion proven on the macOS CI runner (run 43664224239). Review BLOCK → fixed → SIGN-OFF WITH NOTES. ffmpeg + svt-av1 licence exceptions approved by the user 2026-11-14 |
 | 6 | Consolidation & file management | **done (2026-11-15)**, exit criterion proven by the consolidation exit tests on Windows and the macOS CI runner (run 43679518712, APFS clone path). Review BLOCK → fixed → SIGN-OFF WITH NOTES → notes A–C fixed |
+| 7 | Advanced UI & contact sheets | **running** (branch `phase-7-contact-sheets`) |
 
-## Slice status (Phase 6)
+## Slice status (Phase 7)
 
 | Slice | Status | Gate |
 | --- | --- | --- |
-| P6.0 ADR-023, plan | done | GATE-FAST |
-| P6.1 Plan (pure) | done | GATE-FAST |
-| P6.2 Placement + journal + store v6 | done | GATE-FAST; macOS CI (clonefile, renamex_np) |
-| P6.3 Consolidation engine | done | GATE-FAST |
-| P6.4 Commands | done | GATE-UI |
-| P6.5 Organise page | done | GATE-UI + legal check/gen |
-| P6.6 Exit tests + review | done | reviewer sign-off (2nd pass) + notes fixed; GATE-FULL; CI green |
-| P6.7 Final gate + commit/push | done | GATE-FULL; merged to main |
+| P7.0 ADR-024, plan | done | GATE-FAST |
+| P7.1 Layout + PDF writer (pure) | pending | GATE-FAST |
+| P7.2 Sources, generation, store v7 | pending | GATE-FAST |
+| P7.3 Export record | pending | GATE-FAST |
+| P7.4 Timeline additions | pending | GATE-FAST |
+| P7.5 Commands | pending | GATE-UI |
+| P7.6 UI | pending | GATE-UI + legal check/gen |
+| P7.7 Exit tests + review | pending | reviewer sign-off; GATE-FULL; CI green |
+| P7.8 Final gate + commit/push | pending | GATE-FULL |
 
 ## Handoff log
 
+- **2026-11-15 — Phase 7 kicked off.** Phase 6 plan/state archived. Before it, the Phase 6 follow-ups landed on main: `unicode-normalization` 0.1 approved and used for name comparison (`8740bbb`), the exFAT check added to the release rules (`e5c003c`). User decisions: PDF only with `pdf-writer` 0.15 (MIT OR Apache-2.0) and the built-in Helvetica (no bundled font); sheets go to `.timelapse/contact-sheets/` with a history; all six PRD sources.
 - **2026-11-15 — Phase 6 DONE.**
   - **ADR-023:** consolidation into a picked folder outside the collection; copy (default) or move; APFS clone, else a byte copy published under a temporary name without replacing; never a link. `libc` 0.2 is a direct dependency (MIT OR Apache-2.0, approved).
   - **Core** (`crates/core/src/consolidate/`):
