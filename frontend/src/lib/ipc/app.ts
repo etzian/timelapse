@@ -382,6 +382,10 @@ export interface ExportSettings {
   width: number;
   height: number;
   quality: Quality;
+  /** Deflicker run applied (ADR-025); its selection must be the export's. */
+  flicker_run?: number | null;
+  /** Stabilization run applied. */
+  stabilization_run?: number | null;
 }
 
 export interface ExportProgress {
@@ -721,3 +725,114 @@ export interface IdenticalReport {
 }
 
 export const identicalTimestamps = (root: string, limit: number) => invoke<IdenticalReport>('identical_timestamps', { root, limit });
+
+// ---- Phase 8 — deflicker and stabilization ------------------------------------------------
+
+export interface DeflickerConfig {
+  /** 0–1. */
+  strength: number;
+  /** Frames in the trend window (odd, 3–301). */
+  window: number;
+  colour: boolean;
+}
+
+export interface StabilizeConfig {
+  /** Frames in the path-smoothing window (odd, 3–301). */
+  smoothing: number;
+  /** Largest crop per side, fraction of the frame (0.01–0.05). */
+  max_crop: number;
+}
+
+export interface FlickerRun {
+  id: number;
+  sampling_run_id: number;
+  config: DeflickerConfig;
+  algorithm_version: number;
+  sequence_fingerprint: string;
+  results: { frames: number; measured: number; max_stops: number; mean_stops: number; max_colour_stops: number };
+  created_at: number;
+}
+
+export interface StabilizationRun {
+  id: number;
+  sampling_run_id: number;
+  config: StabilizeConfig;
+  algorithm_version: number;
+  sequence_fingerprint: string;
+  /** Crop per side, fraction of the frame. */
+  crop: number;
+  results: { frames: number; measured: number; max_shift: number; mean_shift: number };
+  created_at: number;
+}
+
+export interface Adjustments {
+  flicker: FlickerRun[];
+  stabilization: StabilizationRun[];
+}
+
+export interface AdjustProgress {
+  done: number;
+  total: number;
+}
+
+/** Brightness (log2 of linear luminance) and colour balance against green, in stops. */
+export interface FlickerPoint {
+  sequence_index: number;
+  before: number | null;
+  trend: number | null;
+  after: number | null;
+  red_before: number | null;
+  red_after: number | null;
+  blue_before: number | null;
+  blue_after: number | null;
+}
+
+export interface StabilizationPoint {
+  sequence_index: number;
+  /** Fractions of the frame. */
+  path: [number, number];
+  smoothed: [number, number];
+  output: [number, number];
+  measured: boolean;
+}
+
+export interface StabilizationSeries {
+  crop: number;
+  points: StabilizationPoint[];
+}
+
+/** Reading thousands of thumbnails takes a while; progress arrives on the channel meanwhile. */
+const ADJUST_TIMEOUT_MS = 6 * 60 * 60_000;
+
+function adjustChannel(onProgress: (p: AdjustProgress) => void): Channel<AdjustProgress> {
+  const channel = new Channel<AdjustProgress>();
+  channel.onmessage = onProgress;
+  return channel;
+}
+
+/** Resolves to `null` when cancelled (nothing is stored). */
+export const startDeflicker = (root: string, run: number, config: DeflickerConfig, token: number, onProgress: (p: AdjustProgress) => void) =>
+  invoke<FlickerRun | null>('start_deflicker', { root, run, config, token, onProgress: adjustChannel(onProgress) }, ADJUST_TIMEOUT_MS);
+
+export const startStabilization = (root: string, run: number, config: StabilizeConfig, token: number, onProgress: (p: AdjustProgress) => void) =>
+  invoke<StabilizationRun | null>('start_stabilization', { root, run, config, token, onProgress: adjustChannel(onProgress) }, ADJUST_TIMEOUT_MS);
+
+export const cancelAdjustment = (token: number) => invoke<void>('cancel_adjustment', { token });
+export const listAdjustments = (root: string) => invoke<Adjustments>('list_adjustments', { root });
+export const flickerSeries = (root: string, run: number, maxPoints: number) =>
+  invoke<FlickerPoint[]>('flicker_series', { root, run, maxPoints }, 60_000);
+export const stabilizationSeries = (root: string, run: number, maxPoints: number) =>
+  invoke<StabilizationSeries>('stabilization_series', { root, run, maxPoints }, 60_000);
+
+/** Frame `index` of a selection as a `data:` URL: as shot, or with the runs applied. */
+export async function adjustedFrame(
+  root: string,
+  run: number,
+  index: number,
+  flickerRun: number | null,
+  stabilizationRun: number | null,
+  after: boolean
+): Promise<string> {
+  const buf = await invoke<ArrayBuffer>('adjusted_frame', { root, run, index, flickerRun, stabilizationRun, after }, 60_000);
+  return `data:image/jpeg;base64,${toBase64(new Uint8Array(buf))}`;
+}

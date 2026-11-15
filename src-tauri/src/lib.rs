@@ -487,6 +487,92 @@ async fn identical_timestamps(
     blocking(move || timelapse_core::import::identical_timestamps_for_root(&root, limit)).await
 }
 
+// ---- Phase 8: deflicker and stabilization (ADR-025) ------------------------------------
+
+use timelapse_core::adjust;
+
+/// Measure a saved selection's brightness and store a deflicker run (`null` = cancelled).
+#[tauri::command]
+async fn start_deflicker(
+    root: PathBuf,
+    run: i64,
+    config: adjust::DeflickerConfig,
+    token: u64,
+    on_progress: tauri::ipc::Channel<adjust::AdjustProgress>,
+) -> std::result::Result<Option<adjust::FlickerRun>, IpcError> {
+    blocking(move || {
+        adjust::deflicker_for_root(&root, run, &config, token, |p| {
+            let _ = on_progress.send(p);
+        })
+    })
+    .await
+}
+
+/// Measure a saved selection's motion and store a stabilization run (`null` = cancelled).
+#[tauri::command]
+async fn start_stabilization(
+    root: PathBuf,
+    run: i64,
+    config: adjust::StabilizeConfig,
+    token: u64,
+    on_progress: tauri::ipc::Channel<adjust::AdjustProgress>,
+) -> std::result::Result<Option<adjust::StabilizationRun>, IpcError> {
+    blocking(move || {
+        adjust::stabilize_for_root(&root, run, &config, token, |p| {
+            let _ = on_progress.send(p);
+        })
+    })
+    .await
+}
+
+/// Stop the analysis started with `token` after its current batch; nothing is stored.
+#[tauri::command]
+fn cancel_adjustment(token: u64) {
+    adjust::cancel(token);
+}
+
+#[tauri::command]
+async fn list_adjustments(root: PathBuf) -> std::result::Result<adjust::Adjustments, IpcError> {
+    blocking(move || adjust::adjustments_for_root(&root)).await
+}
+
+/// Chart points of a deflicker run (at most `max_points`, spikes kept).
+#[tauri::command]
+async fn flicker_series(
+    root: PathBuf,
+    run: i64,
+    max_points: usize,
+) -> std::result::Result<Vec<adjust::preview::FlickerPoint>, IpcError> {
+    blocking(move || adjust::preview::flicker_series(&root, run, max_points)).await
+}
+
+/// Chart points of a stabilization run, and its crop.
+#[tauri::command]
+async fn stabilization_series(
+    root: PathBuf,
+    run: i64,
+    max_points: usize,
+) -> std::result::Result<adjust::preview::StabilizationSeries, IpcError> {
+    blocking(move || adjust::preview::stabilization_series(&root, run, max_points)).await
+}
+
+/// Frame `index` of selection `run` as JPEG: as shot, or with the chosen runs applied.
+#[tauri::command]
+async fn adjusted_frame(
+    root: PathBuf,
+    run: i64,
+    index: usize,
+    flicker_run: Option<i64>,
+    stabilization_run: Option<i64>,
+    after: bool,
+) -> std::result::Result<tauri::ipc::Response, IpcError> {
+    blocking(move || {
+        adjust::preview::frame(&root, run, index, flicker_run, stabilization_run, after)
+    })
+    .await
+    .map(tauri::ipc::Response::new)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     // Dialog is used by the frontend for folder picking on every platform; the
@@ -546,7 +632,14 @@ pub fn run() {
             export_record,
             write_export_record,
             timeline_period,
-            identical_timestamps
+            identical_timestamps,
+            start_deflicker,
+            start_stabilization,
+            cancel_adjustment,
+            list_adjustments,
+            flicker_series,
+            stabilization_series,
+            adjusted_frame
         ])
         .run(tauri::generate_context!())
         .expect("error while running Timelapse Studio");

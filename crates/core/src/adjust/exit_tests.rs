@@ -210,7 +210,14 @@ fn the_export_takes_its_frames_from_the_stored_runs() {
         flicker_run: Some(fl.id),
         stabilization_run: Some(st.id),
     };
-    let adjust = crate::export::adjustments(&conn, f.run, &settings, FRAMES).unwrap();
+    let adjust = crate::export::adjustments(
+        &conn,
+        f.run,
+        settings.flicker_run,
+        settings.stabilization_run,
+        FRAMES,
+    )
+    .unwrap();
     let gains = store::flicker_frames(&conn, fl.id).unwrap();
     let shifts = store::stabilization_frames(&conn, st.id).unwrap();
     for i in 0..FRAMES {
@@ -257,13 +264,39 @@ fn the_export_takes_its_frames_from_the_stored_runs() {
     .unwrap()
     .id;
     assert!(matches!(
-        crate::export::adjustments(&conn, other, &settings, FRAMES / 2),
+        crate::export::adjustments(
+            &conn,
+            other,
+            settings.flicker_run,
+            settings.stabilization_run,
+            FRAMES / 2
+        ),
         Err(Error::Export { reason: "adjustment-mismatch" })
     ));
-    let unknown = ExportSettings { flicker_run: Some(999), stabilization_run: None, ..settings };
     assert!(matches!(
-        crate::export::adjustments(&conn, f.run, &unknown, FRAMES),
+        crate::export::adjustments(&conn, f.run, Some(999), None, FRAMES),
         Err(Error::Export { reason: "adjustment-mismatch" })
+    ));
+
+    // What the Adjust page shows: chart series and before/after stills of a frame.
+    let series = preview::flicker_series(f.root(), fl.id, 10).unwrap();
+    assert_eq!(series.len(), 10);
+    assert!(series.iter().all(|p| p.before.is_some() && p.after.is_some()));
+    let stab = preview::stabilization_series(f.root(), st.id, 1000).unwrap();
+    assert_eq!((stab.points.len(), stab.crop), (FRAMES, st.crop));
+    let before = preview::frame(f.root(), f.run, 1, Some(fl.id), Some(st.id), false).unwrap();
+    let after = preview::frame(f.root(), f.run, 1, Some(fl.id), Some(st.id), true).unwrap();
+    let (b, a) =
+        (image::load_from_memory(&before).unwrap(), image::load_from_memory(&after).unwrap());
+    assert_eq!((a.width(), a.height()), (b.width(), b.height()));
+    assert_ne!(before, after);
+    assert!(matches!(
+        preview::frame(f.root(), other, 0, Some(fl.id), None, true),
+        Err(Error::Adjust { reason: "adjustment-mismatch" })
+    ));
+    assert!(matches!(
+        preview::frame(f.root(), f.run, FRAMES, None, None, false),
+        Err(Error::Adjust { reason: "unknown-frame" })
     ));
 }
 

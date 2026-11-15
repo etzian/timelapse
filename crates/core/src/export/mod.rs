@@ -138,7 +138,8 @@ pub fn export_run(
         .into_iter()
         .map(|p| p.ok_or(Error::StoreTransaction))
         .collect::<Result<_>>()?;
-    let adjust = adjustments(&conn, run, &settings, sources.len())?;
+    let adjust =
+        adjustments(&conn, run, settings.flicker_run, settings.stabilization_run, sources.len())?;
     let plan = frame_plan(sources.len(), settings.speed);
 
     let dir = exports_dir(root);
@@ -191,13 +192,14 @@ type Failure = (&'static str, String);
 pub(crate) fn adjustments(
     conn: &rusqlite::Connection,
     run: i64,
-    settings: &ExportSettings,
+    flicker_run: Option<i64>,
+    stabilization_run: Option<i64>,
     photos: usize,
 ) -> Result<Vec<frames::FrameAdjust>> {
     use crate::adjust::{deflicker, store as adjust_store};
     let mismatch = || fail("adjustment-mismatch");
     let mut out = vec![frames::FrameAdjust::NONE; photos];
-    if let Some(id) = settings.flicker_run {
+    if let Some(id) = flicker_run {
         let r = adjust_store::flicker_run(conn, id)?.ok_or_else(mismatch)?;
         let frames = adjust_store::flicker_frames(conn, id)?;
         if r.sampling_run_id != run || frames.len() != photos {
@@ -207,7 +209,7 @@ pub(crate) fn adjustments(
             slot.luts = (f.gains != [1.0; 3]).then(|| deflicker::luts(f.gains));
         }
     }
-    if let Some(id) = settings.stabilization_run {
+    if let Some(id) = stabilization_run {
         let r = adjust_store::stabilization_run(conn, id)?.ok_or_else(mismatch)?;
         let frames = adjust_store::stabilization_frames(conn, id)?;
         if r.sampling_run_id != run || frames.len() != photos {

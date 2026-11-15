@@ -3,6 +3,7 @@
 //! and applied by the export while it prepares frames (D5); no manifest file exists.
 
 pub mod deflicker;
+pub mod preview;
 pub mod stabilize;
 pub mod store;
 
