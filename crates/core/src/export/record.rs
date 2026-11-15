@@ -109,11 +109,16 @@ pub fn record_json(root: &Path, id: i64) -> Result<String> {
 pub fn record_path(root: &Path, id: i64) -> Result<PathBuf> {
     let conn = open_root(root)?;
     let rec = super::store::get(&conn, id)?.ok_or(Error::Export { reason: "unknown-export" })?;
-    let stem = Path::new(&rec.output_path)
+    Ok(record_path_for(root, id, &rec.output_path))
+}
+
+/// Where the record of export `id`, whose video is at `output_path`, is written.
+pub(crate) fn record_path_for(root: &Path, id: i64, output_path: &str) -> PathBuf {
+    let stem = Path::new(output_path)
         .file_stem()
         .map(|s| s.to_string_lossy().into_owned())
         .unwrap_or_else(|| format!("export-{id}"));
-    Ok(super::exports_dir(root).join(format!("{stem}.record.json")))
+    super::exports_dir(root).join(format!("{stem}.record.json"))
 }
 
 /// Writes the record next to the exports (replacing an earlier record of the same export:

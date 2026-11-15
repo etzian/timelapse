@@ -598,11 +598,63 @@ async fn adjusted_frame(
     .map(tauri::ipc::Response::new)
 }
 
+// ---- UX milestone: open and reveal what the app made (ADR-027) ------------------------
+//
+// The webview names a kind and an id, never a path; the core resolves it to the stored
+// path and refuses anything that is not an existing file inside `<root>/Timelapse exports/`.
+// The opener plugin is called from Rust only: the webview holds no opener permission.
+
+use timelapse_core::outputs::{self, OutputKind};
+
+/// Resolve `kind` `id` of `root` (checked by the core) and hand the path to `act`.
+async fn with_output(
+    app: tauri::AppHandle,
+    root: PathBuf,
+    kind: OutputKind,
+    id: i64,
+    act: fn(&tauri::AppHandle, &str) -> std::result::Result<(), tauri_plugin_opener::Error>,
+) -> std::result::Result<(), IpcError> {
+    blocking(move || {
+        let path = outputs::resolve(&root, kind, id)?;
+        let path = path.to_str().ok_or(timelapse_core::Error::Output { reason: "not-a-file" })?;
+        act(&app, path).map_err(|_| timelapse_core::Error::Output { reason: "open-failed" })
+    })
+    .await
+}
+
+/// Open an export, its record or a contact sheet in the default app.
+#[tauri::command]
+async fn open_output(
+    app: tauri::AppHandle,
+    root: PathBuf,
+    kind: OutputKind,
+    id: i64,
+) -> std::result::Result<(), IpcError> {
+    use tauri_plugin_opener::OpenerExt as _;
+    with_output(app, root, kind, id, |app, path| app.opener().open_path(path, None::<&str>)).await
+}
+
+/// Show an export, its record or a contact sheet in Finder, selected.
+#[tauri::command]
+async fn reveal_output(
+    app: tauri::AppHandle,
+    root: PathBuf,
+    kind: OutputKind,
+    id: i64,
+) -> std::result::Result<(), IpcError> {
+    use tauri_plugin_opener::OpenerExt as _;
+    with_output(app, root, kind, id, |app, path| app.opener().reveal_item_in_dir(path)).await
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     // Dialog is used by the frontend for folder picking on every platform; the
     // window_state / single_instance plugins are desktop-only (GUIDELINES §8.2).
     let builder = tauri::Builder::default().plugin(tauri_plugin_dialog::init());
+    // Opener (ADR-027): used from Rust only, by `open_output` and `reveal_output`. No link
+    // script is injected and no capability grants its commands to the webview.
+    let builder =
+        builder.plugin(tauri_plugin_opener::Builder::new().open_js_links_on_click(false).build());
 
     #[cfg(desktop)]
     let builder = builder.plugin(tauri_plugin_window_state::Builder::default().build()).plugin(
@@ -667,8 +719,24 @@ pub fn run() {
             stabilization_series,
             adjusted_frame,
             erase_inventory,
-            erase_project_data
+            erase_project_data,
+            open_output,
+            reveal_output
         ])
         .run(tauri::generate_context!())
         .expect("error while running Timelapse Studio");
+}
+
+#[cfg(test)]
+mod tests {
+    /// ADR-027: the opener is reached through `open_output` / `reveal_output` only; the
+    /// webview holds no opener permission.
+    #[test]
+    fn the_webview_has_no_opener_permission() {
+        let caps = std::fs::read_dir(concat!(env!("CARGO_MANIFEST_DIR"), "/capabilities")).unwrap();
+        for entry in caps.flatten() {
+            let text = std::fs::read_to_string(entry.path()).unwrap_or_default();
+            assert!(!text.contains("opener"), "{:?} grants an opener permission", entry.path());
+        }
+    }
 }

@@ -13,6 +13,7 @@ pub mod export;
 pub mod files;
 pub mod import;
 pub mod layout;
+pub mod outputs;
 pub mod sampling;
 
 /// Errors that can cross the IPC boundary into the UI. Every variant maps to a stable
@@ -57,6 +58,9 @@ pub enum Error {
 
     #[error("erase refused or failed: {reason}")]
     Erase { reason: &'static str },
+
+    #[error("output cannot be opened: {reason}")]
+    Output { reason: &'static str },
 }
 
 impl Error {
@@ -75,6 +79,7 @@ impl Error {
             Self::ContactSheet { .. } => "contact-sheet",
             Self::Adjust { .. } => "adjust",
             Self::Erase { .. } => "erase",
+            Self::Output { .. } => "output",
         }
     }
 
@@ -92,7 +97,8 @@ impl Error {
             | Self::Consolidation { reason }
             | Self::ContactSheet { reason }
             | Self::Adjust { reason }
-            | Self::Erase { reason } => {
+            | Self::Erase { reason }
+            | Self::Output { reason } => {
                 serde_json::json!({ "reason": reason })
             }
             Self::StoreTransaction => serde_json::json!({}),

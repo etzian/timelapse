@@ -489,6 +489,8 @@ Copies are removed through the copy runs' undo (ADR-023), so a copy that changed
 3. **The flipbook plays cached thumbnails.** It steps through the review thumbnails already in `.timelapse/` with a scrubber; no video is decoded in the webview, so no asset protocol, codec dependency or capability is needed. It is a `.app-*` component in this repo; `@etzianco/ui` stays read-only.
 4. **The progress bar and flipbook are app components**; what `@etzianco/ui` could adopt is listed in `docs/design-review.md`.
 
+**As built (P10).** `tauri-plugin-opener` 2.7.3 (Apache-2.0 OR MIT) brings `open` 5.4.5, `is-docker` 0.2.0 and `is-wsl` 0.4.0 (all MIT). It is registered with `open_js_links_on_click(false)`, so no script is injected into the webview. The commands take `kind` ∈ `export`, `contact-sheet`, `export-record`; an export record has no column of its own and is found beside its video, from `video_exports.output_path` (`<video name>.record.json`). The core (`timelapse_core::outputs::resolve`) also refuses a relative stored path, a directory, and an exports folder that is itself a symlink. Refusals are the error `output` with reason `unknown`, `missing`, `not-a-file`, `outside-exports` or, from the shell, `open-failed`.
+
 **Consequences.** Playing the exported video inside the app, naming selections by hand and notifications at the end of a job stay out of scope (each would need a schema change, a capability or another plugin). Selections keep their numeric id and get a label derived from method, count and date.
 
 ---

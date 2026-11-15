@@ -712,6 +712,19 @@ export const exportRecord = (root: string, exportId: number) => invoke<string>('
 /** Saves the record as `Timelapse exports/<video name>.record.json`; resolves to its path. */
 export const writeExportRecord = (root: string, exportId: number) => invoke<string>('write_export_record', { root, export: exportId });
 
+// ---- UX milestone — open and reveal (ADR-027) ---------------------------------------
+
+/** What `open_output` / `reveal_output` name by id; the webview never passes a path. */
+export type OutputKind = 'export' | 'contact-sheet' | 'export-record';
+
+/**
+ * Opens a video, its saved record or a contact sheet in the default app. Refused
+ * (`output` error) unless the stored file exists inside `<root>/Timelapse exports/`.
+ */
+export const openOutput = (root: string, kind: OutputKind, id: number) => invoke<void>('open_output', { root, kind, id });
+/** Shows the same file selected in Finder; refused on the same terms as `openOutput`. */
+export const revealOutput = (root: string, kind: OutputKind, id: number) => invoke<void>('reveal_output', { root, kind, id });
+
 export interface TimelinePage {
   total: number;
   entries: TimelineEntry[];

@@ -50,7 +50,7 @@ STATUS: RUNNING
 | P7 | Flipbook in Adjust and Export, wipe | sonnet | GATE-UI | done |
 | P8 | Fast triage | sonnet | GATE-UI | done |
 | P9 | Presets and summaries | sonnet | GATE-UI | done |
-| P10 | Open and reveal commands | opus | full | pending |
+| P10 | Open and reveal commands | opus | full | done |
 | P11 | Progress and the export finish | sonnet | GATE-UI | pending |
 | P12 | Motion, menu and shortcuts | sonnet | GATE-UI | pending |
 | P13 | Copy pass, en and fr-CA | sonnet | GATE-UI | pending |
@@ -117,6 +117,12 @@ STATUS: RUNNING
 - CHANGED: CLEAN_PRESETS (Lenient 25/30/0.8, Balanced 40/30/0.6 = core defaults, Strict 60/30/0.4) with matchCleanPreset and presetThresholds; EXPORT_PRESETS (Share h264/1080/standard, Archive av1/1080/standard, Master hevc/2160/high) with matchExportPreset, presetAvailable, summarize, summaryText; vitest cases for edges and refusals; Cleaning presets row with the thresholds under "Advanced settings"; Export selection first, presets (disabled with a note when the codec is missing), summary sentence, other selects under Advanced; Sampling duration line is now the summary sentence; keys in en and fr-CA.
 - DECISIONS: A preset click applies at once; the shown preset is matched against applied values, else "Custom settings". Presets do not touch the Lightroom flag, fps, speed or adjustments. Export defaults (av1/1080/standard) equal Archive. Preset buttons are native `ez-btn` (ui Button has no aria-pressed). Nothing new persisted, so the data map is unchanged. Balanced checked against `Thresholds::default` by the orchestrator.
 - DEFERRED: Unused `sampling-duration` key and `estimatedDurationSeconds` (still tested) go in P13. fr-CA preset names ("Copie maître", "Indulgente") are drafts for P13. The Sampling summary now rounds frames up like the encoder.
+- MANUAL: none
+
+### P10 — pass
+- CHANGED: `tauri-plugin-opener` 2.7.3 (Apache-2.0 OR MIT) plus transitive open 5.4.5, is-docker 0.2.0, is-wsl 0.4.0 (MIT), all on the allow list; new `crates/core/src/outputs.rs` (`OutputKind`, `resolve`, 5 tests) and `Error::Output { reason }`; `record_path_for` pulled out of export/record.rs; commands `open_output` / `reveal_output` using the plugin's Rust API on the blocking pool, plugin registered with `open_js_links_on_click(false)`; shell test `the_webview_has_no_opener_permission`; `openOutput` / `revealOutput` wrappers; `error-output` key in en and fr-CA; "As built (P10)" paragraph in ADR-027.
+- DECISIONS: Refusal reasons are `unknown`, `missing`, `not-a-file`, `outside-exports`, `open-failed`. P11 calls `openOutput(root, 'export' | 'contact-sheet' | 'export-record', id)` and shows errors through `t('error-output', args)`. An export-record is opened by the export's id; if no record file exists the reason is `missing`, so P11 calls `writeExportRecord` first. Export status is not checked; the file checks guard. Non-UTF-8 paths are refused as `not-a-file`. No opener permission in capabilities (grep and test). No data-map change. Orchestrator re-ran `make gate`: exit 0.
+- DEFERRED: fr-CA wording of `error-output` is a draft for P13. A real Open / Show in Finder click is checked in P14/P15.
 - MANUAL: none
 
 ## Open user items

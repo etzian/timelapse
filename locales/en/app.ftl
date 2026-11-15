@@ -111,6 +111,14 @@ error-erase = { $reason ->
     [remove-failed] A file could not be removed; it may be open in another app. Close it and try again.
    *[other] Erasing did not complete.
 }
+error-output = { $reason ->
+    [unknown] This file is no longer listed in the project.
+    [missing] This file is no longer in the “Timelapse exports” folder. It may have been moved, renamed or deleted.
+    [not-a-file] This is not a file the app can open.
+    [outside-exports] For your safety, only files in this project’s “Timelapse exports” folder can be opened.
+    [open-failed] The file could not be opened. Check that an app on this Mac can open it.
+   *[other] The file could not be opened.
+}
 
 about-endorsed-by = by
 
