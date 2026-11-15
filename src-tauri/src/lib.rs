@@ -125,14 +125,22 @@ async fn blocking<T: Send + 'static>(
 #[tauri::command]
 async fn analyze_images(
     root: PathBuf,
+    token: u64,
     on_progress: tauri::ipc::Channel<clean::AnalyzeProgress>,
 ) -> std::result::Result<clean::AnalyzeReport, IpcError> {
     blocking(move || {
-        clean::analyze_for_root(&root, |p| {
+        clean::analyze_for_root(&root, token, |p| {
             let _ = on_progress.send(p);
         })
     })
     .await
+}
+
+/// Stop the analysis started with `token` after the chunk it is measuring; what was
+/// measured is kept.
+#[tauri::command]
+fn cancel_analysis(token: u64) {
+    clean::cancel_analysis(token);
 }
 
 #[tauri::command]
@@ -505,6 +513,7 @@ pub fn run() {
             timeline_distribution,
             detect_timeline_gaps,
             analyze_images,
+            cancel_analysis,
             get_clean_settings,
             set_clean_settings,
             classify_images,

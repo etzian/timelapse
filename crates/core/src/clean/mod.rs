@@ -12,6 +12,7 @@ pub mod thumbs;
 pub mod xmp;
 
 use std::path::Path;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 use rayon::prelude::*;
 
@@ -28,6 +29,19 @@ const CHUNK: usize = 64;
 /// (bounded per image by `analysis::decode_limits`).
 const MAX_THREADS: usize = 3;
 
+/// The token of the analysis the user asked to stop (0 = none). Each run carries its own
+/// token, so a stop can never leak into another run.
+static CANCEL_TOKEN: AtomicU64 = AtomicU64::new(0);
+
+/// Ask the analysis started with `token` to stop after the chunk it is measuring.
+pub fn cancel_analysis(token: u64) {
+    CANCEL_TOKEN.store(token, Ordering::SeqCst);
+}
+
+fn cancelled(token: u64) -> bool {
+    token != 0 && CANCEL_TOKEN.load(Ordering::SeqCst) == token
+}
+
 /// Reported after each chunk of an analysis run.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
 pub struct AnalyzeProgress {
@@ -37,15 +51,22 @@ pub struct AnalyzeProgress {
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct AnalyzeReport {
+    /// Measured in this run.
     pub analyzed: usize,
     pub failed: usize,
+    /// Still to measure: non-zero when the run was stopped.
+    pub remaining: usize,
+    pub cancelled: bool,
     pub counts: StatusCounts,
 }
 
 /// Measure every image that has no current measurement, in parallel, then classify with
-/// the stored thresholds. Idempotent: a second run measures nothing new.
+/// the stored thresholds. Idempotent: a second run measures nothing new. A stop
+/// ([`cancel_analysis`] with `token`) ends the run after the current chunk; what was
+/// measured is kept and classified, and the next run continues with the rest.
 pub fn analyze_for_root(
     root: &Path,
+    token: u64,
     mut on_progress: impl FnMut(AnalyzeProgress),
 ) -> Result<AnalyzeReport> {
     let conn = open_root(root)?;
@@ -57,8 +78,13 @@ pub fn analyze_for_root(
         .build()
         .map_err(|_| Error::StoreTransaction)?;
     let (mut done, mut failed) = (0, 0);
+    let mut stopped = false;
     on_progress(AnalyzeProgress { done, total });
     for chunk in pending.chunks(CHUNK) {
+        if cancelled(token) {
+            stopped = true;
+            break;
+        }
         let measured: Vec<store::Measured> =
             pool.install(|| chunk.par_iter().map(store::measure_file).collect());
         failed += measured.iter().filter(|m| m.luma.is_err()).count();
@@ -66,7 +92,13 @@ pub fn analyze_for_root(
         done += chunk.len();
         on_progress(AnalyzeProgress { done, total });
     }
-    Ok(AnalyzeReport { analyzed: total, failed, counts: store::classify_all(&conn)? })
+    Ok(AnalyzeReport {
+        analyzed: done,
+        failed,
+        remaining: total - done,
+        cancelled: stopped,
+        counts: store::classify_all(&conn)?,
+    })
 }
 
 pub fn thresholds_for_root(root: &Path) -> Result<Thresholds> {

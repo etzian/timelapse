@@ -17,6 +17,7 @@
   import { errorText } from '../i18n/errors';
   import {
     analyzeImages,
+    cancelAnalysis,
     getCleanSettings,
     getReview,
     getThumbnail,
@@ -51,6 +52,10 @@
 
   let progress = $state<AnalyzeProgress | null>(null);
   let analyzing = $state(false);
+  let stopping = $state(false);
+  let analyzeToken = 0;
+  /** Set when a run was stopped: how many photographs are still to analyse. */
+  let stoppedRemaining = $state<number | null>(null);
 
   let thumbs = $state<Record<number, string>>({});
   let thumbFailed = $state<Record<number, true>>({});
@@ -153,15 +158,31 @@
   async function analyze(): Promise<void> {
     if (analyzing) return;
     analyzing = true;
+    stopping = false;
+    stoppedRemaining = null;
     actionError = '';
     progress = null;
+    analyzeToken = Math.max(analyzeToken + 1, Date.now());
+    const token = analyzeToken;
     try {
-      await analyzeImages(root, (p) => (progress = p));
+      const report = await analyzeImages(root, token, (p) => (progress = p));
+      if (report.cancelled) stoppedRemaining = report.remaining;
       await loadReview();
     } catch (err) {
       actionError = errorText(err as IpcError);
     } finally {
       analyzing = false;
+      stopping = false;
+    }
+  }
+
+  async function stopAnalysis(): Promise<void> {
+    if (!analyzing || stopping) return;
+    stopping = true;
+    try {
+      await cancelAnalysis(analyzeToken);
+    } catch {
+      stopping = false;
     }
   }
 
@@ -301,6 +322,9 @@
       {/if}
       <div class="app-clean__actions">
         <Button onclick={analyze} disabled={analyzing || moving}>{analyzing ? t('clean-analyzing') : t('clean-analyze')}</Button>
+        {#if analyzing}
+          <Button variant="secondary" onclick={stopAnalysis} disabled={stopping}>{stopping ? t('clean-stopping') : t('clean-stop')}</Button>
+        {/if}
         {#if items && counts.flagged > 0}
           <Button variant="secondary" onclick={() => openContactSheet({ kind: 'flagged' })}>{t('clean-sheet-flagged')}</Button>
         {/if}
@@ -316,6 +340,15 @@
 
     {#if actionError}
       <Banner tone="error" text={actionError} />
+    {/if}
+
+    {#if stoppedRemaining !== null && !analyzing}
+      <Banner
+        tone="neutral"
+        text={t('clean-stopped', { count: stoppedRemaining })}
+        ondismiss={() => (stoppedRemaining = null)}
+        dismissLabel={t('clean-dismiss')}
+      />
     {/if}
 
     {#if outcome}

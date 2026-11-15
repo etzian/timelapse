@@ -70,14 +70,30 @@ impl Collection {
 }
 
 fn analyse(c: &Collection) -> AnalyzeReport {
-    analyze_for_root(c.root(), |_| {}).unwrap()
+    analyze_for_root(c.root(), 0, |_| {}).unwrap()
+}
+
+#[test]
+fn a_stopped_analysis_keeps_its_work_and_the_next_run_continues() {
+    let c = Collection::new("stop");
+    let token = 9_001;
+    cancel_analysis(token);
+    let stopped = analyze_for_root(c.root(), token, |_| {}).unwrap();
+    cancel_analysis(0);
+    assert!(stopped.cancelled);
+    assert_eq!(stopped.analyzed, 0);
+    assert!(stopped.remaining > 0);
+    // Another run (another token) is not affected, and measures everything left.
+    let rest = analyze_for_root(c.root(), token + 1, |_| {}).unwrap();
+    assert!(!rest.cancelled);
+    assert_eq!((rest.analyzed, rest.remaining), (stopped.remaining, 0));
 }
 
 #[test]
 fn analysis_classifies_brightness_xmp_and_failures() {
     let c = Collection::new("p3-classify");
     let mut seen = Vec::new();
-    let report = analyze_for_root(c.root(), |p| seen.push(p)).unwrap();
+    let report = analyze_for_root(c.root(), 0, |p| seen.push(p)).unwrap();
     assert_eq!((report.analyzed, report.failed), (6, 1));
     assert_eq!(seen.first(), Some(&AnalyzeProgress { done: 0, total: 6 }));
     assert_eq!(seen.last(), Some(&AnalyzeProgress { done: 6, total: 6 }));

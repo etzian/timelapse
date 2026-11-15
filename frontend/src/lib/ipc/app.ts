@@ -162,8 +162,12 @@ export interface AnalyzeProgress {
 }
 
 export interface AnalyzeReport {
+  /** Measured in this run. */
   analyzed: number;
   failed: number;
+  /** Still to measure: non-zero when the run was stopped. */
+  remaining: number;
+  cancelled: boolean;
   counts: StatusCounts;
 }
 
@@ -221,11 +225,15 @@ export interface FileOperation {
 const ANALYZE_TIMEOUT_MS = 30 * 60_000;
 const MOVE_TIMEOUT_MS = 10 * 60_000;
 
-export function analyzeImages(root: string, onProgress: (p: AnalyzeProgress) => void): Promise<AnalyzeReport> {
+/** `token` identifies this run for `cancelAnalysis` (any non-zero safe integer). */
+export function analyzeImages(root: string, token: number, onProgress: (p: AnalyzeProgress) => void): Promise<AnalyzeReport> {
   const channel = new Channel<AnalyzeProgress>();
   channel.onmessage = onProgress;
-  return invoke<AnalyzeReport>('analyze_images', { root, onProgress: channel }, ANALYZE_TIMEOUT_MS);
+  return invoke<AnalyzeReport>('analyze_images', { root, token, onProgress: channel }, ANALYZE_TIMEOUT_MS);
 }
+
+/** Stops the run after the photographs being measured; what was measured is kept. */
+export const cancelAnalysis = (token: number) => invoke<void>('cancel_analysis', { token });
 
 export const getCleanSettings = (root: string) => invoke<Thresholds>('get_clean_settings', { root });
 export const setCleanSettings = (root: string, thresholds: Thresholds) =>
