@@ -35,7 +35,7 @@ export interface IntegrityResult {
 }
 
 /** Long-running command (scans + hashes many files); well over the default 10s. */
-const IMPORT_TIMEOUT_MS = 180_000;
+const IMPORT_TIMEOUT_MS = 6 * 60 * 60_000;
 
 export const appInfo = () => invoke<AppInfo>('app_info');
 
@@ -48,7 +48,8 @@ export function pickFolder(): Promise<string | null> {
 export const importRoot = (root: string) => invoke<ImportReport>('import_folder', { root }, IMPORT_TIMEOUT_MS);
 
 export const listImages = (root: string) => invoke<ImageRow[]>('list_images', { root });
-export const integrityCheck = (root: string) => invoke<IntegrityResult>('integrity_check', { root });
+/** Checks that every recorded file still exists: one filesystem call per photograph. */
+export const integrityCheck = (root: string) => invoke<IntegrityResult>('integrity_check', { root }, 10 * 60_000);
 
 // ---- Phase 2 — EXIF & timeline ----------------------------------------------------
 

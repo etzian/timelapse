@@ -35,12 +35,13 @@ fn app_info() -> AppInfo {
 
 /// Phase 1 "import": the UI passes `root` (the folder the user picked). Core derives
 /// the project name + database location and does scan → hash → dedup → upsert,
-/// returning a report. No long-lived writer remains in the shell.
+/// returning a report. No long-lived writer remains in the shell. It reads every byte of
+/// the collection, so it runs on the blocking pool: the window never freezes.
 #[tauri::command]
-fn import_folder(
+async fn import_folder(
     root: PathBuf,
 ) -> std::result::Result<timelapse_core::import::ImportReport, IpcError> {
-    Ok(timelapse_core::import::import_folder(&root)?)
+    blocking(move || timelapse_core::import::import_folder(&root)).await
 }
 
 /// List the inventory rows for `root`.
@@ -53,19 +54,19 @@ fn list_images(
 
 /// Integrity snapshot for `root`: missing files + duplicate groups.
 #[tauri::command]
-fn integrity_check(
+async fn integrity_check(
     root: PathBuf,
 ) -> std::result::Result<timelapse_core::import::store::IntegrityResult, IpcError> {
-    Ok(timelapse_core::import::integrity_for_root(&root)?)
+    blocking(move || timelapse_core::import::integrity_for_root(&root)).await
 }
 
 /// Phase 2: resolve and persist capture times for every imported image of `root` that
 /// has none yet (EXIF → filename → filesystem). Reads originals only.
 #[tauri::command]
-fn backfill_metadata(
+async fn backfill_metadata(
     root: PathBuf,
 ) -> std::result::Result<timelapse_core::import::BackfillReport, IpcError> {
-    Ok(timelapse_core::import::backfill_for_root(&root)?)
+    blocking(move || timelapse_core::import::backfill_for_root(&root)).await
 }
 
 /// Phase 2: the chronological timeline of `root` (unresolved images last).

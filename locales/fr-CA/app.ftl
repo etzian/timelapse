@@ -637,6 +637,7 @@ export-record-saved = Registre enregistré :
 export-record-help = Établi à partir des registres du projet chaque fois qu’il est affiché; l’application ne le relit jamais.
 export-record-label = Registre de la vidéo no { $id }
 
+error-timeout = L’application a mis trop de temps à répondre. Le travail est peut-être encore en cours : patientez un instant, puis réessayez.
 error-contact-sheet = { $reason ->
     [busy] Une autre planche contact est déjà en cours de création.
     [empty] Il n’y a aucune photographie à afficher pour ce choix.

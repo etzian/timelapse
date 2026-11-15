@@ -30,7 +30,7 @@ export async function invoke<T>(command: string, args?: Record<string, unknown>,
   try {
     return await Promise.race([tauriInvoke<T>(command, args), timeout]);
   } catch (err) {
-    if (err instanceof IpcTimeoutError) throw err;
+    if (err instanceof IpcTimeoutError) throw { kind: 'timeout', args: {} } satisfies IpcError;
     throw toIpcError(err);
   } finally {
     clearTimeout(timer);

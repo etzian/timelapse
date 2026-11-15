@@ -638,6 +638,7 @@ export-record-saved = Record saved:
 export-record-help = Made from the project’s records each time it is shown; the app never reads it back.
 export-record-label = Record of video #{ $id }
 
+error-timeout = The app took too long to answer. The work may still be running: wait a moment, then try again.
 error-contact-sheet = { $reason ->
     [busy] Another contact sheet is already being created.
     [empty] There is no photograph to show for this choice.
