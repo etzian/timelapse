@@ -165,7 +165,7 @@ pub fn timeline_for_root(root: &Path) -> Result<Vec<store::TimelineEntry>> {
     store::timeline(&open_root(root)?)
 }
 
-/// Image counts per hour / day / month over an optional `[from, to)` period.
+/// Image counts per hour / day / week / month over an optional `[from, to)` period.
 pub fn distribution_for_root(
     root: &Path,
     granularity: store::Granularity,
@@ -173,6 +173,22 @@ pub fn distribution_for_root(
     to: Option<&str>,
 ) -> Result<Vec<store::DistributionBucket>> {
     store::distribution(&open_root(root)?, granularity, from, to)
+}
+
+/// One page of the photographs of `[from, to)` on the timeline of `root`.
+pub fn timeline_period_for_root(
+    root: &Path,
+    from: &str,
+    to: &str,
+    offset: usize,
+    limit: usize,
+) -> Result<store::TimelinePage> {
+    store::timeline_period(&open_root(root)?, from, to, offset, limit.min(1000))
+}
+
+/// Groups of photographs of `root` that share a capture time, the largest `limit` listed.
+pub fn identical_timestamps_for_root(root: &Path, limit: usize) -> Result<store::IdenticalReport> {
+    store::identical_timestamps(&open_root(root)?, limit.min(1000))
 }
 
 /// Unusually long intervals on the resolved timeline of `root`.
@@ -483,6 +499,51 @@ mod timeline_exit_tests {
         let after = timeline_for_root(root).unwrap();
         assert_eq!(after[0], before[0], "already-resolved row untouched");
         assert_eq!(after.len(), 2);
+    }
+
+    #[test]
+    fn weeks_periods_and_identical_times() {
+        let dir = TempDir::new("p7-weeks");
+        let root = dir.path();
+        // 2024-01-14 is a Sunday, 2024-01-15 a Monday.
+        for (name, at) in [
+            ("sun.jpg", "2024:01:14 23:59:59"),
+            ("mon.jpg", "2024:01:15 00:00:00"),
+            ("burst1.jpg", "2024:01:17 12:00:00"),
+            ("burst2.jpg", "2024:01:17 12:00:00"),
+            ("burst3.jpg", "2024:01:17 12:00:00"),
+            ("pair1.jpg", "2024:01:20 08:00:00"),
+            ("pair2.jpg", "2024:01:20 08:00:00"),
+            ("next.jpg", "2024:01:22 08:00:00"),
+        ] {
+            write_jpeg(&root.join(name), &ExifSpec::original(at));
+        }
+        import_folder(root).unwrap();
+        backfill_for_root(root).unwrap();
+
+        let weeks = distribution_for_root(root, Granularity::Week, None, None).unwrap();
+        let weeks: Vec<(&str, usize)> =
+            weeks.iter().map(|b| (b.bucket.as_str(), b.count)).collect();
+        assert_eq!(weeks, [("2024-01-08", 1), ("2024-01-15", 6), ("2024-01-22", 1)]);
+
+        let page = timeline_period_for_root(root, "2024-01-15", "2024-01-22", 1, 3).unwrap();
+        assert_eq!(page.total, 6);
+        let names: Vec<&str> = page.entries.iter().map(|e| e.relative_path.as_str()).collect();
+        assert_eq!(names, ["burst1.jpg", "burst2.jpg", "burst3.jpg"]);
+        assert!(
+            timeline_period_for_root(root, "2024-01-15", "2024-01-22", 6, 10)
+                .unwrap()
+                .entries
+                .is_empty()
+        );
+
+        let same = identical_timestamps_for_root(root, 1).unwrap();
+        assert_eq!((same.groups, same.photos), (2, 5));
+        assert_eq!(same.largest.len(), 1, "limited");
+        assert_eq!(same.largest[0].count, 3);
+        assert_eq!(same.largest[0].normalized_datetime, "2024-01-17T12:00:00.000Z");
+        assert_eq!(same.largest[0].sample.len(), 3);
+        assert_eq!(identical_timestamps_for_root(root, 10).unwrap().largest[1].count, 2);
     }
 
     #[test]

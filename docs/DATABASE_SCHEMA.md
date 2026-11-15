@@ -356,6 +356,7 @@ whose version is newer than the build (left untouched, never recreated).
 
 - *Timeline* — every image `ORDER BY normalized_datetime IS NULL, normalized_datetime, original_path`, with `unixepoch(normalized_datetime, 'subsec')` as epoch milliseconds; unresolved images last, never dropped.
 - *Distribution over a period* — `strftime('%Y-%m-%dT%H' | '%Y-%m-%d' | '%Y-%m', normalized_datetime)` (each key is a prefix of the values it counts, so it can be passed back as a bound) with `COUNT(*)`, optionally bounded by `from <= normalized_datetime < to`.
+- *Weeks and identical times (Phase 7)* — a week bucket is `date(normalized_datetime, '-6 days', 'weekday 1')`, the Monday that starts it (the week ends 7 days later). Identical times are `GROUP BY normalized_datetime HAVING COUNT(*) > 1`, largest groups first. A period's photographs are paged with `LIMIT`/`OFFSET` in timeline order.
 - *Gaps* — computed over the resolved timeline: consecutive intervals longer than `max(min_seconds, factor × median interval)` (defaults 3600 s, ×10; caller values clamped to `[0, 1e6]` and `[0, 100 years]`), each flagged `source_changed` when its two sides differ in source or zone assumption. Reported only; no value is adjusted.
 
 **Phase 7 table (v7):**

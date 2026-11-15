@@ -663,33 +663,145 @@ pub struct TimelineEntry {
 /// `normalized_datetime == None` — visible, never dropped.
 pub fn timeline(conn: &Connection) -> Result<Vec<TimelineEntry>, Error> {
     let mut stmt = conn
+        .prepare(&format!(
+            "SELECT {TIMELINE_COLUMNS} FROM images
+             ORDER BY normalized_datetime IS NULL, normalized_datetime, original_path"
+        ))
+        .map_err(|_| Error::StoreTransaction)?;
+    let rows = stmt.query_map([], timeline_entry).map_err(|_| Error::StoreTransaction)?;
+    rows.collect::<Result<_, _>>().map_err(|_| Error::StoreTransaction)
+}
+
+const TIMELINE_COLUMNS: &str = "id, relative_path, normalized_datetime,
+    CAST(round(unixepoch(normalized_datetime, 'subsec') * 1000) AS INTEGER),
+    timestamp_source, timestamp_confidence, timestamp_offset_minutes";
+
+fn timeline_entry(r: &rusqlite::Row<'_>) -> rusqlite::Result<TimelineEntry> {
+    let normalized: Option<String> = r.get(2)?;
+    let offset: Option<i64> = r.get(6)?;
+    Ok(TimelineEntry {
+        id: r.get(0)?,
+        relative_path: r.get(1)?,
+        tz_assumed: normalized.is_some() && offset.is_none(),
+        normalized_datetime: normalized,
+        epoch_ms: r.get(3)?,
+        source: r.get(4)?,
+        confidence: r.get(5)?,
+        offset_minutes: offset,
+    })
+}
+
+/// One page of the photographs of a period, in timeline order.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+pub struct TimelinePage {
+    /// Photographs in the whole period.
+    pub total: usize,
+    pub entries: Vec<TimelineEntry>,
+}
+
+/// The photographs with `from <= normalized_datetime < to` (normalised format or a prefix
+/// of it), `limit` of them from `offset` on.
+pub fn timeline_period(
+    conn: &Connection,
+    from: &str,
+    to: &str,
+    offset: usize,
+    limit: usize,
+) -> Result<TimelinePage, Error> {
+    let tx = |_| Error::StoreTransaction;
+    const WHERE: &str = "normalized_datetime IS NOT NULL
+        AND normalized_datetime >= ?1 AND normalized_datetime < ?2";
+    let total: i64 = conn
+        .query_row(&format!("SELECT COUNT(*) FROM images WHERE {WHERE}"), params![from, to], |r| {
+            r.get(0)
+        })
+        .map_err(tx)?;
+    let mut stmt = conn
+        .prepare(&format!(
+            "SELECT {TIMELINE_COLUMNS} FROM images WHERE {WHERE}
+             ORDER BY normalized_datetime, original_path LIMIT ?3 OFFSET ?4"
+        ))
+        .map_err(tx)?;
+    let rows = stmt
+        .query_map(params![from, to, limit as i64, offset as i64], timeline_entry)
+        .map_err(tx)?;
+    Ok(TimelinePage { total: total as usize, entries: rows.collect::<Result<_, _>>().map_err(tx)? })
+}
+
+/// Photographs that share one capture time (PRD §5.3): often a burst, sometimes a camera
+/// whose clock was not set, or copies.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+pub struct IdenticalGroup {
+    pub normalized_datetime: String,
+    pub epoch_ms: i64,
+    pub count: usize,
+    /// The first few photographs of the group, in path order.
+    pub sample: Vec<TimelineEntry>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+pub struct IdenticalReport {
+    /// Groups of two or more photographs with the same time, and the photographs in them.
+    pub groups: usize,
+    pub photos: usize,
+    /// The largest groups first (then chronological), at most `limit`.
+    pub largest: Vec<IdenticalGroup>,
+}
+
+/// Photographs per group in [`IdenticalGroup::sample`].
+pub const IDENTICAL_SAMPLE: usize = 6;
+
+pub fn identical_timestamps(conn: &Connection, limit: usize) -> Result<IdenticalReport, Error> {
+    let tx = |_| Error::StoreTransaction;
+    let (groups, photos): (i64, i64) = conn
+        .query_row(
+            r#"
+                SELECT COUNT(*), COALESCE(SUM(n), 0) FROM (
+                    SELECT COUNT(*) AS n FROM images WHERE normalized_datetime IS NOT NULL
+                    GROUP BY normalized_datetime HAVING n > 1)
+            "#,
+            [],
+            |r| Ok((r.get(0)?, r.get(1)?)),
+        )
+        .map_err(tx)?;
+    let mut stmt = conn
         .prepare(
             r#"
-                SELECT id, relative_path, normalized_datetime,
+                SELECT normalized_datetime,
                        CAST(round(unixepoch(normalized_datetime, 'subsec') * 1000) AS INTEGER),
-                       timestamp_source, timestamp_confidence, timestamp_offset_minutes
-                FROM images
-                ORDER BY normalized_datetime IS NULL, normalized_datetime, original_path
+                       COUNT(*) AS n
+                FROM images WHERE normalized_datetime IS NOT NULL
+                GROUP BY normalized_datetime HAVING n > 1
+                ORDER BY n DESC, normalized_datetime LIMIT ?1
             "#,
         )
-        .map_err(|_| Error::StoreTransaction)?;
-    let rows = stmt
-        .query_map([], |r| {
-            let normalized: Option<String> = r.get(2)?;
-            let offset: Option<i64> = r.get(6)?;
-            Ok(TimelineEntry {
-                id: r.get(0)?,
-                relative_path: r.get(1)?,
-                tz_assumed: normalized.is_some() && offset.is_none(),
-                normalized_datetime: normalized,
-                epoch_ms: r.get(3)?,
-                source: r.get(4)?,
-                confidence: r.get(5)?,
-                offset_minutes: offset,
-            })
-        })
-        .map_err(|_| Error::StoreTransaction)?;
-    rows.collect::<Result<_, _>>().map_err(|_| Error::StoreTransaction)
+        .map_err(tx)?;
+    let heads: Vec<(String, i64, i64)> = stmt
+        .query_map([limit as i64], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)))
+        .map_err(tx)?
+        .collect::<Result<_, _>>()
+        .map_err(tx)?;
+    let mut sample = conn
+        .prepare(&format!(
+            "SELECT {TIMELINE_COLUMNS} FROM images WHERE normalized_datetime = ?1
+             ORDER BY original_path LIMIT ?2"
+        ))
+        .map_err(tx)?;
+    let mut largest = Vec::with_capacity(heads.len());
+    for (normalized_datetime, epoch_ms, n) in heads {
+        let entries = sample
+            .query_map(params![normalized_datetime, IDENTICAL_SAMPLE as i64], timeline_entry)
+            .map_err(tx)?
+            .collect::<Result<_, _>>()
+            .map_err(tx)?;
+        largest.push(IdenticalGroup {
+            normalized_datetime,
+            epoch_ms,
+            count: n as usize,
+            sample: entries,
+        });
+    }
+    Ok(IdenticalReport { groups: groups as usize, photos: photos as usize, largest })
 }
 
 /// Bucket size for [`distribution`].
@@ -698,16 +810,19 @@ pub fn timeline(conn: &Connection) -> Result<Vec<TimelineEntry>, Error> {
 pub enum Granularity {
     Hour,
     Day,
+    /// Keyed by the Monday that starts the week (`YYYY-MM-DD`).
+    Week,
     Month,
 }
 
 impl Granularity {
-    /// `strftime` format of the bucket key. Every key is a prefix of the normalised values
-    /// it counts, so a key can be passed back as a `from` bound (drill-down).
+    /// `strftime` format of the bucket key. Except for weeks, every key is a prefix of the
+    /// normalised values it counts, so it can be passed back as a `from` bound
+    /// (drill-down); a week's key is its Monday, the week ends 7 days later.
     fn strftime(self) -> &'static str {
         match self {
             Self::Hour => "%Y-%m-%dT%H",
-            Self::Day => "%Y-%m-%d",
+            Self::Day | Self::Week => "%Y-%m-%d",
             Self::Month => "%Y-%m",
         }
     }
@@ -715,12 +830,13 @@ impl Granularity {
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct DistributionBucket {
-    /// UTC bucket key: `YYYY-MM-DDTHH`, `YYYY-MM-DD` or `YYYY-MM`.
+    /// UTC bucket key: `YYYY-MM-DDTHH`, `YYYY-MM-DD` (a day, or the Monday of a week) or
+    /// `YYYY-MM`.
     pub bucket: String,
     pub count: usize,
 }
 
-/// The "distribution over a period": image counts per hour / day / month (UTC), in
+/// The "distribution over a period": image counts per hour / day / week / month (UTC), in
 /// chronological order, optionally limited to `from <= normalized_datetime < to` (both
 /// in the normalised format or a prefix of it, e.g. `2024-01`). Empty buckets are omitted.
 pub fn distribution(
@@ -732,7 +848,8 @@ pub fn distribution(
     let mut stmt = conn
         .prepare(
             r#"
-                SELECT strftime(?1, normalized_datetime) AS bucket, COUNT(*)
+                SELECT CASE WHEN ?4 THEN date(normalized_datetime, '-6 days', 'weekday 1')
+                            ELSE strftime(?1, normalized_datetime) END AS bucket, COUNT(*)
                 FROM images
                 WHERE normalized_datetime IS NOT NULL
                   AND (?2 IS NULL OR normalized_datetime >= ?2)
@@ -742,9 +859,10 @@ pub fn distribution(
         )
         .map_err(|_| Error::StoreTransaction)?;
     let rows = stmt
-        .query_map(params![granularity.strftime(), from, to], |r| {
-            Ok(DistributionBucket { bucket: r.get(0)?, count: r.get::<_, i64>(1)? as usize })
-        })
+        .query_map(
+            params![granularity.strftime(), from, to, granularity == Granularity::Week],
+            |r| Ok(DistributionBucket { bucket: r.get(0)?, count: r.get::<_, i64>(1)? as usize }),
+        )
         .map_err(|_| Error::StoreTransaction)?;
     rows.collect::<Result<_, _>>().map_err(|_| Error::StoreTransaction)
 }
