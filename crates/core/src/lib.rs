@@ -4,6 +4,7 @@
 //! `crates/core` independent of Tauri"). The UI and the Tauri shell are thin
 //! adapters over this module's API.
 
+pub mod adjust;
 pub mod clean;
 pub mod consolidate;
 pub mod contact_sheet;
