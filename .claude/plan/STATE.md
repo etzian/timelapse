@@ -1,6 +1,6 @@
 # STATE
 
-STATUS: DONE
+STATUS: RUNNING
 <!-- PENDING | RUNNING | DONE | BLOCKED -->
 
 ## Contract
@@ -23,23 +23,25 @@ STATUS: DONE
 | 5 | FFmpeg video generation | **done (2026-11-15)**, exit criterion proven on the macOS CI runner (run 43664224239). Review BLOCK → fixed → SIGN-OFF WITH NOTES. ffmpeg + svt-av1 licence exceptions approved by the user 2026-11-14 |
 | 6 | Consolidation & file management | **done (2026-11-15)**, exit criterion proven by the consolidation exit tests on Windows and the macOS CI runner (run 43679518712, APFS clone path). Review BLOCK → fixed → SIGN-OFF WITH NOTES → notes A–C fixed |
 | 7 | Advanced UI & contact sheets | **done (2026-11-15)**, exit criterion proven by the contact-sheet exit tests on Windows and the macOS CI runner (run 43713955977). Review SIGN-OFF WITH NOTES → defects 1–7 fixed |
+| 8 | Flicker reduction & stabilization | **running** (branch `phase-8-flicker-stabilization`) |
 
-## Slice status (Phase 7)
+## Slice status (Phase 8)
 
 | Slice | Status | Gate |
 | --- | --- | --- |
-| P7.0 ADR-024, plan | done | GATE-FAST |
-| P7.1 Layout + PDF writer (pure) | done | GATE-FAST |
-| P7.2 Sources, generation, store v7 | done | GATE-FAST |
-| P7.3 Export record | done | GATE-FAST |
-| P7.4 Timeline additions | done | GATE-FAST |
-| P7.5 Commands | done | GATE-UI |
-| P7.6 UI | done | GATE-UI + legal check/gen |
-| P7.7 Exit tests + review | done | reviewer sign-off; GATE-FULL; CI green |
-| P7.8 Final gate + commit/push | done | GATE-FULL |
+| P8.0 ADR-025, plan | done | GATE-FAST |
+| P8.1 Deflicker (pure) | pending | GATE-FAST |
+| P8.2 Stabilization (pure) | pending | GATE-FAST |
+| P8.3 Runs, store v8, analysis | pending | GATE-FAST |
+| P8.4 Encode integration | pending | GATE-FAST |
+| P8.5 Commands | pending | GATE-UI |
+| P8.6 UI | pending | GATE-UI + legal check/gen |
+| P8.7 Exit tests + review | pending | reviewer sign-off; GATE-FULL; CI green |
+| P8.8 Final gate + commit/push | pending | GATE-FULL; user item: real GoPro check |
 
 ## Handoff log
 
+- **2026-11-15 — Phase 8 kicked off.** Phase 7 plan/state archived. Since Phase 7, on main: import skips hidden files (`._*`), large imports run off the main thread with a 6 h limit, dev builds optimise dependencies, bulk keep/reject, a Stop button for the analysis, Sampling dates default to the photographs' span. User decisions: translation-only stabilization in Rust (no new dependency; vidstab is GPL); deflicker on luminance and colour; the user's real-GoPro visual check is a phase item.
 - **2026-11-15 — Phase 7 DONE.**
   - **ADR-024:** contact sheets are a streamed PDF (`pdf-writer` 0.15, MIT OR Apache-2.0, approved) with the standard Helvetica font in WinAnsi (no bundled font; other scripts print `?`), written to `.timelapse/contact-sheets/<id>.pdf` with a history.
   - **Core** (`crates/core/src/contact_sheet/`):

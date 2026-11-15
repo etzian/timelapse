@@ -395,6 +395,55 @@ The Export page shows it and can write it to `.timelapse/exports/<id>.record.jso
 
 ---
 
+## ADR-025 — Deflicker and stabilization: stored per-frame values applied at encode
+
+**Status:** Accepted (2026-11-15, approved by the user: translation-only stabilization in Rust, luminance and colour deflicker, the user's real-sequence check as a phase item)
+
+**Context.** PRD §5.9 and §5.10, Pipeline §8–9, ADR-012 and ADR-013. D5 and the roadmap require the corrections to be stored in SQLite (`flicker_runs`) and consumed by the Phase 5 encode, never through a manifest file. The export already decodes every photograph in Rust and pipes raw RGB to FFmpeg (ADR-021), so corrections are applied in Rust, per frame, before piping. FFmpeg's `vidstab` is GPL-licensed and cannot enter the LGPL build (ADR-022); no FFmpeg filter is used.
+
+**Deflicker** (`adjust::deflicker`).
+- **Measurement:** for each frame of a saved selection, in sequence order, the mean of R, G and B in linear light on the cached review thumbnail (ADR-020). Pixels that are clipped (any channel ≥ 250) or near black (all ≤ 4) are ignored.
+- **Trend:** in log space (luminance `Y = 0.2126 R + 0.7152 G + 0.0722 B`, and each channel's ratio to `Y`), a centred running median of N frames (N odd, default 15), followed by a running mean of N. Both windows shrink at the ends. A slow change (sunrise, sunset, a passing cloud bank) is part of the trend and is kept; a jump of a frame or a few is pulled back toward it.
+- **Gains:**
+  - exposure: `exp(s × (trend − value))`, with strength `s` in 0–1 (default 0.8), clamped to ±1 stop;
+  - colour, optional and on by default: the same per channel on the ratio to `Y`, clamped to ±⅓ stop.
+  - The three channel gains are the exposure gain times each colour gain.
+- **Application:** per frame, three 256-entry lookup tables (sRGB → linear × gain → sRGB, clamped). Black stays black and the letterbox stays black.
+
+**Stabilization** (`adjust::stabilize`).
+- **Shift estimation:** between consecutive frames, on the cached 1024 px thumbnails converted to grayscale and normalised (zero mean, unit contrast) so a brightness change does not read as motion. A 4-level pyramid; an exhaustive search of ±12 px at the coarsest level, then ±2 px refinement per level; a sub-pixel parabola fit; a 10% border ignored. The confidence is the ratio of the best match to the median of its neighbourhood. A pair with low confidence, or a shift over 10% of the frame (a cut), counts as no shift.
+- **Path:** the cumulative shift. Smoothed by a centred running mean of M frames (default 31), so an intended pan stays.
+- **Correction:** smoothed − measured, clamped to the crop limit, in fractions of the frame. The crop of the run is the largest correction used, at most 5% per side (configurable from 1 to 5%). The same crop applies to every frame, so the framing does not breathe.
+- **No rotation:** rotation, perspective and rolling-shutter are out of scope.
+
+**Storage (schema v8).**
+- `flicker_runs` and `flicker_frames` hold, per frame, the measured channel means, the trend and the three gains.
+- `stabilization_runs` and `stabilization_frames` hold the pairwise shift and confidence, the path, the smoothed path and the correction; the run holds the crop.
+- Each run records its sampling run, configuration, algorithm version and the selection's sequence fingerprint, plus a results summary.
+- A run is stored complete or not at all.
+- Stabilization has its own tables because it is independent of flicker (ADR-013). The roadmap's "traceable in `flicker_runs`" holds for the deflicker gains, and in the same way for stabilization in its tables.
+
+**Encode (D5).**
+- `ExportSettings` gains `flicker_run` and `stabilization_run`, both optional.
+- The export reads those runs' frames from SQLite and refuses with `adjustment-mismatch` if a run is incomplete or belongs to another selection.
+- Each source is shifted and cropped before it is fitted to the output size, then passed through its lookup tables.
+- The runs used are recorded in `video_exports.settings_json`, so the derived export record (ADR-015) shows them. No manifest file exists.
+
+**Reproducible.** The algorithms are deterministic: integer and fixed-order float arithmetic, parallel work collected in order. The same selection, configuration and thumbnails give identical stored values, which a test checks.
+
+**Validation.** Synthetic sequences in tests:
+- random flicker on a ramp;
+- a colour flicker;
+- a jittering pan;
+- a cut;
+- a featureless frame.
+
+The real-GoPro check of PRD §5.9 is the user's (a phase item, not claimed by tests).
+
+**Out of scope:** rotation, local (per-region) deflicker, preview videos, auto-tuning, any new dependency.
+
+---
+
 ## Open decisions
 
 The following decisions must be investigated and presented for approval before implementation makes them difficult to change.
