@@ -45,7 +45,7 @@ Here is what the app keeps on your device:
 
 | Your saved sampling selections (method, settings, ordered list of the selected photographs and a fingerprint of the available photographs) | Other | Make the video from an exact, reproducible sequence | Necessary to provide the service you asked for | On your device | Until you delete the project's database (.timelapse/ folder) |
 
-| The videos you create (.timelapse/exports/ folder) and the record of each export (settings, FFmpeg version, command, result) | Other | Make your timelapse video and be able to reproduce it exactly | Necessary to provide the service you asked for | On your device | Until you delete the videos or the project's .timelapse/ folder yourself |
+| The videos you create (.timelapse/exports/ folder) and the record of each export (settings, FFmpeg version, command, result), which you can also save as a .record.json file in that folder | Other | Make your timelapse video and be able to reproduce it exactly | Necessary to provide the service you asked for | On your device | Until you delete the videos or the project's .timelapse/ folder yourself |
 
 | The copies or originals placed in the working folder you choose, and the record of each organization (working folder, settings, source and target paths, file fingerprints, result) | Other | Gather your photographs into a working folder, verify the files and be able to undo the operation | Necessary to provide the service you asked for | On your device | Placed files stay until you undo the organization or delete them yourself; the record stays until you delete the project's .timelapse/ folder |
 

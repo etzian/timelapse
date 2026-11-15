@@ -25,7 +25,7 @@ Law 25: personal information is destroyed or anonymized once the purpose is achi
 
 | Your saved sampling selections (method, settings, ordered list of the selected photographs and a fingerprint of the available photographs) | Other | On your device | Until you delete the project's database (.timelapse/ folder) | _to complete_ | _date_ |
 
-| The videos you create (.timelapse/exports/ folder) and the record of each export (settings, FFmpeg version, command, result) | Other | On your device | Until you delete the videos or the project's .timelapse/ folder yourself | _to complete_ | _date_ |
+| The videos you create (.timelapse/exports/ folder) and the record of each export (settings, FFmpeg version, command, result), which you can also save as a .record.json file in that folder | Other | On your device | Until you delete the videos or the project's .timelapse/ folder yourself | _to complete_ | _date_ |
 
 | The copies or originals placed in the working folder you choose, and the record of each organization (working folder, settings, source and target paths, file fingerprints, result) | Other | On your device | Placed files stay until you undo the organization or delete them yourself; the record stays until you delete the project's .timelapse/ folder | _to complete_ | _date_ |
 

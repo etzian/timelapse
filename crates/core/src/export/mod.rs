@@ -14,6 +14,7 @@
 
 pub mod ffmpeg;
 pub mod frames;
+pub mod record;
 pub mod settings;
 pub mod store;
 

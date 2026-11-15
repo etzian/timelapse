@@ -73,7 +73,7 @@ data:
     storage: { location: device }
     retention: { fr-CA: "Jusqu'à ce que vous supprimiez la base de données du projet (dossier .timelapse/)", en: "Until you delete the project's database (.timelapse/ folder)" }
   - id: video-exports
-    label: { fr-CA: "Les vidéos que vous créez (dossier .timelapse/exports/) et le journal de chaque exportation (réglages, version de FFmpeg, commande, résultat)", en: "The videos you create (.timelapse/exports/ folder) and the record of each export (settings, FFmpeg version, command, result)" }
+    label: { fr-CA: "Les vidéos que vous créez (dossier .timelapse/exports/) et le journal de chaque exportation (réglages, version de FFmpeg, commande, résultat), que vous pouvez aussi enregistrer comme fichier .record.json dans ce dossier", en: "The videos you create (.timelapse/exports/ folder) and the record of each export (settings, FFmpeg version, command, result), which you can also save as a .record.json file in that folder" }
     category: other
     purpose: { fr-CA: "Produire votre vidéo timelapse et pouvoir la reproduire à l'identique", en: "Make your timelapse video and be able to reproduce it exactly" }
     basis: necessary-for-service
