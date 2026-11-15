@@ -563,7 +563,7 @@
     position: absolute;
     top: var(--ez-space-xs);
     left: var(--ez-space-xs);
-    z-index: 1;
+    z-index: var(--ez-z-raised);
     display: flex;
     padding: var(--ez-space-2xs);
     border-radius: var(--ez-radius-sm);
