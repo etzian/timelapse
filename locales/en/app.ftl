@@ -130,6 +130,58 @@ clean-inspect = Inspect { $path }
 clean-user-decision = Your decision
 clean-metrics = Average { $mean } · { $dark } dark
 clean-accept = Keep
+clean-bulk-label = Decide for several photographs
+clean-select-photo = Select { $path }
+clean-select-all = Select all { $count }
+clean-select-none = Clear selection
+clean-selected = { $count ->
+    [one] { $count } photograph selected
+   *[other] { $count } photographs selected
+}
+clean-selected-beyond = { $count ->
+    [one] including { $count } not shown below
+   *[other] including { $count } not shown below
+}
+clean-bulk-accept = Keep selected
+clean-bulk-reject = Reject selected
+clean-bulk-clear = Clear their decisions
+clean-bulk-accept-title = { $count ->
+    [one] Keep { $count } photograph?
+   *[other] Keep { $count } photographs?
+}
+clean-bulk-accept-body = { $count ->
+    [one] It stays available to sampling and the video, whatever the analysis proposed.
+   *[other] They stay available to sampling and the video, whatever the analysis proposed.
+}
+clean-bulk-accept-action = { $count ->
+    [one] Keep { $count } photograph
+   *[other] Keep { $count } photographs
+}
+clean-bulk-reject-title = { $count ->
+    [one] Reject { $count } photograph?
+   *[other] Reject { $count } photographs?
+}
+clean-bulk-reject-body = { $count ->
+    [one] It is left out of sampling and the video. The file is not moved or deleted.
+   *[other] They are left out of sampling and the video. The files are not moved or deleted.
+}
+clean-bulk-reject-action = { $count ->
+    [one] Reject { $count } photograph
+   *[other] Reject { $count } photographs
+}
+clean-bulk-clear-title = { $count ->
+    [one] Clear the decision on { $count } photograph?
+   *[other] Clear the decisions on { $count } photographs?
+}
+clean-bulk-clear-body = { $count ->
+    [one] It goes back to what the analysis proposes.
+   *[other] They go back to what the analysis proposes.
+}
+clean-bulk-clear-action = { $count ->
+    [one] Clear { $count } decision
+   *[other] Clear { $count } decisions
+}
+clean-bulk-undo = You can change these decisions at any time.
 clean-reject = Reject
 clean-clear = Undo decision
 clean-restore = Restore

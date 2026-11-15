@@ -68,4 +68,18 @@ describe('cleaning helpers', () => {
   it('base64-encodes thumbnail bytes', () => {
     expect(toBase64(new Uint8Array([0xff, 0xd8, 0xff]))).toBe('/9j/');
   });
+
+  it('has every bulk-decision text, singular and plural, in both locales', () => {
+    for (const locale of ['en', 'fr-CA'] as const) {
+      setLocale(locale);
+      for (const d of ['accept', 'reject', 'clear'] as const) {
+        for (const part of ['title', 'body', 'action']) {
+          const id = `clean-bulk-${d}-${part}`;
+          expect(t(id, { count: 1 })).not.toBe(id);
+          expect(t(id, { count: 1 })).not.toBe(t(id, { count: 3 }));
+        }
+      }
+      expect(t('clean-selected', { count: 2 })).toContain('2');
+    }
+  });
 });

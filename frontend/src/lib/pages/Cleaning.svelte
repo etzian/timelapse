@@ -59,6 +59,11 @@
 
   let confirmOpen = $state(false);
   let moving = $state(false);
+
+  // Bulk decisions: the photographs ticked on the current tab, and the decision to confirm.
+  let selection = $state<Record<number, true>>({});
+  let bulk = $state<Decision | null>(null);
+  let deciding = $state(false);
   let outcome = $state<{ kind: 'quarantine' | 'restore'; ok: number; failures: OpOutcome[] } | null>(null);
 
   const counts = $derived<StatusCounts>(
@@ -74,6 +79,10 @@
   const visible = $derived((items ?? []).filter((i) => filter === 'all' || i.status === filter));
   const page = $derived(visible.slice(0, shown));
   const rejectedIds = $derived((items ?? []).filter((i) => i.status === 'rejected').map((i) => i.id));
+  /** Photographs of this tab a decision can apply to (a quarantined one must be restored first). */
+  const decidable = $derived(visible.filter((i) => i.status !== null && i.status !== 'quarantined'));
+  const selectedIds = $derived(decidable.filter((i) => selection[i.id]).map((i) => i.id));
+  const allSelected = $derived(decidable.length > 0 && selectedIds.length === decidable.length);
   const quarantinePath = $derived(root ? `${root}${root.includes('\\') ? '\\' : '/'}.timelapse${root.includes('\\') ? '\\' : '/'}quarantine` : '');
   const filterItems = $derived(
     (['flagged', 'rejected', 'quarantined', 'all'] as const).map((key) => ({
@@ -114,6 +123,8 @@
     thumbFailed = {};
     requested = new Set();
     outcome = null;
+    selection = {};
+    bulk = null;
     void loadSettings();
     void loadReview();
   });
@@ -181,6 +192,31 @@
     }
   }
 
+  async function decideSelected(): Promise<void> {
+    const decision = bulk;
+    if (!decision || deciding || selectedIds.length === 0) return;
+    deciding = true;
+    try {
+      await decide(selectedIds, decision);
+      selection = {};
+    } finally {
+      deciding = false;
+      bulk = null;
+    }
+  }
+
+  function toggle(id: number, on: boolean): void {
+    if (on) selection = { ...selection, [id]: true };
+    else {
+      const { [id]: _off, ...rest } = selection;
+      selection = rest;
+    }
+  }
+
+  function selectAll(): void {
+    selection = Object.fromEntries(decidable.map((i) => [i.id, true as const]));
+  }
+
   async function move(kind: 'quarantine' | 'restore', ids: number[]): Promise<void> {
     if (moving || ids.length === 0) return;
     moving = true;
@@ -214,6 +250,7 @@
   function changeFilter(key: string): void {
     filter = key as Filter;
     shown = PAGE;
+    selection = {};
   }
 
   const statusOf = (s: ImageStatus | null) => (s ? t(STATUS_KEYS[s]) : t('clean-status-unanalyzed'));
@@ -333,9 +370,37 @@
             </Button>
           </div>
         {/if}
+        {#if decidable.length > 0}
+          <div class="app-clean__bulk" role="group" aria-label={t('clean-bulk-label')}>
+            {#if allSelected}
+              <Button size="sm" variant="ghost" onclick={() => (selection = {})} disabled={deciding}>{t('clean-select-none')}</Button>
+            {:else}
+              <Button size="sm" variant="ghost" onclick={selectAll} disabled={deciding}>{t('clean-select-all', { count: decidable.length })}</Button>
+            {/if}
+            {#if selectedIds.length > 0}
+              <span class="app-clean__note" aria-live="polite">{t('clean-selected', { count: selectedIds.length })}</span>
+              <Button size="sm" variant="secondary" onclick={() => (bulk = 'accept')} disabled={deciding || moving}>{t('clean-bulk-accept')}</Button>
+              <Button size="sm" variant="secondary" onclick={() => (bulk = 'reject')} disabled={deciding || moving}>{t('clean-bulk-reject')}</Button>
+              <Button size="sm" variant="ghost" onclick={() => (bulk = 'clear')} disabled={deciding || moving}>{t('clean-bulk-clear')}</Button>
+              {#if selectedIds.length > page.length}
+                <span class="app-clean__note">{t('clean-selected-beyond', { count: selectedIds.length - page.filter((i) => selection[i.id]).length })}</span>
+              {/if}
+            {/if}
+          </div>
+        {/if}
         <ul class="app-clean__grid">
           {#each page as item (item.id)}
-            <li class="app-clean__tile">
+            <li class="app-clean__tile" class:app-clean__tile--selected={!!selection[item.id]}>
+              {#if item.status && item.status !== 'quarantined'}
+                <label class="app-clean__pick">
+                  <input
+                    type="checkbox"
+                    checked={!!selection[item.id]}
+                    onchange={(e) => toggle(item.id, e.currentTarget.checked)}
+                    aria-label={t('clean-select-photo', { path: item.relative_path })}
+                  />
+                </label>
+              {/if}
               <button type="button" class="app-clean__thumb" onclick={() => openInspect(item)} aria-label={t('clean-inspect', { path: item.relative_path })}>
                 {#if thumbs[item.id]}
                   <img src={thumbs[item.id]} alt="" />
@@ -394,6 +459,19 @@
     <Button variant="secondary" onclick={() => (confirmOpen = false)} disabled={moving}>{t('clean-cancel')}</Button>
     <Button variant="danger" onclick={() => move('quarantine', rejectedIds)} disabled={moving}>
       {moving ? t('clean-moving') : t('clean-confirm-action', { count: rejectedIds.length })}
+    </Button>
+  {/snippet}
+</Modal>
+
+<Modal open={bulk !== null} title={bulk ? t(`clean-bulk-${bulk}-title`, { count: selectedIds.length }) : ''} onclose={() => (bulk = null)}>
+  {#if bulk}
+    <p>{t(`clean-bulk-${bulk}-body`, { count: selectedIds.length })}</p>
+    <p class="app-clean__note">{t('clean-bulk-undo')}</p>
+  {/if}
+  {#snippet footer()}
+    <Button variant="secondary" onclick={() => (bulk = null)} disabled={deciding}>{t('clean-cancel')}</Button>
+    <Button variant={bulk === 'reject' ? 'danger' : 'primary'} onclick={decideSelected} disabled={deciding}>
+      {bulk ? t(`clean-bulk-${bulk}-action`, { count: selectedIds.length }) : ''}
     </Button>
   {/snippet}
 </Modal>
@@ -470,7 +548,36 @@
     grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
     gap: var(--ez-space-md);
   }
+  .app-clean__bulk {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--ez-space-xs);
+    margin: var(--ez-space-sm) 0;
+  }
+  .app-clean__tile--selected {
+    outline: 2px solid var(--ez-color-accent);
+    outline-offset: 2px;
+  }
+  .app-clean__pick {
+    position: absolute;
+    top: var(--ez-space-xs);
+    left: var(--ez-space-xs);
+    z-index: 1;
+    display: flex;
+    padding: var(--ez-space-2xs);
+    border-radius: var(--ez-radius-sm);
+    background: var(--ez-color-surface);
+    cursor: pointer;
+  }
+  .app-clean__pick input {
+    width: 1.1rem;
+    height: 1.1rem;
+    margin: 0;
+    cursor: pointer;
+  }
   .app-clean__tile {
+    position: relative;
     display: flex;
     flex-direction: column;
     gap: var(--ez-space-xs);

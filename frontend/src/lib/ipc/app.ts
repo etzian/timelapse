@@ -232,8 +232,9 @@ export const setCleanSettings = (root: string, thresholds: Thresholds) =>
   invoke<ThresholdsApplied>('set_clean_settings', { root, thresholds });
 export const classifyImages = (root: string) => invoke<StatusCounts>('classify_images', { root });
 export const getReview = (root: string, statuses: ImageStatus[] = []) => invoke<ReviewItem[]>('get_review', { root, statuses });
+/** One transaction for every id; a bulk decision on thousands of photographs takes a moment. */
 export const setDecision = (root: string, ids: number[], decision: Decision) =>
-  invoke<StatusCounts>('set_decision', { root, ids, decision });
+  invoke<StatusCounts>('set_decision', { root, ids, decision }, 120_000);
 export const quarantineImages = (root: string, ids: number[]) =>
   invoke<OpOutcome[]>('quarantine_images', { root, ids }, MOVE_TIMEOUT_MS);
 export const restoreImages = (root: string, ids: number[]) => invoke<OpOutcome[]>('restore_images', { root, ids }, MOVE_TIMEOUT_MS);

@@ -129,6 +129,58 @@ clean-unanalyzed-description = Analysez la collection pour mesurer la luminosit�
 clean-inspect = Examiner { $path }
 clean-user-decision = Votre décision
 clean-metrics = Moyenne { $mean } · { $dark } sombre
+clean-bulk-label = Décider pour plusieurs photographies
+clean-select-photo = Sélectionner { $path }
+clean-select-all = Tout sélectionner ({ $count })
+clean-select-none = Effacer la sélection
+clean-selected = { $count ->
+    [one] { $count } photographie sélectionnée
+   *[other] { $count } photographies sélectionnées
+}
+clean-selected-beyond = { $count ->
+    [one] dont { $count } non affichée ci-dessous
+   *[other] dont { $count } non affichées ci-dessous
+}
+clean-bulk-accept = Conserver la sélection
+clean-bulk-reject = Rejeter la sélection
+clean-bulk-clear = Effacer leurs décisions
+clean-bulk-accept-title = { $count ->
+    [one] Conserver { $count } photographie?
+   *[other] Conserver { $count } photographies?
+}
+clean-bulk-accept-body = { $count ->
+    [one] Elle reste disponible pour l’échantillonnage et la vidéo, quoi que l’analyse ait proposé.
+   *[other] Elles restent disponibles pour l’échantillonnage et la vidéo, quoi que l’analyse ait proposé.
+}
+clean-bulk-accept-action = { $count ->
+    [one] Conserver { $count } photographie
+   *[other] Conserver { $count } photographies
+}
+clean-bulk-reject-title = { $count ->
+    [one] Rejeter { $count } photographie?
+   *[other] Rejeter { $count } photographies?
+}
+clean-bulk-reject-body = { $count ->
+    [one] Elle est exclue de l’échantillonnage et de la vidéo. Le fichier n’est ni déplacé ni supprimé.
+   *[other] Elles sont exclues de l’échantillonnage et de la vidéo. Les fichiers ne sont ni déplacés ni supprimés.
+}
+clean-bulk-reject-action = { $count ->
+    [one] Rejeter { $count } photographie
+   *[other] Rejeter { $count } photographies
+}
+clean-bulk-clear-title = { $count ->
+    [one] Effacer la décision sur { $count } photographie?
+   *[other] Effacer les décisions sur { $count } photographies?
+}
+clean-bulk-clear-body = { $count ->
+    [one] Elle revient à ce que propose l’analyse.
+   *[other] Elles reviennent à ce que propose l’analyse.
+}
+clean-bulk-clear-action = { $count ->
+    [one] Effacer { $count } décision
+   *[other] Effacer { $count } décisions
+}
+clean-bulk-undo = Vous pouvez modifier ces décisions en tout temps.
 clean-accept = Conserver
 clean-reject = Rejeter
 clean-clear = Annuler la décision
