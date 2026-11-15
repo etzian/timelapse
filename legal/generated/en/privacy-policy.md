@@ -2,14 +2,11 @@
 
 > **Draft.** This document was produced from a template that has not yet been reviewed by a lawyer. Do not publish as is.
 
-
 # Privacy policy — Timelapse Studio
 
 Last updated: 2026-11-10
 
-
 Turn large photo collections into high-quality timelapse videos, locally.
-
 
 ## 1. Who we are
 
@@ -19,88 +16,48 @@ Person in charge of the protection of personal information: Etienne Germain, pri
 
 ## 2. Personal information we collect
 
-
 Timelapse Studio does not send any information off your device and we have no access to it. We therefore do not collect any personal information.
-
-
-
 
 Here is what the app keeps on your device:
 
-
 | Information | Category | Why we use it | Basis | Where it is kept | How long we keep it |
 | --- | --- | --- | --- | --- | --- |
-
 | Your language, theme and density choices | Other | Show the app the way you chose | Necessary to provide the service you asked for | On your device | Until you erase the app's data |
-
 | Your photograph inventory (paths, sizes, SHA-256 hash and import status) | Other | Index, deduplicate and find your photographs across working sessions | Necessary to provide the service you asked for | On your device | Until you erase the project data (Settings, Erase all data, or by deleting the hidden .timelapse/ folder yourself) |
-
 | Your photographs' capture dates (EXIF dates, date read from the file name, file date, recorded time zone) | Other | Put your photographs in chronological order and find gaps in the shooting | Necessary to provide the service you asked for | On your device | Until you erase the project data (Settings, Erase all data, or by deleting the hidden .timelapse/ folder yourself) |
-
 | Your photographs' brightness measurements, the Lightroom rating read from their XMP metadata, your thresholds and your decisions (keep, reject) | Other | Find photographs that are too dark or were rejected, and keep a reproducible record of every cleaning decision | Necessary to provide the service you asked for | On your device | Until you erase the project data (Settings, Erase all data, or by deleting the hidden .timelapse/ folder yourself) |
-
 | The photographs you quarantine (moved into the source folder's “Timelapse quarantine” folder) and the journal of every move and restore (paths, hash, status) | Other | Let you restore a quarantined photograph at any time, without data loss | Necessary to provide the service you asked for | On your device | The photographs stay until you restore them or choose the quarantine in Settings, Erase all data (or delete the folder yourself); the journal stays until you erase the project data; nothing is deleted automatically |
-
 | Thumbnails of your photographs (hidden .timelapse/thumbs/ folder) | Other | Show the photographs to review quickly | Necessary to provide the service you asked for | On your device | Until you erase the project data (Settings, Erase all data, or by deleting the hidden .timelapse/ folder yourself) |
-
 | Your saved sampling selections (method, settings, ordered list of the selected photographs and a fingerprint of the available photographs) | Other | Make the video from an exact, reproducible sequence | Necessary to provide the service you asked for | On your device | Until you erase the project data (Settings, Erase all data, or by deleting the hidden .timelapse/ folder yourself) |
-
 | The videos you create (the source folder's “Timelapse exports” folder) and the record of each export (settings, FFmpeg version, command, result), which you can also save as a .record.json file in that folder | Other | Make your timelapse video and be able to reproduce it exactly | Necessary to provide the service you asked for | On your device | Videos and records stay until you delete them or choose the exports in Settings, Erase all data; the journal stays until you erase the project data |
-
 | The copies or originals placed in the working folder you choose, and the record of each organization (working folder, settings, source and target paths, file fingerprints, result) | Other | Gather your photographs into a working folder, verify the files and be able to undo the operation | Necessary to provide the service you asked for | On your device | Placed files stay until you undo the organization or delete them yourself; unmodified copies can also be erased in Settings, Erase all data (moved originals never are); the record stays until you erase the project data |
-
 | The contact sheets you generate (PDF files in the source folder's “Timelapse exports/contact-sheets”, with thumbnails, file names and capture times) and the record of each sheet (source, layout, texts, result) | Other | Let you review and share a selection of photographs visually | Necessary to provide the service you asked for | On your device | Sheets stay until you delete them or choose the exports in Settings, Erase all data; the record stays until you erase the project data |
-
 | The brightness and colour measurements of each frame of a selection, its motion from frame to frame and the corrections computed (flicker reduction, stabilization), with their settings | Other | Reduce flicker and shake in the video, reproducibly | Necessary to provide the service you asked for | On your device | Until you erase the project data (Settings, Erase all data, or by deleting the hidden .timelapse/ folder yourself) |
-
-
-
-
-
 
 ## 3. Consent
 
-
 Because we do not collect any personal information, we have no consent to ask you for. If that were to change, we would ask you clearly before collecting anything.
-
-
 
 ## 4. Disclosure to third parties
 
-
-
 We do not disclose your personal information to any third party. We do not sell it.
-
-
 
 ## 5. Transfers outside Québec
 
-
-
 We do not transfer any personal information outside Québec.
-
 
 ## 6. Retention
 
-
 This information stays on your device for the time shown in section 2. You can delete it at any time by deleting the app's data from your device. We hold no copy of it.
-
-
 
 ## 7. Security
 
-
 We protect your personal information with the following measures:
 
-
 - Your data stays on your device and is sent to no one.
-
 - The app loads only its own content (restrictive content security policy).
 
-
 No measure offers absolute protection. If a confidentiality incident presents a risk of serious injury, we notify the Commission d'accès à l'information and the people concerned, and we keep a register of all incidents.
-
-
 
 ## 8. Your rights
 
@@ -111,7 +68,6 @@ At any time, you can:
 - withdraw your consent;
 - ask us to stop disseminating your information or to delete it, in the cases the law provides;
 - receive your information in a structured, commonly used technological format (portability);
-
 - ask us how we protect your information.
 
 To exercise these rights, write to privacy@etzian.com. We reply within 30 days.
@@ -122,10 +78,7 @@ If you believe we are not respecting this policy or the law, write to us first a
 
 ## 10. Minors
 
-
-
 Timelapse Studio is not aimed at children. 
-
 
 ## 11. Changes
 
