@@ -20,7 +20,7 @@ STATUS: DONE
 | 2 | EXIF & timeline | done (2026-11-14), `7528260` + `2aeab8d` |
 | 3 | Brightness analysis & cleaning | done (2026-11-14), `e5318e7` |
 | 4 | Temporal sampling | done (2026-11-14), `60b554f` |
-| 5 | FFmpeg video generation | **done (2026-11-15)**, exit criterion proven on the macOS CI runner (run 43664224239). Review BLOCK → fixed → SIGN-OFF WITH NOTES. **Open for the user:** approval dates on the ffmpeg + svt-av1 licence exceptions |
+| 5 | FFmpeg video generation | **done (2026-11-15)**, exit criterion proven on the macOS CI runner (run 43664224239). Review BLOCK → fixed → SIGN-OFF WITH NOTES. ffmpeg + svt-av1 licence exceptions approved by the user 2026-11-14 |
 
 ## Slice status (Phase 5)
 
@@ -36,6 +36,7 @@ STATUS: DONE
 
 ## Handoff log
 
+- **2026-11-14 — Phase 5 follow-ups.** The user dated the `ffmpeg` and `svt-av1` exceptions (licence audit: ok). FFmpeg release steps (exact sources, Apple Silicon VideoToolbox run) added to `.claude/rules/release.md` with the user's agreement. The `verify.sh` spawn-site count stays a template change.
 - **2026-11-15 — Phase 5 DONE.**
   - **Prerequisites (a)–(c):** resolved by ADR-022, after verifying the facts:
     - SVT-AV1 is BSD-3-Clause-Clear + AOMPL-1.0, so ADR-017 was corrected and the exceptions were drafted;
