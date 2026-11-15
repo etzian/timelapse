@@ -96,7 +96,7 @@ The Phase 0 documentation review is complete; its findings are recorded in `docs
 
 ## 7. Current milestone
 
-**Milestone:** the roadmap's phases are delivered. Next: the user's real-GoPro check of Phase 8, the release gate (`.claude/rules/release.md`), and any new milestone the user plans.
+**Milestone:** the roadmap's phases are delivered. Next: the **UX milestone** (planned and approved 2026-11-15, 15 slices on branch `ux-milestone`, not started; see `docs/UX_MILESTONE.md` and `.claude/plan/PHASES.md`), the user's real-GoPro check of Phase 8, and the release gate (`.claude/rules/release.md`).
 
 Phase 0 — Baseline was completed on 2026-11-10: the generated application builds and `make gate` passes locally and in CI (see `.claude/plan/STATE.md`). The Phase 0 documentation review required by this file's former §7 produced the reports in `docs/audit/` and is considered satisfied.
 

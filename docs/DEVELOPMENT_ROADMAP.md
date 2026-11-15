@@ -78,6 +78,11 @@ Read: Phases 2→4 are strictly sequential (each consumes the prior stage's SQLi
 **Entry:** Phases 4 exit (need the sequence) and 5's encoder fixed (gains must be applied at encode time).
 **Exit:** Flicker/stabilization results are traceable in `flicker_runs`; re-running with identical config reproduces gains; Phase 5 encode consumes them without a separate manifest file.
 
+## UX milestone — guided pipeline, flipbook, fast triage *(added 2026-11-15, after the roadmap's phases)*
+**Scope:** Project continuity (last and recent projects), pipeline navigation with step states, a flipbook preview from cached thumbnails, keyboard triage with undo, presets, progress with time remaining, and open/reveal of exported files through `tauri-plugin-opener` (approved by the user 2026-11-15; ADR-027). Details, findings and decisions: `UX_MILESTONE.md`.
+**Entry:** Phases 0–8 exit.
+**Exit:** On a relaunch the last project opens without the folder picker; with the keyboard only the user plays a saved selection, exports it and reveals the video; both locales; `make gate` green. No schema, algorithm, encode or capability change.
+
 ---
 
 ## Cross-phase release gate (applies to every phase exit that ships a user build)
