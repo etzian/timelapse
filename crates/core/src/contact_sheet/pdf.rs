@@ -60,6 +60,12 @@ pub fn jpeg_info(bytes: &[u8]) -> Option<(u32, u32, u8)> {
     None
 }
 
+/// The frame header of a JPEG this writer embeds (greyscale or RGB); anything else gets
+/// a placeholder cell.
+pub fn usable(jpeg: &[u8]) -> Option<(u32, u32, u8)> {
+    jpeg_info(jpeg).filter(|i| matches!(i.2, 1 | 3))
+}
+
 const FONT: Name<'static> = Name(b"F1");
 const BOLD: Name<'static> = Name(b"F2");
 
@@ -139,7 +145,7 @@ impl<W: Write> SheetWriter<W> {
         for (i, cell) in cells.iter().take(self.layout.per_page()).enumerate() {
             let rect = g.cell(i);
             let b = g.image_box(rect);
-            let info = cell.jpeg.as_deref().and_then(jpeg_info).filter(|i| matches!(i.2, 1 | 3));
+            let info = cell.jpeg.as_deref().and_then(usable);
             match (cell.jpeg.as_deref(), info) {
                 (Some(jpeg), Some((w, h, comps))) => {
                     let id = self.alloc();

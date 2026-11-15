@@ -15,7 +15,7 @@ use super::scan::Candidate;
 use crate::Error;
 
 /// Current schema version, tracked in `PRAGMA user_version` (docs/DATABASE_SCHEMA.md §6).
-pub const SCHEMA_VERSION: i64 = 6;
+pub const SCHEMA_VERSION: i64 = 7;
 
 /// v1: the Phase 1 tables. Phase 1 databases were created with `user_version = 0` and
 /// these exact statements, so `IF NOT EXISTS` makes the step a no-op for them.
@@ -222,6 +222,27 @@ const MIGRATION_V6: &str = r#"
     CREATE INDEX idx_file_operations_image ON file_operations (image_id, operation_type);
 "#;
 
+/// v7 (Phase 7 contact sheets, ADR-024): one row per generated sheet. The PDF itself is
+/// derived data in `.timelapse/contact-sheets/`.
+const MIGRATION_V7: &str = r#"
+    CREATE TABLE IF NOT EXISTS contact_sheets (
+        id INTEGER PRIMARY KEY,
+        source_json TEXT NOT NULL,
+        layout_json TEXT NOT NULL,
+        labels_json TEXT NOT NULL,
+        output_path TEXT NOT NULL,
+        photos INTEGER NOT NULL,
+        unreadable INTEGER NOT NULL DEFAULT 0,
+        pages INTEGER NOT NULL,
+        file_size INTEGER,
+        status TEXT NOT NULL
+            CHECK (status IN ('running', 'completed', 'failed', 'cancelled', 'interrupted')),
+        failure TEXT,
+        created_at INTEGER NOT NULL,
+        completed_at INTEGER
+    );
+"#;
+
 /// Apply every outstanding step in order, each in its own transaction together with its
 /// `user_version` bump, so a failed step leaves the database at the previous version.
 /// A database from a newer build (`user_version > SCHEMA_VERSION`) is refused, not touched.
@@ -242,6 +263,7 @@ fn migrate(conn: &Connection) -> rusqlite::Result<()> {
         (4, MIGRATION_V4),
         (5, MIGRATION_V5),
         (6, MIGRATION_V6),
+        (7, MIGRATION_V7),
     ] {
         if version < target {
             let tx = rusqlite::Transaction::new_unchecked(

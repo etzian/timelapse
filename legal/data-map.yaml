@@ -86,6 +86,13 @@ data:
     basis: necessary-for-service
     storage: { location: device }
     retention: { fr-CA: "Les fichiers placés restent jusqu'à ce que vous annuliez l'organisation ou les supprimiez vous-même; le journal reste jusqu'à ce que vous supprimiez le dossier .timelapse/ du projet", en: "Placed files stay until you undo the organization or delete them yourself; the record stays until you delete the project's .timelapse/ folder" }
+  - id: contact-sheets
+    label: { fr-CA: "Les planches contact que vous générez (fichiers PDF dans .timelapse/contact-sheets/, avec des vignettes, les noms de fichiers et les heures de prise de vue) et le registre de chaque planche (source, mise en page, textes, résultat)", en: "The contact sheets you generate (PDF files in .timelapse/contact-sheets/, with thumbnails, file names and capture times) and the record of each sheet (source, layout, texts, result)" }
+    category: other
+    purpose: { fr-CA: "Vous permettre de revoir et de partager visuellement une sélection de photographies", en: "Let you review and share a selection of photographs visually" }
+    basis: necessary-for-service
+    storage: { location: device }
+    retention: { fr-CA: "Jusqu'à ce que vous supprimiez vous-même les planches ou le dossier .timelapse/ du projet", en: "Until you delete the sheets or the project's .timelapse/ folder yourself" }
 security_measures:
   - fr-CA: "Vos données restent sur votre appareil et ne sont transmises à personne."
     en: "Your data stays on your device and is sent to no one."

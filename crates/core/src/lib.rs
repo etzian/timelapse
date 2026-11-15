@@ -45,6 +45,9 @@ pub enum Error {
 
     #[error("consolidation refused or failed: {reason}")]
     Consolidation { reason: &'static str },
+
+    #[error("contact sheet refused or failed: {reason}")]
+    ContactSheet { reason: &'static str },
 }
 
 impl Error {
@@ -60,6 +63,7 @@ impl Error {
             Self::UnknownRun { .. } => "unknown-run",
             Self::Export { .. } => "export",
             Self::Consolidation { .. } => "consolidation",
+            Self::ContactSheet { .. } => "contact-sheet",
         }
     }
 
@@ -74,7 +78,8 @@ impl Error {
             Self::UnknownImage { id } | Self::UnknownRun { id } => serde_json::json!({ "id": id }),
             Self::InvalidSampling { reason }
             | Self::Export { reason }
-            | Self::Consolidation { reason } => {
+            | Self::Consolidation { reason }
+            | Self::ContactSheet { reason } => {
                 serde_json::json!({ "reason": reason })
             }
             Self::StoreTransaction => serde_json::json!({}),

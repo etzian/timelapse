@@ -49,6 +49,8 @@ Here is what the app keeps on your device:
 
 | The copies or originals placed in the working folder you choose, and the record of each organization (working folder, settings, source and target paths, file fingerprints, result) | Other | Gather your photographs into a working folder, verify the files and be able to undo the operation | Necessary to provide the service you asked for | On your device | Placed files stay until you undo the organization or delete them yourself; the record stays until you delete the project's .timelapse/ folder |
 
+| The contact sheets you generate (PDF files in .timelapse/contact-sheets/, with thumbnails, file names and capture times) and the record of each sheet (source, layout, texts, result) | Other | Let you review and share a selection of photographs visually | Necessary to provide the service you asked for | On your device | Until you delete the sheets or the project's .timelapse/ folder yourself |
+
 
 
 

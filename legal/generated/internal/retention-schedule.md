@@ -29,6 +29,8 @@ Law 25: personal information is destroyed or anonymized once the purpose is achi
 
 | The copies or originals placed in the working folder you choose, and the record of each organization (working folder, settings, source and target paths, file fingerprints, result) | Other | On your device | Placed files stay until you undo the organization or delete them yourself; the record stays until you delete the project's .timelapse/ folder | _to complete_ | _date_ |
 
+| The contact sheets you generate (PDF files in .timelapse/contact-sheets/, with thumbnails, file names and capture times) and the record of each sheet (source, layout, texts, result) | Other | On your device | Until you delete the sheets or the project's .timelapse/ folder yourself | _to complete_ | _date_ |
+
 
 
 

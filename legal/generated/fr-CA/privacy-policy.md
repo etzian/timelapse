@@ -49,6 +49,8 @@ Voici ce que l'application conserve sur votre appareil :
 
 | Les copies ou originaux placés dans le dossier de travail que vous choisissez, et le journal de chaque organisation (dossier de travail, réglages, chemins d'origine et de destination, empreintes des fichiers, résultat) | Autre | Regrouper vos photographies dans un dossier de travail, vérifier les fichiers et pouvoir annuler l'opération | Nécessaire pour fournir le service demandé | Sur votre appareil | Les fichiers placés restent jusqu'à ce que vous annuliez l'organisation ou les supprimiez vous-même; le journal reste jusqu'à ce que vous supprimiez le dossier .timelapse/ du projet |
 
+| Les planches contact que vous générez (fichiers PDF dans .timelapse/contact-sheets/, avec des vignettes, les noms de fichiers et les heures de prise de vue) et le registre de chaque planche (source, mise en page, textes, résultat) | Autre | Vous permettre de revoir et de partager visuellement une sélection de photographies | Nécessaire pour fournir le service demandé | Sur votre appareil | Jusqu'à ce que vous supprimiez vous-même les planches ou le dossier .timelapse/ du projet |
+
 
 
 
