@@ -15,7 +15,7 @@ use super::scan::Candidate;
 use crate::Error;
 
 /// Current schema version, tracked in `PRAGMA user_version` (docs/DATABASE_SCHEMA.md §6).
-pub const SCHEMA_VERSION: i64 = 3;
+pub const SCHEMA_VERSION: i64 = 4;
 
 /// v1: the Phase 1 tables. Phase 1 databases were created with `user_version = 0` and
 /// these exact statements, so `IF NOT EXISTS` makes the step a no-op for them.
@@ -115,6 +115,37 @@ const MIGRATION_V3: &str = r#"
     ALTER TABLE images ADD COLUMN current_path TEXT;
 "#;
 
+/// v4 (Phase 4 sampling): each run's configuration and inputs, and its ordered selection.
+const MIGRATION_V4: &str = r#"
+    CREATE TABLE IF NOT EXISTS sampling_runs (
+        id INTEGER PRIMARY KEY,
+        method TEXT NOT NULL,
+        configuration_json TEXT NOT NULL,
+        algorithm_version INTEGER NOT NULL,
+        input_count INTEGER NOT NULL,
+        input_fingerprint TEXT NOT NULL,
+        excluded_json TEXT NOT NULL,
+        target_count INTEGER NOT NULL,
+        selected_count INTEGER NOT NULL,
+        unmatched_count INTEGER NOT NULL,
+        unmatched_json TEXT NOT NULL,
+        status TEXT NOT NULL CHECK (status IN ('completed')),
+        created_at INTEGER NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS sampling_items (
+        id INTEGER PRIMARY KEY,
+        sampling_run_id INTEGER NOT NULL REFERENCES sampling_runs (id) ON DELETE CASCADE,
+        image_id INTEGER NOT NULL REFERENCES images (id),
+        target_datetime TEXT,
+        actual_datetime TEXT NOT NULL,
+        sequence_index INTEGER NOT NULL,
+        UNIQUE (sampling_run_id, sequence_index),
+        UNIQUE (sampling_run_id, image_id)
+    );
+    CREATE INDEX IF NOT EXISTS idx_sampling_items_run ON sampling_items (sampling_run_id, sequence_index);
+"#;
+
 /// Apply every outstanding step in order, each in its own transaction together with its
 /// `user_version` bump, so a failed step leaves the database at the previous version.
 /// A database from a newer build (`user_version > SCHEMA_VERSION`) is refused, not touched.
@@ -128,7 +159,9 @@ fn migrate(conn: &Connection) -> rusqlite::Result<()> {
     if version > SCHEMA_VERSION {
         return Err(rusqlite::Error::InvalidQuery);
     }
-    for (target, sql) in [(1, MIGRATION_V1), (2, MIGRATION_V2), (3, MIGRATION_V3)] {
+    for (target, sql) in
+        [(1, MIGRATION_V1), (2, MIGRATION_V2), (3, MIGRATION_V3), (4, MIGRATION_V4)]
+    {
         if version < target {
             let tx = rusqlite::Transaction::new_unchecked(
                 conn,

@@ -43,6 +43,8 @@ Here is what the app keeps on your device:
 
 | Thumbnails of your photographs (.timelapse/thumbs/ folder) | Other | Show the photographs to review quickly | Necessary to provide the service you asked for | On your device | Until you delete the project's database (.timelapse/ folder) |
 
+| Your saved sampling selections (method, settings, ordered list of the selected photographs and a fingerprint of the available photographs) | Other | Make the video from an exact, reproducible sequence | Necessary to provide the service you asked for | On your device | Until you delete the project's database (.timelapse/ folder) |
+
 
 
 

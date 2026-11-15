@@ -208,6 +208,53 @@ fn list_file_operations(
     Ok(clean::operations_for_root(&root, limit)?)
 }
 
+// ---- Phase 4: temporal sampling ------------------------------------------------------
+
+use timelapse_core::sampling;
+
+/// Run a sampling configuration against the current photographs without saving it.
+#[tauri::command]
+async fn preview_sampling(
+    root: PathBuf,
+    config: sampling::Config,
+) -> std::result::Result<sampling::SamplingPreview, IpcError> {
+    blocking(move || sampling::preview_for_root(&root, &config)).await
+}
+
+/// Compute and save a sampling run (configuration, input fingerprint, ordered selection).
+#[tauri::command]
+async fn create_sampling_run(
+    root: PathBuf,
+    config: sampling::Config,
+) -> std::result::Result<sampling::RunSummary, IpcError> {
+    blocking(move || sampling::create_run_for_root(&root, &config)).await
+}
+
+#[tauri::command]
+fn list_sampling_runs(root: PathBuf) -> std::result::Result<Vec<sampling::RunSummary>, IpcError> {
+    Ok(sampling::runs_for_root(&root)?)
+}
+
+/// One page of a saved run's sequence (at most 1000 items) and its day counts.
+#[tauri::command]
+fn get_sampling_items(
+    root: PathBuf,
+    run: i64,
+    offset: usize,
+    limit: usize,
+) -> std::result::Result<sampling::RunPage, IpcError> {
+    Ok(sampling::run_page_for_root(&root, run, offset, limit)?)
+}
+
+/// Re-run a saved configuration on the current photographs and compare.
+#[tauri::command]
+async fn verify_sampling_run(
+    root: PathBuf,
+    run: i64,
+) -> std::result::Result<sampling::VerifyReport, IpcError> {
+    blocking(move || sampling::verify_run_for_root(&root, run)).await
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     // Dialog is used by the frontend for folder picking on every platform; the
@@ -242,7 +289,12 @@ pub fn run() {
             quarantine_images,
             restore_images,
             get_thumbnail,
-            list_file_operations
+            list_file_operations,
+            preview_sampling,
+            create_sampling_run,
+            list_sampling_runs,
+            get_sampling_items,
+            verify_sampling_run
         ])
         .run(tauri::generate_context!())
         .expect("error while running Timelapse Studio");

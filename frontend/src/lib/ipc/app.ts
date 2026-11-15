@@ -248,3 +248,100 @@ export function toBase64(bytes: Uint8Array): string {
   for (let i = 0; i < bytes.length; i += step) binary += String.fromCharCode(...bytes.subarray(i, i + step));
   return btoa(binary);
 }
+
+// ---- Phase 4 — temporal sampling ------------------------------------------------------
+
+export type Policy = 'closest' | 'first-after' | 'last-before';
+
+export type SamplingMethod =
+  | { method: 'fixed-interval'; interval_seconds: number; policy: Policy; tolerance_seconds?: number | null }
+  | { method: 'every-nth'; n: number; offset: number }
+  | { method: 'uniform'; count: number };
+
+/** A sampling configuration: the method (flattened) plus the input rules. */
+export type SamplingConfig = SamplingMethod & {
+  /** Normalised bounds, `from` inclusive, `to` exclusive (e.g. `2024-01-15`). */
+  from?: string | null;
+  to?: string | null;
+  include_flagged: boolean;
+};
+
+export interface Excluded {
+  rejected: number;
+  quarantined: number;
+  flagged: number;
+  no_timestamp: number;
+  out_of_period: number;
+}
+
+export interface SampledItem {
+  sequence_index: number;
+  image_id: number;
+  relative_path: string;
+  target_datetime: string | null;
+  actual_datetime: string;
+  epoch_ms: number;
+}
+
+export interface SamplingPreview {
+  config: SamplingConfig;
+  algorithm_version: number;
+  input_count: number;
+  input_fingerprint: string;
+  excluded: Excluded;
+  target_count: number;
+  selected_count: number;
+  unmatched_count: number;
+  unmatched_targets: string[];
+  reduction: number;
+  effective_interval_seconds: number | null;
+  /** Per UTC day, over the whole selection. */
+  day_counts: DayCount[];
+  /** The first 200 selected photographs only; `selected_count` is the total. */
+  items: SampledItem[];
+}
+
+export interface DayCount {
+  day: string;
+  count: number;
+}
+
+export interface RunPage {
+  run_id: number;
+  total: number;
+  offset: number;
+  items: SampledItem[];
+  day_counts: DayCount[];
+}
+
+export interface RunSummary {
+  id: number;
+  method: SamplingMethod['method'];
+  config: SamplingConfig;
+  algorithm_version: number;
+  input_count: number;
+  excluded: Excluded;
+  target_count: number;
+  selected_count: number;
+  unmatched_count: number;
+  created_at: number;
+}
+
+export interface VerifyReport {
+  run_id: number;
+  inputs_unchanged: boolean;
+  algorithm_unchanged: boolean;
+  selection_identical: boolean;
+}
+
+const SAMPLING_TIMEOUT_MS = 120_000;
+
+export const previewSampling = (root: string, config: SamplingConfig) =>
+  invoke<SamplingPreview>('preview_sampling', { root, config }, SAMPLING_TIMEOUT_MS);
+export const createSamplingRun = (root: string, config: SamplingConfig) =>
+  invoke<RunSummary>('create_sampling_run', { root, config }, SAMPLING_TIMEOUT_MS);
+export const listSamplingRuns = (root: string) => invoke<RunSummary[]>('list_sampling_runs', { root });
+export const getSamplingItems = (root: string, run: number, offset = 0, limit = 200) =>
+  invoke<RunPage>('get_sampling_items', { root, run, offset, limit });
+export const verifySamplingRun = (root: string, run: number) =>
+  invoke<VerifyReport>('verify_sampling_run', { root, run }, SAMPLING_TIMEOUT_MS);

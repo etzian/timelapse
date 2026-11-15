@@ -9,6 +9,7 @@ company-name = Etzian inc.
 
 nav-home = Accueil
 nav-cleaning = Nettoyage
+nav-sampling = Échantillonnage
 nav-settings = Réglages
 
 home-title = Importer une collection
@@ -189,6 +190,90 @@ files-failure-interrupted = le déplacement a été interrompu et annulé; le fi
 files-failure-inconsistent = le déplacement a été interrompu dans un état inattendu; aucun fichier n’a été touché
 files-failure-other = l’opération a échoué
 
+## Phase 4 — échantillonnage
+sampling-title = Échantillonnage
+sampling-intro = Choisissez les photographies qui deviendront les images du timelapse. L’échantillonnage suit les dates de prise de vue, jamais l’ordre des fichiers; les photographies non retenues sont simplement laissées de côté, jamais supprimées.
+sampling-no-project-description = Importez d’abord un dossier; ses photographies pourront ensuite être échantillonnées ici.
+sampling-method-title = Méthode
+sampling-method-fixed-interval = Intervalle fixe
+sampling-method-every-nth = Une photo sur N
+sampling-method-uniform = Répartition uniforme
+sampling-method-fixed-interval-help = Une photographie par pas de l’intervalle, à partir de la première photographie. Un pas sans photographie assez proche est signalé, jamais comblé.
+sampling-method-every-nth-help = Une photographie sur N, en ordre chronologique, à partir du décalage (0 = la première photographie).
+sampling-method-uniform-help = Le nombre choisi de photographies, réparties uniformément entre la première et la dernière photographie.
+sampling-interval = Intervalle
+sampling-unit = Unité
+sampling-unit-seconds = Secondes
+sampling-unit-minutes = Minutes
+sampling-unit-hours = Heures
+sampling-unit-days = Jours
+sampling-policy = Quelle photographie
+sampling-policy-closest = La plus proche de chaque pas
+sampling-policy-first-after = La première après chaque pas
+sampling-policy-last-before = La dernière avant chaque pas
+sampling-tolerance = Écart maximal par rapport à chaque pas
+sampling-tolerance-placeholder = Automatique
+sampling-n = Une photographie toutes les
+sampling-offset = Commencer à la photographie numéro (0 = la première)
+sampling-count = Nombre de photographies
+sampling-input-title = Photographies parmi lesquelles choisir
+sampling-from = Du (date, UTC)
+sampling-to = Au (date, UTC, incluse)
+sampling-include-flagged = Inclure les photographies à examiner
+sampling-input-note = Les photographies rejetées ou en quarantaine ne sont jamais utilisées. Les photographies sans date de prise de vue sont laissées de côté et comptées.
+sampling-invalid = Vérifiez les valeurs : les nombres doivent être positifs (entiers pour les nombres de photos) et la date de fin ne peut pas précéder la date de début.
+sampling-preview = Aperçu
+sampling-previewing = Calcul en cours…
+sampling-save = Enregistrer cette sélection
+sampling-saving = Enregistrement…
+sampling-saved = { $count ->
+    [one] Sélection { $id } enregistrée avec { $count } photographie.
+   *[other] Sélection { $id } enregistrée avec { $count } photographies.
+}
+sampling-preview-title = Aperçu
+sampling-preview-empty-title = Aucun aperçu pour l’instant
+sampling-preview-empty-description = Choisissez une méthode, puis Aperçu pour voir quelles photographies seraient utilisées.
+sampling-stat-input = Photographies disponibles
+sampling-stat-selected = Photographies retenues
+sampling-stat-reduction = Réduction
+sampling-stat-interval = Intervalle moyen
+sampling-stat-unmatched = Pas sans photographie
+sampling-stat-none = Sans objet
+sampling-fps = Images par seconde
+sampling-fps-option = { $fps } i/s
+sampling-multiplier = Vitesse de lecture
+sampling-multiplier-option = { $multiplier } ×
+sampling-duration = Durée estimée de la vidéo : { $duration }
+sampling-excluded = Laissées de côté : { $rejected } rejetées, { $quarantined } en quarantaine, { $flagged } à examiner, { $undated } sans date, { $outside } hors de la période.
+sampling-nothing-selected-title = Aucune photographie retenue
+sampling-nothing-selected-description = Élargissez la période, incluez les photographies à examiner ou choisissez un intervalle plus court.
+sampling-sequence-preview = { $count ->
+    [one] Séquence retenue : { $count } photographie (aperçu)
+   *[other] Séquence retenue : { $count } photographies (aperçu)
+}
+sampling-sequence-run = { $count ->
+    [one] Séquence retenue : { $count } photographie (sélection { $id })
+   *[other] Séquence retenue : { $count } photographies (sélection { $id })
+}
+sampling-strip-shown = { $shown } affichées sur { $total }.
+sampling-strip-preview-limit = L’aperçu montre les 200 premières photographies; enregistrez la sélection pour les parcourir toutes.
+sampling-runs-title = Sélections enregistrées
+sampling-runs-empty-title = Aucune sélection enregistrée
+sampling-runs-empty-description = Enregistrez un aperçu pour conserver sa séquence exacte; la vidéo sera produite à partir d’une sélection enregistrée.
+sampling-run-title = Sélection { $id }
+sampling-run-fixed-closest = Intervalle de { $interval }, photographie la plus proche
+sampling-run-fixed-first-after = Intervalle de { $interval }, première photographie après chaque pas
+sampling-run-fixed-last-before = Intervalle de { $interval }, dernière photographie avant chaque pas
+sampling-run-nth = Une photographie sur { $n }
+sampling-run-uniform = { $count } photographies réparties uniformément
+sampling-run-stats = { $selected } sur { $input } photographies
+sampling-run-show = Afficher
+sampling-run-verify = Vérifier
+sampling-verifying = Vérification…
+sampling-verify-identical = Toujours identique
+sampling-verify-differs = Différerait maintenant
+sampling-verify-inputs-changed = Les photographies ont changé depuis
+
 ## Erreurs (rendues via i18n/errors.ts → t(`error-${kind}`, args)).
 error-import-root-unreadable = Le dossier « { $path } » n’a pas pu être lu.
 error-image-unreadable = La photographie située à « { $path } » n’a pas pu être lue.
@@ -196,3 +281,8 @@ error-database = La base de données du projet n’a pas pu être ouverte ou éc
 error-store-transaction = L’enregistrement dans la base de données du projet a échoué.
 error-image-undecodable = La photographie située à « { $path } » n’est pas une image lisible.
 error-unknown-image = Cette photographie ne fait plus partie du projet.
+error-invalid-sampling = { $reason ->
+    [too-many-targets] Cet intervalle est trop court pour la période : il créerait plus de cinq millions de pas.
+   *[other] Les réglages d’échantillonnage doivent être des nombres positifs.
+}
+error-unknown-run = Cette sélection enregistrée n’existe plus.

@@ -7,6 +7,7 @@
 pub mod clean;
 pub mod files;
 pub mod import;
+pub mod sampling;
 
 /// Errors that can cross the IPC boundary into the UI. Every variant maps to a stable
 /// `kind` string used by the frontend to look up a Fluent key (`error-<kind>`).
@@ -29,6 +30,12 @@ pub enum Error {
 
     #[error("no image with id {id}")]
     UnknownImage { id: i64 },
+
+    #[error("invalid sampling configuration: {reason}")]
+    InvalidSampling { reason: &'static str },
+
+    #[error("no sampling run with id {id}")]
+    UnknownRun { id: i64 },
 }
 
 impl Error {
@@ -40,6 +47,8 @@ impl Error {
             Self::StoreTransaction => "store-transaction",
             Self::ImageUndecodable { .. } => "image-undecodable",
             Self::UnknownImage { .. } => "unknown-image",
+            Self::InvalidSampling { .. } => "invalid-sampling",
+            Self::UnknownRun { .. } => "unknown-run",
         }
     }
 
@@ -51,7 +60,8 @@ impl Error {
             | Self::ImageUnreadable { path }
             | Self::DbMessage { path }
             | Self::ImageUndecodable { path } => serde_json::json!({ "path": path }),
-            Self::UnknownImage { id } => serde_json::json!({ "id": id }),
+            Self::UnknownImage { id } | Self::UnknownRun { id } => serde_json::json!({ "id": id }),
+            Self::InvalidSampling { reason } => serde_json::json!({ "reason": reason }),
             Self::StoreTransaction => serde_json::json!({}),
         }
     }

@@ -43,6 +43,8 @@ Voici ce que l'application conserve sur votre appareil :
 
 | Des vignettes de vos photographies (dossier .timelapse/thumbs/) | Autre | Afficher rapidement les photographies à examiner | Nécessaire pour fournir le service demandé | Sur votre appareil | Jusqu'à ce que vous supprimiez la base de données du projet (dossier .timelapse/) |
 
+| Vos sélections d'échantillonnage enregistrées (méthode, réglages, liste ordonnée des photographies retenues et empreinte des photographies disponibles) | Autre | Produire la vidéo à partir d'une séquence exacte et reproductible | Nécessaire pour fournir le service demandé | Sur votre appareil | Jusqu'à ce que vous supprimiez la base de données du projet (dossier .timelapse/) |
+
 
 
 

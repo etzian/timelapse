@@ -8,6 +8,7 @@ company-name = Etzian inc.
 
 nav-home = Home
 nav-cleaning = Cleaning
+nav-sampling = Sampling
 nav-settings = Settings
 
 home-title = Import collection
@@ -188,6 +189,90 @@ files-failure-interrupted = the move was interrupted and undone; the file is sti
 files-failure-inconsistent = the move was interrupted and left an unexpected state; no file was touched
 files-failure-other = the operation failed
 
+## Phase 4 — sampling
+sampling-title = Sampling
+sampling-intro = Choose which photographs become frames of the timelapse. Sampling follows the capture times, never the file order; photographs that are not selected are simply left out, never deleted.
+sampling-no-project-description = Import a folder first; its photographs can then be sampled here.
+sampling-method-title = Method
+sampling-method-fixed-interval = Fixed interval
+sampling-method-every-nth = Every Nth photo
+sampling-method-uniform = Evenly spread
+sampling-method-fixed-interval-help = One photograph for each step of the interval, starting from the first photograph. A step with no photograph close enough is reported, not filled.
+sampling-method-every-nth-help = One photograph out of every N, in chronological order, starting from the offset (0 = the first photograph).
+sampling-method-uniform-help = The chosen number of photographs, spread evenly over the period between the first and the last photograph.
+sampling-interval = Interval
+sampling-unit = Unit
+sampling-unit-seconds = Seconds
+sampling-unit-minutes = Minutes
+sampling-unit-hours = Hours
+sampling-unit-days = Days
+sampling-policy = Which photograph
+sampling-policy-closest = Closest to each step
+sampling-policy-first-after = First one after each step
+sampling-policy-last-before = Last one before each step
+sampling-tolerance = Maximum gap from each step
+sampling-tolerance-placeholder = Automatic
+sampling-n = One photograph every
+sampling-offset = Start at photograph number (0 = first)
+sampling-count = Number of photographs
+sampling-input-title = Photographs to choose from
+sampling-from = From (date, UTC)
+sampling-to = To (date, UTC, included)
+sampling-include-flagged = Include photographs still to review
+sampling-input-note = Rejected and quarantined photographs are never used. Photographs without a capture date are left out and counted.
+sampling-invalid = Check the values: numbers must be positive (whole numbers for counts) and the end date must not be before the start date.
+sampling-preview = Preview
+sampling-previewing = Calculating…
+sampling-save = Save this selection
+sampling-saving = Saving…
+sampling-saved = { $count ->
+    [one] Selection { $id } saved with one photograph.
+   *[other] Selection { $id } saved with { $count } photographs.
+}
+sampling-preview-title = Preview
+sampling-preview-empty-title = No preview yet
+sampling-preview-empty-description = Choose a method and select Preview to see which photographs would be used.
+sampling-stat-input = Photographs available
+sampling-stat-selected = Photographs selected
+sampling-stat-reduction = Reduction
+sampling-stat-interval = Average interval
+sampling-stat-unmatched = Steps without a photograph
+sampling-stat-none = Not applicable
+sampling-fps = Frames per second
+sampling-fps-option = { $fps } fps
+sampling-multiplier = Playback speed
+sampling-multiplier-option = { $multiplier }×
+sampling-duration = Estimated video length: { $duration }
+sampling-excluded = Left out: { $rejected } rejected, { $quarantined } in quarantine, { $flagged } to review, { $undated } without a date, { $outside } outside the period.
+sampling-nothing-selected-title = No photograph selected
+sampling-nothing-selected-description = Widen the period, include the photographs still to review, or choose a smaller interval.
+sampling-sequence-preview = { $count ->
+    [one] Selected sequence: one photograph (preview)
+   *[other] Selected sequence: { $count } photographs (preview)
+}
+sampling-sequence-run = { $count ->
+    [one] Selected sequence: one photograph (selection { $id })
+   *[other] Selected sequence: { $count } photographs (selection { $id })
+}
+sampling-strip-shown = Showing { $shown } of { $total }.
+sampling-strip-preview-limit = The preview shows the first 200 photographs; save the selection to browse all of them.
+sampling-runs-title = Saved selections
+sampling-runs-empty-title = No saved selection
+sampling-runs-empty-description = Save a preview to keep its exact sequence; the video will be made from a saved selection.
+sampling-run-title = Selection { $id }
+sampling-run-fixed-closest = Every { $interval }, closest photograph
+sampling-run-fixed-first-after = Every { $interval }, first photograph after each step
+sampling-run-fixed-last-before = Every { $interval }, last photograph before each step
+sampling-run-nth = One photograph in { $n }
+sampling-run-uniform = { $count } photographs spread evenly
+sampling-run-stats = { $selected } of { $input } photographs
+sampling-run-show = Show
+sampling-run-verify = Check
+sampling-verifying = Checking…
+sampling-verify-identical = Still identical
+sampling-verify-differs = Would now differ
+sampling-verify-inputs-changed = The photographs have changed since
+
 ## Errors (rendered via i18n/errors.ts → t(`error-${kind}`, args)).
 error-import-root-unreadable = The folder “{ $path }” could not be read.
 error-image-unreadable = The photograph at “{ $path }” could not be read.
@@ -195,3 +280,8 @@ error-database = The project database could not be opened or written at “{ $pa
 error-store-transaction = Saving to the project database failed.
 error-image-undecodable = The photograph at “{ $path }” is not a readable image.
 error-unknown-image = This photograph is no longer in the project.
+error-invalid-sampling = { $reason ->
+    [too-many-targets] This interval is too small for the period: it would create more than five million steps.
+   *[other] The sampling settings must be positive numbers.
+}
+error-unknown-run = This saved selection no longer exists.

@@ -301,6 +301,7 @@ whose version is newer than the build (left untouched, never recreated).
 | 1 | `projects`, `images` (columns of §2), `idx_images_hash`, `idx_images_relative`. Phase 1 databases carry `user_version = 0` with exactly this schema; step 1 is a no-op for them (`IF NOT EXISTS`). |
 | 2 | `idx_images_normalized_datetime` on `images(normalized_datetime)`; new column `images.timestamp_offset_minutes INTEGER` — the UTC offset applied when resolving, `NULL` when the source recorded no zone and UTC was assumed (ADR-019). |
 | 3 | Phase 3 cleaning (ADR-020): `image_analysis`, `image_status`, `file_operations` (below), indexes `idx_image_status_status`, `idx_file_operations_job`, `idx_file_operations_status`; new column `images.current_path` — where the original is now (`NULL` = at `original_path`; the quarantine path while quarantined). `original_path` stays the path of record and is never rewritten. |
+| 4 | Phase 4 sampling: `sampling_runs`, `sampling_items` (below), index `idx_sampling_items_run`. |
 
 **Timestamp columns as written by the Phase 2 backfill** (rows with `timestamp_source IS NULL` only — idempotent):
 
@@ -324,6 +325,15 @@ whose version is newer than the build (left untouched, never recreated).
 | `file_operations` | `id`, `job_id`, `image_id`, `operation_type` (`quarantine` · `restore`), `source_path`, `destination_path`, `status` (`pending` · `completed` · `failed`), `checksum` (SHA-256), `failure`, `created_at`, `completed_at` | Written *before* the file is touched. `pending` rows are reconciled from the disk state when a project is opened while no file operation is running (ADR-020). Updates only ever apply to rows still `pending`. |
 
 **Cleaning queries (Phase 3):** `pending_analysis`: images without a current-version row for their current hash. `classify_all`: recomputes proposals from `image_analysis` and the thresholds in `projects.settings_json` → `clean`, a pure function, so it is reproducible from SQLite alone. `review`: images joined with status and analysis, chronological.
+
+**Phase 4 tables (v4):**
+
+| Table | Columns | Notes |
+| --- | --- | --- |
+| `sampling_runs` | `id`, `method` (`fixed-interval` · `every-nth` · `uniform`), `configuration_json` (method + parameters + `from`/`to`/`include_flagged`), `algorithm_version`, `input_count`, `input_fingerprint` (SHA-256 of `id:normalized_datetime` lines, in order), `excluded_json` (rejected · quarantined · flagged · no_timestamp · out_of_period), `target_count`, `selected_count`, `unmatched_count`, `unmatched_json` (first 1000 unmatched targets), `status` (`completed`), `created_at` | Everything Pipeline §13 asks for: configuration, algorithm version, an identification of the inputs, and the output (below). |
+| `sampling_items` | `id`, `sampling_run_id` (FK, cascade), `image_id` (FK), `target_datetime` (`NULL` for every-Nth), `actual_datetime`, `sequence_index` | The ordered selection; unique per `(run, sequence_index)` and `(run, image)`, so no photograph appears twice. |
+
+**Sampling input rule:** every image except `rejected` and `quarantined`; `flagged` optional; images without `normalized_datetime` are excluded and counted; ordered as the timeline (`normalized_datetime`, `original_path`). `verify_run` recomputes the stored configuration on the current input and compares both the fingerprint and the sequence.
 
 **Read queries (Phase 2):**
 

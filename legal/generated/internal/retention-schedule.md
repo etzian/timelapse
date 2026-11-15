@@ -23,6 +23,8 @@ Law 25: personal information is destroyed or anonymized once the purpose is achi
 
 | Thumbnails of your photographs (.timelapse/thumbs/ folder) | Other | On your device | Until you delete the project's database (.timelapse/ folder) | _to complete_ | _date_ |
 
+| Your saved sampling selections (method, settings, ordered list of the selected photographs and a fingerprint of the available photographs) | Other | On your device | Until you delete the project's database (.timelapse/ folder) | _to complete_ | _date_ |
+
 
 
 

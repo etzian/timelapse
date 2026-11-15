@@ -65,6 +65,13 @@ data:
     basis: necessary-for-service
     storage: { location: device }
     retention: { fr-CA: "Jusqu'à ce que vous supprimiez la base de données du projet (dossier .timelapse/)", en: "Until you delete the project's database (.timelapse/ folder)" }
+  - id: sampling-runs
+    label: { fr-CA: "Vos sélections d'échantillonnage enregistrées (méthode, réglages, liste ordonnée des photographies retenues et empreinte des photographies disponibles)", en: "Your saved sampling selections (method, settings, ordered list of the selected photographs and a fingerprint of the available photographs)" }
+    category: other
+    purpose: { fr-CA: "Produire la vidéo à partir d'une séquence exacte et reproductible", en: "Make the video from an exact, reproducible sequence" }
+    basis: necessary-for-service
+    storage: { location: device }
+    retention: { fr-CA: "Jusqu'à ce que vous supprimiez la base de données du projet (dossier .timelapse/)", en: "Until you delete the project's database (.timelapse/ folder)" }
 security_measures:
   - fr-CA: "Vos données restent sur votre appareil et ne sont transmises à personne."
     en: "Your data stays on your device and is sent to no one."

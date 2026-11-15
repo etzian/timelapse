@@ -18,79 +18,63 @@ STATUS: DONE
 | 0 | Baseline | done (2026-11-10) |
 | 1 | Import & inventory | done (2026-11-12), `421f2d0` |
 | 2 | EXIF & timeline | done (2026-11-14), `7528260` + `2aeab8d` |
-| 3 | Brightness analysis & cleaning | **done (2026-11-14)**: full gate green; independent review BLOCK → fixed → SIGN-OFF WITH NOTES (notes fixed); committed and pushed (see log) |
+| 3 | Brightness analysis & cleaning | done (2026-11-14), `e5318e7` |
+| 4 | Temporal sampling | **done (2026-11-14)**: full gate green; independent review BLOCK → fixed → SIGN-OFF WITH NOTES (notes fixed); committed and pushed |
 
-## Slice status (Phase 3)
+## Slice status (Phase 4)
 
 | Slice | Status | Gate |
 | --- | --- | --- |
-| P3.1 Deps, ADR-020, scan exclusion | done | GATE-FAST + licence-audit green |
-| P3.2 Luminance analysis | done | GATE-FAST green |
-| P3.3 XMP reader | done | GATE-FAST green |
-| P3.4 Store v3 + classification | done | GATE-FULL green |
-| P3.5 Quarantine primitive | done | GATE-FAST green (see deviation below) |
-| P3.6 Thumbnails | done | GATE-FAST green |
-| P3.7 Commands + IPC | done | GATE-UI green |
-| P3.8 Cleaning UI | done | GATE-UI green |
-| P3.9 Exit tests + review | done | reviewer sign-off (2nd pass); GATE-FULL green |
-| P3.10 Final gate + commit/push | done | GATE-FULL green |
+| P4.1 Selection algorithms | done | GATE-FAST green |
+| P4.2 Store v4 + runs | done | GATE-FULL green |
+| P4.3 Commands + IPC | done | GATE-UI green |
+| P4.4 Sampling page | done | GATE-UI green |
+| P4.5 Exit tests + review | done | reviewer sign-off (2nd pass); GATE-FULL green |
+| P4.6 Final gate + commit/push | done | GATE-FULL green |
 
 ## Handoff log
 
-- **2026-11-14 — Phase 3 DONE.**
-  - **Core:**
-    - `crates/core/src/clean/`:
-      - `analysis` (Rec. 709 luma, 256-bin histogram, ≤ 512 px, decode limits);
-      - `xmp` (Lightroom rating, sidecar first, read-only);
-      - `classify` (a pure function of the metrics, rating and thresholds);
-      - `store` (measurements, proposals, `user_override` decisions, thresholds in `projects.settings_json`, review query);
-      - `thumbs` (cached JPEG 256/1024);
-      - facade (parallel analysis on ≤ 3 threads with progress).
-    - `crates/core/src/files/`: the quarantine/restore journal.
-    - Schema v3: `image_analysis`, `image_status`, `file_operations`, `images.current_path`.
-    - The import scan skips `<root>/.timelapse/`. Two new error kinds (`image-undecodable`, `unknown-image`).
-  - **Shell:** 10 thin commands. Analysis, moves and thumbnails are async on the blocking pool; analysis progress goes over a `Channel`; thumbnails are raw bytes shown as `data:` URLs (the CSP already allowed them). No capability change.
-  - **UI:** a new Cleaning page (nav item) with:
-    - thresholds;
-    - an analysis run with progress;
-    - filter tabs;
-    - a thumbnail grid with metrics, reasons and keep/reject/undo;
-    - an inspect modal with a histogram;
-    - a confirm-before-move dialog;
-    - restore;
+- **2026-11-14 — Phase 4 DONE.**
+  - **Core** (`crates/core/src/sampling/`):
+    - `select.rs`: the pure algorithms, `ALGORITHM_VERSION` 1.
+      - Fixed interval: integer-millisecond targets; closest / first-after / last-before. The default reach is half an interval for closest and strictly under one interval otherwise; an explicit tolerance is inclusive.
+      - Every Nth, with an offset.
+      - Uniform: exactly N photographs when N ≤ the available photographs; every photograph on spread targets when N is larger.
+      - Selection rules: no duplicates, picks stay in chronological order, ties go to the earlier frame, at most 5 000 000 targets.
+    - `store.rs`:
+      - input rules: everything except rejected and quarantined photographs, flagged ones optional; undated photographs and those outside the period are excluded and counted;
+      - a SHA-256 input fingerprint;
+      - `preview`: the first 200 items plus day counts over the whole selection;
+      - `create_run`: one transaction;
+      - `list_runs`, and `run_page` (SQL `LIMIT/OFFSET` and `GROUP BY` day counts);
+      - `verify_run`: re-runs the stored configuration on the current input.
+    - Schema v4: `sampling_runs`, `sampling_items`. Two new error kinds (`invalid-sampling` with a reason, `unknown-run`).
+  - **Shell:** 5 thin commands (preview, create and verify are async on the blocking pool). No capability or dependency change.
+  - **UI:** a new Sampling page (nav item) with:
+    - the method tabs and their parameters;
+    - an optional period (the "to" date is inclusive in the UI and becomes the exclusive next-day bound in the configuration);
+    - the include-flagged toggle;
+    - preview stats: input, selected, reduction, average interval, unmatched steps;
+    - an estimated length from FPS × playback multiplier (kept separate, PRD §5.7);
+    - the excluded breakdown, day distribution and thumbnail strip;
+    - saving exactly the previewed configuration;
+    - saved runs with Show (paged) and Check (reproducibility);
     - all GUIDELINES §4 states.
 
-    The project root is shared with Home in memory only. All strings are in en and fr-CA (264 keys at parity).
-  - **Data map:** `cleaning-analysis`, `quarantine-journal`, `review-thumbnails`; legal docs regenerated.
-  - **Deviation from the frozen P3.5 text:** P3.5 says the move is a `rename`. The review found that `std::fs::rename` replaces an existing destination on Windows and Unix, so the move is instead a hard link (or a `create_new` copy on FAT/exFAT), then verify, then source removal. This keeps the slice's intent (never overwrite, hash-verified, recoverable). Recorded in ADR-020; `PHASES.md` left untouched.
+    All strings are in en and fr-CA (340 keys at parity).
+  - **Data map:** `sampling-runs`; legal docs regenerated. DATABASE_SCHEMA.md documents v4 and the input rule.
   - **Review:**
-    - **First pass: BLOCK** on (1) reconcile running on every open and racing live moves, and (2) check-then-act over a clobbering rename. Both fixed, together with 12 notes:
-      - process-wide file-op lock, with reconcile only when idle;
-      - journal updates guarded by `status = 'pending'`;
-      - per-item `record-failed`;
-      - NULL-hash rule documented;
-      - Clear on an unanalysed image;
-      - quarantined images not re-analysed;
-      - decode limits;
-      - Svelte stale-root guards and failed-thumbnail state;
-      - copy and fr-CA typography;
-      - the `current_path` rename;
-      - docs.
-    - **Second pass: SIGN-OFF WITH NOTES.** Fixed as well:
-      - a failed source removal never discards the copy unless the source provably remains;
-      - reconcile refuses to delete when both paths resolve to the same entry;
-      - a partial copy left by a crash is cleared.
-  - **Flake found and fixed during the final gate:** concurrent first opens could fail because `PRAGMA journal_mode = WAL` ran before the busy timeout and can return SQLITE_BUSY without the handler. The busy timeout is now set first, with a bounded retry. Verified 30/30 on the race test and 5/5 on the full suite.
-  - **Gate (Windows host):**
-    - cargo fmt, clippy `-D warnings`, test (89);
-    - svelte-check, vitest (12), vite build (from PowerShell);
-    - `verify.sh` (Git Bash; one `verify:allow` on the XMP namespace literal in a test fixture, which is not a host);
-    - `ez i18n-check` (264/264), `ez legal check` (ok, the two known lawyer-review warnings), `ez legal gen`, `ez licence-audit`.
+    - **First pass: BLOCK**, on:
+      - H1: the floating-point target count dropped the last step (2 504 misses in a sweep);
+      - H2: the first-after default tolerance let a step take the next step's exact photograph.
 
-    All exit 0.
-  - **For the user:**
-    - quarantine on FAT/exFAT drives uses the copy fallback (slower, still verified);
-    - a Lightroom `.xmp` sidecar stays in the collection when its photo is quarantined;
-    - Home's import report is not kept when you switch pages (the root is).
-- **2026-11-14 — Phase 3 kicked off.** Phase 2 plan/state archived. The user approved: Phase 3 + the minimal Phase 6 primitive; `image` + `rayon`; a physical quarantine move into `.timelapse/quarantine/`; read-only Lightroom XMP.
+      Both fixed, together with:
+      - M1: uniform returning fewer than N;
+      - M2: the preview sending every item over IPC;
+      - L1–L4: copy and fr-CA wording, run labels, resetting state on a project change;
+      - L6: more real-file exit tests (a tie, an unmatched step, rejection detected by verify, paging).
+    - **Second pass: SIGN-OFF WITH NOTES**, with the reviewer's fuzzer at 60 000 sets × 3 methods. Both notes are fixed too: uniform with N > photographs now uses every photograph, and run pages are paged in SQL. L5 (verify does not compare the counts, which follow from the inputs, configuration and algorithm) was accepted.
+  - **Gate (Windows host):** cargo fmt / clippy `-D warnings` / test (111); svelte-check / vitest (16) / vite build; `verify.sh`; `ez i18n-check` (340/340); `ez legal check` (the two known lawyer-review warnings); `ez legal gen`; `ez licence-audit`. All exit 0.
+  - **For the user:** the period dates and the strip times are in UTC, as on the timeline.
+- **2026-11-14 — Phase 4 kicked off.** Phase 3 plan/state archived. User answers: the pipeline/PRD strategies (fixed interval, every Nth, uniform); input = all but rejected/quarantined (flagged optional); the output is an ordered list in SQLite; preview = stats + timeline + thumbnail strip.
 - **Earlier phases:** see [archive/](./archive/).

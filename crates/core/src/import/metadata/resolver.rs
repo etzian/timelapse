@@ -74,6 +74,11 @@ pub fn normalize_unix(secs: i64) -> Option<String> {
     format_utc(OffsetDateTime::from_unix_timestamp(secs).ok()?)
 }
 
+/// Milliseconds since the UNIX epoch, as the normalised string.
+pub fn normalize_unix_ms(ms: i64) -> Option<String> {
+    format_utc(OffsetDateTime::from_unix_timestamp_nanos(i128::from(ms) * 1_000_000).ok()?)
+}
+
 fn format_utc(t: OffsetDateTime) -> Option<String> {
     // Fixed width is what keeps text order == time order; years outside 0..=9999 cannot be
     // written in four digits, so they are not representable rather than mis-sorted.
