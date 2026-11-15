@@ -30,6 +30,8 @@ exceptions:
     ecosystem: binary
     licence: LGPL-2.1-or-later
     version: 9.0.2
+    approved: 2026-11-14
+    by: Etienne Germain
     reason: >-
       Video encoding (ADR-008, ADR-017, ADR-022). Shipped as a separate
       executable plus shared libraries inside the app bundle and run as a
@@ -46,6 +48,8 @@ exceptions:
     ecosystem: binary
     licence: BSD-3-Clause-Clear AND AOMPL-1.0
     version: 4.2.0
+    approved: 2026-11-14
+    by: Etienne Germain
     reason: >-
       The AV1 encoder that ADR-017 makes the default output codec, loaded by
       the bundled FFmpeg as a shared library.
