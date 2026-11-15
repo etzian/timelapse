@@ -7,7 +7,6 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use rusqlite::{Connection, OptionalExtension};
-use sha2::{Digest, Sha256};
 
 use super::store::{self, ExportRecord};
 use crate::import::open_root;
@@ -86,24 +85,8 @@ pub fn record(conn: &Connection, id: i64) -> Result<ExportDocument> {
         [run.id],
         |r| r.get(0),
     ))?;
-    let mut stmt = db(conn.prepare(
-        r#"
-            SELECT s.sequence_index, s.image_id, i.file_hash
-            FROM sampling_items s JOIN images i ON i.id = s.image_id
-            WHERE s.sampling_run_id = ?1 ORDER BY s.sequence_index
-        "#,
-    ))?;
-    let mut h = Sha256::new();
-    let mut photos = 0;
-    let rows = db(stmt.query_map([run.id], |r| {
-        Ok((r.get::<_, i64>(0)?, r.get::<_, i64>(1)?, r.get::<_, Option<String>>(2)?))
-    }))?;
-    for row in rows {
-        let (index, image, hash) = db(row)?;
-        h.update(format!("{index}:{image}:{}\n", hash.unwrap_or_default()).as_bytes());
-        photos += 1;
-    }
-    let sequence_fingerprint = h.finalize().iter().map(|b| format!("{b:02x}")).collect();
+    let (sequence_fingerprint, photos) =
+        crate::sampling::store::sequence_fingerprint(conn, run.id)?;
     Ok(ExportDocument {
         format: FORMAT,
         format_version: FORMAT_VERSION,

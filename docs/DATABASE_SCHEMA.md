@@ -305,6 +305,7 @@ whose version is newer than the build (left untouched, never recreated).
 | 5 | Phase 5 export: `video_exports` (below), index `idx_video_exports_created`. |
 | 6 | Phase 6 consolidation (ADR-023): `consolidation_runs` (below). `file_operations` is rebuilt in the same step (SQLite cannot alter a CHECK in place): its rows are copied, `operation_type` also accepts `copy` · `move` · `move-back` · `remove-copy`, `job_id` references `consolidation_runs`, the new column `identity` holds the device:inode of a placed copy (an undo removes the copy only while it is still that file), and the new index `idx_file_operations_image` serves restore. `images.current_path` may now point into a working folder (a moved original). |
 | 7 | Phase 7 contact sheets (ADR-024): `contact_sheets` (below). |
+| 8 | Phase 8 deflicker and stabilization (ADR-025): `flicker_runs`, `flicker_frames`, `stabilization_runs`, `stabilization_frames` (below). |
 
 **Timestamp columns as written by the Phase 2 backfill** (rows with `timestamp_source IS NULL` only — idempotent):
 
@@ -364,6 +365,15 @@ whose version is newer than the build (left untouched, never recreated).
 | Table | Columns | Notes |
 | --- | --- | --- |
 | `contact_sheets` | `id`, `source_json` (`all` · `period` · `flagged` · `quarantined` · `sampling` · `export`, with its parameters), `layout_json` (page size, orientation, columns, rows, filename and timestamp captions), `labels_json` (the translated header and footer texts), `output_path` (`.timelapse/contact-sheets/<id>.pdf`), `photos`, `unreadable` (placeholder cells), `pages`, `file_size`, `status` (`running` · `completed` · `failed` · `cancelled` · `interrupted`), `failure`, `created_at`, `completed_at` | The PDF is derived data: the same state and row give the same bytes. A row left `running` by a crash becomes `interrupted` (and its `<id>.pdf.part` is removed) the next time sheets are listed or generated while none is running. |
+
+**Phase 8 tables (v8):**
+
+| Table | Columns | Notes |
+| --- | --- | --- |
+| `flicker_runs` | `id`, `sampling_run_id` (FK), `configuration_json` (strength, window, colour), `algorithm_version`, `sequence_fingerprint` (of the selection used), `status` (`completed` only), `results_json` (frames, measured, largest and mean correction in stops, largest colour correction), `created_at` | A run is written complete in one transaction, or not at all (a cancelled analysis stores nothing). |
+| `flicker_frames` | `run_id` (FK, cascade), `sequence_index`, `image_id` (FK), `mean_r` / `mean_g` / `mean_b` (linear channel means, `NULL` when unmeasured), `trend` (luminance trend), `gain_r` / `gain_g` / `gain_b` | Primary key `(run_id, sequence_index)`. The export applies these gains at encode time (D5). |
+| `stabilization_runs` | `id`, `sampling_run_id` (FK), `configuration_json` (smoothing, largest crop), `algorithm_version`, `sequence_fingerprint`, `crop` (per side, fraction of the frame), `status` (`completed` only), `results_json` (frames, measured pairs, largest and mean shift), `created_at` | Independent of deflicker (ADR-013). |
+| `stabilization_frames` | `run_id` (FK, cascade), `sequence_index`, `image_id` (FK), `measured_x` / `measured_y` (motion from the previous frame, `NULL` when not measured), `confidence`, `path_x` / `path_y`, `smooth_x` / `smooth_y`, `shift_x` / `shift_y` (the correction applied), all fractions of the frame | Primary key `(run_id, sequence_index)`. |
 
 ## 7. Open design questions
 

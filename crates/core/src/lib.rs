@@ -49,6 +49,9 @@ pub enum Error {
 
     #[error("contact sheet refused or failed: {reason}")]
     ContactSheet { reason: &'static str },
+
+    #[error("deflicker or stabilization refused or failed: {reason}")]
+    Adjust { reason: &'static str },
 }
 
 impl Error {
@@ -65,6 +68,7 @@ impl Error {
             Self::Export { .. } => "export",
             Self::Consolidation { .. } => "consolidation",
             Self::ContactSheet { .. } => "contact-sheet",
+            Self::Adjust { .. } => "adjust",
         }
     }
 
@@ -80,7 +84,8 @@ impl Error {
             Self::InvalidSampling { reason }
             | Self::Export { reason }
             | Self::Consolidation { reason }
-            | Self::ContactSheet { reason } => {
+            | Self::ContactSheet { reason }
+            | Self::Adjust { reason } => {
                 serde_json::json!({ "reason": reason })
             }
             Self::StoreTransaction => serde_json::json!({}),

@@ -317,6 +317,30 @@ fn summary(r: &rusqlite::Row<'_>) -> rusqlite::Result<RunSummary> {
     })
 }
 
+/// SHA-256 of `index:image id:file hash` per photograph of saved run `run`, in sequence
+/// order, and the number of photographs. Identifies exactly which bytes a run shows, so a
+/// later step (an export, a deflicker or stabilization run) can record what it used.
+pub fn sequence_fingerprint(conn: &Connection, run: i64) -> Result<(String, usize)> {
+    let mut stmt = db(conn.prepare(
+        r#"
+            SELECT s.sequence_index, s.image_id, i.file_hash
+            FROM sampling_items s JOIN images i ON i.id = s.image_id
+            WHERE s.sampling_run_id = ?1 ORDER BY s.sequence_index
+        "#,
+    ))?;
+    let mut h = Sha256::new();
+    let mut photos = 0;
+    let rows = db(stmt.query_map([run], |r| {
+        Ok((r.get::<_, i64>(0)?, r.get::<_, i64>(1)?, r.get::<_, Option<String>>(2)?))
+    }))?;
+    for row in rows {
+        let (index, image, hash) = db(row)?;
+        h.update(format!("{index}:{image}:{}\n", hash.unwrap_or_default()).as_bytes());
+        photos += 1;
+    }
+    Ok((h.finalize().iter().map(|b| format!("{b:02x}")).collect(), photos))
+}
+
 pub fn run_summary(conn: &Connection, id: i64) -> Result<Option<RunSummary>> {
     db(conn
         .query_row(

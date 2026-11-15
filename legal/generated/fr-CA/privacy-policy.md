@@ -51,6 +51,8 @@ Voici ce que l'application conserve sur votre appareil :
 
 | Les planches contact que vous générez (fichiers PDF dans .timelapse/contact-sheets/, avec des vignettes, les noms de fichiers et les heures de prise de vue) et le registre de chaque planche (source, mise en page, textes, résultat) | Autre | Vous permettre de revoir et de partager visuellement une sélection de photographies | Nécessaire pour fournir le service demandé | Sur votre appareil | Jusqu'à ce que vous supprimiez vous-même les planches ou le dossier .timelapse/ du projet |
 
+| Les mesures de luminosité et de couleur de chaque image d'une sélection, ses mouvements d'une image à l'autre et les corrections calculées (réduction du scintillement, stabilisation), avec leurs réglages | Autre | Réduire le scintillement et les tremblements de la vidéo, de façon reproductible | Nécessaire pour fournir le service demandé | Sur votre appareil | Jusqu'à ce que vous supprimiez la base de données du projet (dossier .timelapse/) |
+
 
 
 

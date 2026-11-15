@@ -33,7 +33,7 @@ pub fn remove_hidden_entries(conn: &Connection) -> Result<usize, Error> {
 }
 
 /// Current schema version, tracked in `PRAGMA user_version` (docs/DATABASE_SCHEMA.md §6).
-pub const SCHEMA_VERSION: i64 = 7;
+pub const SCHEMA_VERSION: i64 = 8;
 
 /// v1: the Phase 1 tables. Phase 1 databases were created with `user_version = 0` and
 /// these exact statements, so `IF NOT EXISTS` makes the step a no-op for them.
@@ -261,6 +261,61 @@ const MIGRATION_V7: &str = r#"
     );
 "#;
 
+/// v8 (Phase 8, ADR-025): deflicker and stabilization runs with their per-frame values,
+/// which the export applies at encode time (D5). A run is written complete, in one
+/// transaction, or not at all.
+const MIGRATION_V8: &str = r#"
+    CREATE TABLE IF NOT EXISTS flicker_runs (
+        id INTEGER PRIMARY KEY,
+        sampling_run_id INTEGER NOT NULL REFERENCES sampling_runs (id),
+        configuration_json TEXT NOT NULL,
+        algorithm_version INTEGER NOT NULL,
+        sequence_fingerprint TEXT NOT NULL,
+        status TEXT NOT NULL CHECK (status IN ('completed')),
+        results_json TEXT NOT NULL,
+        created_at INTEGER NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS flicker_frames (
+        run_id INTEGER NOT NULL REFERENCES flicker_runs (id) ON DELETE CASCADE,
+        sequence_index INTEGER NOT NULL,
+        image_id INTEGER NOT NULL REFERENCES images (id),
+        mean_r REAL,
+        mean_g REAL,
+        mean_b REAL,
+        trend REAL,
+        gain_r REAL NOT NULL,
+        gain_g REAL NOT NULL,
+        gain_b REAL NOT NULL,
+        PRIMARY KEY (run_id, sequence_index)
+    );
+    CREATE TABLE IF NOT EXISTS stabilization_runs (
+        id INTEGER PRIMARY KEY,
+        sampling_run_id INTEGER NOT NULL REFERENCES sampling_runs (id),
+        configuration_json TEXT NOT NULL,
+        algorithm_version INTEGER NOT NULL,
+        sequence_fingerprint TEXT NOT NULL,
+        crop REAL NOT NULL,
+        status TEXT NOT NULL CHECK (status IN ('completed')),
+        results_json TEXT NOT NULL,
+        created_at INTEGER NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS stabilization_frames (
+        run_id INTEGER NOT NULL REFERENCES stabilization_runs (id) ON DELETE CASCADE,
+        sequence_index INTEGER NOT NULL,
+        image_id INTEGER NOT NULL REFERENCES images (id),
+        measured_x REAL,
+        measured_y REAL,
+        confidence REAL NOT NULL,
+        path_x REAL NOT NULL,
+        path_y REAL NOT NULL,
+        smooth_x REAL NOT NULL,
+        smooth_y REAL NOT NULL,
+        shift_x REAL NOT NULL,
+        shift_y REAL NOT NULL,
+        PRIMARY KEY (run_id, sequence_index)
+    );
+"#;
+
 /// Apply every outstanding step in order, each in its own transaction together with its
 /// `user_version` bump, so a failed step leaves the database at the previous version.
 /// A database from a newer build (`user_version > SCHEMA_VERSION`) is refused, not touched.
@@ -282,6 +337,7 @@ fn migrate(conn: &Connection) -> rusqlite::Result<()> {
         (5, MIGRATION_V5),
         (6, MIGRATION_V6),
         (7, MIGRATION_V7),
+        (8, MIGRATION_V8),
     ] {
         if version < target {
             let tx = rusqlite::Transaction::new_unchecked(

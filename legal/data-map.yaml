@@ -93,6 +93,13 @@ data:
     basis: necessary-for-service
     storage: { location: device }
     retention: { fr-CA: "Jusqu'à ce que vous supprimiez vous-même les planches ou le dossier .timelapse/ du projet", en: "Until you delete the sheets or the project's .timelapse/ folder yourself" }
+  - id: adjustments
+    label: { fr-CA: "Les mesures de luminosité et de couleur de chaque image d'une sélection, ses mouvements d'une image à l'autre et les corrections calculées (réduction du scintillement, stabilisation), avec leurs réglages", en: "The brightness and colour measurements of each frame of a selection, its motion from frame to frame and the corrections computed (flicker reduction, stabilization), with their settings" }
+    category: other
+    purpose: { fr-CA: "Réduire le scintillement et les tremblements de la vidéo, de façon reproductible", en: "Reduce flicker and shake in the video, reproducibly" }
+    basis: necessary-for-service
+    storage: { location: device }
+    retention: { fr-CA: "Jusqu'à ce que vous supprimiez la base de données du projet (dossier .timelapse/)", en: "Until you delete the project's database (.timelapse/ folder)" }
 security_measures:
   - fr-CA: "Vos données restent sur votre appareil et ne sont transmises à personne."
     en: "Your data stays on your device and is sent to no one."

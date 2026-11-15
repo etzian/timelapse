@@ -51,6 +51,8 @@ Here is what the app keeps on your device:
 
 | The contact sheets you generate (PDF files in .timelapse/contact-sheets/, with thumbnails, file names and capture times) and the record of each sheet (source, layout, texts, result) | Other | Let you review and share a selection of photographs visually | Necessary to provide the service you asked for | On your device | Until you delete the sheets or the project's .timelapse/ folder yourself |
 
+| The brightness and colour measurements of each frame of a selection, its motion from frame to frame and the corrections computed (flicker reduction, stabilization), with their settings | Other | Reduce flicker and shake in the video, reproducibly | Necessary to provide the service you asked for | On your device | Until you delete the project's database (.timelapse/ folder) |
+
 
 
 

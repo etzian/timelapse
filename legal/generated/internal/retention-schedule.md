@@ -31,6 +31,8 @@ Law 25: personal information is destroyed or anonymized once the purpose is achi
 
 | The contact sheets you generate (PDF files in .timelapse/contact-sheets/, with thumbnails, file names and capture times) and the record of each sheet (source, layout, texts, result) | Other | On your device | Until you delete the sheets or the project's .timelapse/ folder yourself | _to complete_ | _date_ |
 
+| The brightness and colour measurements of each frame of a selection, its motion from frame to frame and the corrections computed (flicker reduction, stabilization), with their settings | Other | On your device | Until you delete the project's database (.timelapse/ folder) | _to complete_ | _date_ |
+
 
 
 
