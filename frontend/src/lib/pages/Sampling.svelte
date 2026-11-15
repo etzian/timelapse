@@ -4,7 +4,7 @@
   import { limited } from '../clean';
   import { formatDate, formatNumber, t } from '../i18n';
   import { errorText } from '../i18n/errors';
-  import { createSamplingRun, getSamplingItems, getThumbnail, listSamplingRuns, previewSampling, verifySamplingRun } from '../ipc/app';
+  import { createSamplingRun, getSamplingItems, getThumbnail, listSamplingRuns, previewSampling, timelineDistribution, verifySamplingRun } from '../ipc/app';
   import { openContactSheet } from '../stores/contactSheet.svelte';
   import type { DayCount, RunSummary, SampledItem, SamplingPreview, VerifyReport } from '../ipc/app';
   import type { IpcError } from '../ipc/invoke';
@@ -20,6 +20,9 @@
 
   let form = $state(defaultForm());
   let formInvalid = $state(false);
+  /** First and last capture day of the project's photographs (`YYYY-MM-DD`, UTC). */
+  let span = $state<{ first: string; last: string } | null>(null);
+  const wholeSpan = $derived(!!span && form.from === span.first && form.to === span.last);
   let fps = $state('30');
   let multiplier = $state('1');
 
@@ -69,10 +72,32 @@
     }
   }
 
+  /** The project's date range fills From and To, unless the user already chose dates. */
+  async function loadSpan(): Promise<void> {
+    const forRoot = root;
+    try {
+      const days = await timelineDistribution(forRoot, 'day');
+      if (forRoot !== root || days.length === 0) return;
+      span = { first: days[0].bucket, last: days[days.length - 1].bucket };
+      if (!form.from && !form.to) useWholeSpan();
+    } catch {
+      // Without the range the fields stay empty, which means "all dates" anyway.
+    }
+  }
+
+  function useWholeSpan(): void {
+    if (!span) return;
+    form.from = span.first;
+    form.to = span.last;
+  }
+
   $effect(() => {
     if (!root) return;
     preview = null;
     runs = null;
+    span = null;
+    form.from = '';
+    form.to = '';
     verified = {};
     error = '';
     savedNotice = null;
@@ -85,6 +110,7 @@
     thumbs = {};
     requested = new Set();
     void loadRuns();
+    void loadSpan();
   });
 
   $effect(() => {
@@ -247,6 +273,9 @@
         <Input label={t('sampling-from')} type="date" bind:value={form.from} />
         <Input label={t('sampling-to')} type="date" bind:value={form.to} />
       </div>
+      {#if span && !wholeSpan}
+        <Button size="sm" variant="ghost" onclick={useWholeSpan}>{t('sampling-all-dates')}</Button>
+      {/if}
       <Toggle label={t('sampling-include-flagged')} bind:checked={form.includeFlagged} />
       <p class="app-sampling__note">{t('sampling-input-note')}</p>
       {#if formInvalid}<p role="alert" class="app-sampling__error">{t('sampling-invalid')}</p>{/if}

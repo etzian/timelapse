@@ -293,6 +293,7 @@ sampling-count = Number of photographs
 sampling-input-title = Photographs to choose from
 sampling-from = From (date, UTC)
 sampling-to = To (date, UTC, included)
+sampling-all-dates = All dates
 sampling-include-flagged = Include photographs still to review
 sampling-input-note = Rejected and quarantined photographs are never used. Photographs without a capture date are left out and counted.
 sampling-invalid = Check the values: numbers must be positive (whole numbers for counts) and the end date must not be before the start date.
