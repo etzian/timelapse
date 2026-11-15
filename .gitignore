@@ -38,3 +38,8 @@ build/
 
 # Scaffolding metadata (copier-generated; not part of the deliverable)
 .copier-answers.yml
+
+# Bundled FFmpeg is built by CI (tools/build-ffmpeg); only the README is tracked.
+src-tauri/resources/ffmpeg/*
+!src-tauri/resources/ffmpeg/README.md
+ffmpeg-dist/

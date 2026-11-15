@@ -158,6 +158,8 @@ A build-time assertion (`strings` + `lipo` + symbol scan on the shipped binary) 
 - `docs/FFMPEG_AV1_ANALYSIS.md` header — status line updated to point at ADR-017; the document's recommendation is adopted as-is with one deliberate change (AV1 is **default**, not opt-in).
 - Phase 5 exit criteria (`docs/DEVELOPMENT_ROADMAP.md`) now include the GPL-symbol build-time assertion and LGPL-notice placement inside the packaged bundle.
 
+**Correction (2026-11-14, verified against the SVT-AV1 sources):** SVT-AV1 is licensed under the **BSD-3-Clause-Clear** licence ("The Clear BSD License", which expressly grants no patent rights) together with the **Alliance for Open Media Patent License 1.0**, not plain BSD-3-Clause as written above. That combination is not on the licence allow-list, so SVT-AV1 needs its own dated exception in `licence-exceptions.yaml` (drafted in Phase 5, approved only by the user). The distribution decision itself is unchanged and not reopened. Every AV1 encoder (libaom included) comes under the same AOM patent licence.
+
 **Open items carried to Phase 5:** (a) exact provenance, version pin, and build script (`tools/build-ffmpeg/`) for the shipped FFmpeg; (b) VideoToolbox availability guard per minimum supported macOS version — below that, refuse AV1-tier jobs with a clear error rather than silently falling back; (c) final placement of the LGPL notice text inside the packaged bundle.
 
 ## ADR-018 — Rust libraries: `rusqlite` (bundled) and `sha2` for the Phase 1 store and content hashing
@@ -224,6 +226,51 @@ Two library choices underpin the Phase 2 EXIF capture and chronological-timeline
 Restore runs the same steps in reverse. All file operations of the process share one lock. Reconciliation of `pending` rows runs when a project is opened, but only while no operation holds that lock, so it only ever settles rows left by a crashed process. Journal updates only touch rows that are still `pending`. An image whose import could not hash it has no reference to check in step 1; its move is still verified byte-for-byte in step 4. A Lightroom `.xmp` sidecar stays in the collection when its photo is quarantined; quarantined images are therefore not re-analysed, and keep the rating already read. Decoding is bounded at 30 000 px a side and 768 MiB per image, with at most three images decoded at once. Nothing is ever deleted except the duplicate this process itself created (ADR-011), and no byte of an original is written (ADR-006). The import scan skips `<root>/.timelapse/`, so a quarantined file is never re-imported.
 
 **Out of scope here:** consolidation, copy and link policy (Phase 6), contact sheets (Phase 7), HEIC/RAW decoding.
+
+## ADR-021 — FFmpeg runs as a bounded child process
+
+**Status:** Accepted (2026-11-14, approved by the user)
+
+The app may start **only** the FFmpeg and ffprobe executables that ship inside its own bundle, as child processes, under all of these rules:
+
+- by **absolute path** resolved from the bundle's resource directory (a `TIMELAPSE_FFMPEG_DIR` override exists for development and the test suite only), never through `PATH`;
+- with an **explicit argument vector** built by a pure function in `crates/core`: no shell, no string interpolation into a command line, and no user-supplied text in the arguments. Input frames are piped as raw pixels on stdin, so photograph paths never appear in FFmpeg's argv;
+- output only inside `<root>/.timelapse/exports/`, with `-n` (FFmpeg never overwrites) into a `.part` file, then a no-clobber rename;
+- spawned from `crates/core` (`std::process::Command`), never from the WebView. No Tauri shell plugin, no `externalBin`, no capability change;
+- each spawn site is marked `verify:allow` with a reference to this ADR, so `scripts/verify.sh` keeps catching any *other* subprocess.
+
+**Reason:** ADR-008 and ADR-017 make FFmpeg a controlled subprocess. CLAUDE.md requires the user's approval and an ADR for anything that widens what the app can do, and this ADR is that record. The rules keep the surface to two known binaries and arguments we fully control.
+
+## ADR-022 — FFmpeg build, provenance and notices (resolves ADR-017 open items a–c)
+
+**Status:** Accepted (2026-11-14, approved by the user: CI build, 9.0.2 pin)
+
+**(a) Provenance, version pin, build.**
+- **Pinned sources:** FFmpeg **9.0.2** "Lei" (`ffmpeg-9.0.2.tar.xz`, sha256 `8c3850283eb25fa026482078a04051e0be17347b09ef81a0849bec15a96e002e`) and SVT-AV1 **v4.2.0** (GitLab archive, sha256 `c7b13c4a84bd3751aa35fcc72be13e6875467e7c2216879251a486e5b1e4e740`). v4.3.0 (2026-11-02) was too recent to pin. FFmpeg 9.0.2's `libsvtav1` wrapper supports the 4.x API.
+- **Build:** `tools/build-ffmpeg/build.sh` downloads both tarballs, verifies the checksums and builds on the macOS CI runner (aarch64):
+  - **SVT-AV1:** shared library only.
+  - **FFmpeg:** **shared libraries**, because ffmpeg.org/legal.html asks for dynamic linking of an LGPL build. Configured *without* `--enable-gpl` / `--enable-nonfree`, with `--disable-autodetect` (so nothing on the build machine is picked up silently) and only the components we use: rawvideo input, the mp4/mov muxer and demuxer, `libsvtav1`, `h264_videotoolbox`, `hevc_videotoolbox`, swscale.
+  - **Paths:** binaries and dylibs use `@rpath` so the bundle is relocatable.
+- **Licence scan:** `tools/build-ffmpeg/check-licence.sh` fails the build if any of these hold:
+  - `ffmpeg -L` does not report the GNU Lesser General Public License;
+  - `-buildconf` contains `--enable-gpl` or `--enable-nonfree`;
+  - any binary or dylib mentions or links x264/x265;
+  - `libx264`/`libx265` encoders are present, or a required encoder is missing.
+
+  This is ADR-017's build-time assertion.
+- **Sources for redistribution:** CI uploads the exact source tarballs and the configure line next to the binaries. Publishing them alongside each release is a release-checklist item (LGPL-2.1 §6), flagged for the pending lawyer review.
+
+**(b) Committed encoder path, no fallback.** At runtime the app probes the bundled FFmpeg (`-encoders`, `-L`, `-version`) and offers a tier only if its encoder is present. H.264/HEVC use `h264_videotoolbox` / `hevc_videotoolbox` with `-allow_sw 0`, so VideoToolbox may not fall back to software. A missing or failing encoder is an explicit error and is never substituted by another one. The app targets Apple Silicon (aarch64) only, where VideoToolbox H.264/HEVC is always present, so no OS-version table is needed. The probe still guards against an incomplete bundle or a virtualised runner without a media engine.
+
+**(c) Notices.** The bundle carries `ffmpeg/LICENSES/`:
+- FFmpeg's `COPYING.LGPLv2.1`;
+- `CONFIGURE.txt` (the exact configure line and versions);
+- `SOURCES.txt` (source URLs and sha256);
+- SVT-AV1's `LICENSE.md` and `PATENTS.md`.
+
+Settings → About names FFmpeg (LGPL-2.1-or-later) and SVT-AV1 (BSD-3-Clause-Clear, AOM Patent License 1.0) and says where those texts are.
+
+**Licence exceptions:** FFmpeg (restricted LGPL) and SVT-AV1 (BSD-3-Clause-Clear + AOMPL-1.0, not allow-listed) are drafted in `licence-exceptions.yaml` without an approval date. Only the user approves them.
 
 ---
 

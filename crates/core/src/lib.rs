@@ -5,6 +5,7 @@
 //! adapters over this module's API.
 
 pub mod clean;
+pub mod export;
 pub mod files;
 pub mod import;
 pub mod sampling;
@@ -36,6 +37,9 @@ pub enum Error {
 
     #[error("no sampling run with id {id}")]
     UnknownRun { id: i64 },
+
+    #[error("video export failed: {reason}")]
+    Export { reason: &'static str },
 }
 
 impl Error {
@@ -49,6 +53,7 @@ impl Error {
             Self::UnknownImage { .. } => "unknown-image",
             Self::InvalidSampling { .. } => "invalid-sampling",
             Self::UnknownRun { .. } => "unknown-run",
+            Self::Export { .. } => "export",
         }
     }
 
@@ -61,7 +66,9 @@ impl Error {
             | Self::DbMessage { path }
             | Self::ImageUndecodable { path } => serde_json::json!({ "path": path }),
             Self::UnknownImage { id } | Self::UnknownRun { id } => serde_json::json!({ "id": id }),
-            Self::InvalidSampling { reason } => serde_json::json!({ "reason": reason }),
+            Self::InvalidSampling { reason } | Self::Export { reason } => {
+                serde_json::json!({ "reason": reason })
+            }
             Self::StoreTransaction => serde_json::json!({}),
         }
     }

@@ -345,3 +345,78 @@ export const getSamplingItems = (root: string, run: number, offset = 0, limit = 
   invoke<RunPage>('get_sampling_items', { root, run, offset, limit });
 export const verifySamplingRun = (root: string, run: number) =>
   invoke<VerifyReport>('verify_sampling_run', { root, run }, SAMPLING_TIMEOUT_MS);
+
+// ---- Phase 5 — video export ------------------------------------------------------------
+
+export type Codec = 'av1' | 'h264' | 'hevc';
+export type Quality = 'high' | 'standard' | 'small';
+
+export interface FfmpegInfo {
+  available: boolean;
+  version: string | null;
+  lgpl: boolean;
+  av1: boolean;
+  h264: boolean;
+  hevc: boolean;
+}
+
+export interface ExportSettings {
+  codec: Codec;
+  fps: number;
+  /** Playback multiplier, separate from fps (2 = twice as fast). */
+  speed: number;
+  width: number;
+  height: number;
+  quality: Quality;
+}
+
+export interface ExportProgress {
+  done: number;
+  total: number;
+}
+
+export interface Probed {
+  codec_name: string;
+  width: number;
+  height: number;
+  packets: number;
+  duration_seconds: number;
+}
+
+export interface ExportRecord {
+  id: number;
+  sampling_run_id: number;
+  settings: ExportSettings;
+  ffmpeg_version: string | null;
+  output_path: string;
+  status: 'running' | 'completed' | 'failed' | 'cancelled';
+  input_photos: number;
+  output_frames: number;
+  duration_seconds: number;
+  file_size: number | null;
+  probe: Probed | null;
+  /** Stable kind, shown via `error-export` with this reason. */
+  failure: string | null;
+  stderr_tail: string | null;
+  created_at: number;
+  completed_at: number | null;
+}
+
+/** Encoding a long timelapse takes a while; progress arrives on the channel meanwhile. */
+const EXPORT_TIMEOUT_MS = 6 * 60 * 60_000;
+
+export const ffmpegInfo = () => invoke<FfmpegInfo>('ffmpeg_info', {}, 30_000);
+
+export function startExport(
+  root: string,
+  run: number,
+  settings: ExportSettings,
+  onProgress: (p: ExportProgress) => void
+): Promise<ExportRecord> {
+  const channel = new Channel<ExportProgress>();
+  channel.onmessage = onProgress;
+  return invoke<ExportRecord>('start_export', { root, run, settings, onProgress: channel }, EXPORT_TIMEOUT_MS);
+}
+
+export const cancelExport = () => invoke<void>('cancel_export');
+export const listExports = (root: string) => invoke<ExportRecord[]>('list_exports', { root });

@@ -10,6 +10,7 @@ company-name = Etzian inc.
 nav-home = Accueil
 nav-cleaning = Nettoyage
 nav-sampling = Échantillonnage
+nav-export = Exportation
 nav-settings = Réglages
 
 home-title = Importer une collection
@@ -274,6 +275,55 @@ sampling-verify-identical = Toujours identique
 sampling-verify-differs = Différerait maintenant
 sampling-verify-inputs-changed = Les photographies ont changé depuis
 
+## Phase 5 — exportation
+export-title = Exportation
+export-intro = Transformez une sélection enregistrée en vidéo MP4. L’encodage se fait sur cet appareil avec le FFmpeg fourni avec l’application; la vidéo est enregistrée dans le dossier .timelapse/exports du projet et rien n’est écrasé.
+export-no-project-description = Importez d’abord un dossier, puis enregistrez une sélection dans la page Échantillonnage.
+export-no-ffmpeg-title = L’encodage vidéo n’est pas offert dans cette version
+export-no-ffmpeg-description = Le FFmpeg fourni avec l’application est introuvable. Installez l’application à partir d’un paquet officiel pour exporter des vidéos.
+export-no-runs-title = Aucune sélection enregistrée
+export-no-runs-description = Une vidéo est produite à partir d’une sélection enregistrée. Prévisualisez-en une et enregistrez-la dans la page Échantillonnage.
+export-go-sampling = Aller à l’échantillonnage
+export-settings-title = Vidéo
+export-run = Sélection
+export-run-option = { $count ->
+    [one] Sélection { $id } ({ $count } photographie)
+   *[other] Sélection { $id } ({ $count } photographies)
+}
+export-codec = Format
+export-codec-av1 = AV1 (recommandé)
+export-codec-h264 = H.264 (le plus compatible)
+export-codec-hevc = HEVC / H.265
+export-codec-unavailable = { $codec } (non offert sur ce Mac)
+export-codec-av1-help = L’AV1 produit les fichiers les plus légers à qualité égale et se lit dans les navigateurs récents, VLC et macOS 14 ou ultérieur.
+export-codec-h264-help = Le H.264 se lit presque partout. Il est encodé par le matériel vidéo de votre Mac; aucun encodage plus lent par le processeur ne prend le relais.
+export-codec-hevc-help = Le HEVC est plus léger que le H.264 et se lit sur les appareils Apple et la plupart des lecteurs récents. Il est encodé par le matériel vidéo de votre Mac.
+export-resolution = Taille
+export-resolution-option = { $width } × { $height }
+export-quality = Qualité
+export-quality-high = Élevée (fichier plus lourd)
+export-quality-standard = Standard
+export-quality-small = Fichier plus léger
+export-stat-photos = Photographies
+export-stat-frames = Images de la vidéo
+export-stat-duration = Durée de la vidéo
+export-start = Créer la vidéo
+export-exporting = Encodage…
+export-cancel = Annuler
+export-cancelling = Annulation…
+export-done-title = Vidéo créée
+export-done = { $codec }, { $duration }, { $size }. Elle est enregistrée ici :
+export-technical-details = Détails techniques
+export-history-title = Vidéos produites dans ce projet
+export-history-empty-title = Aucune vidéo pour l’instant
+export-history-empty-description = Les vidéos que vous créez apparaissent ici avec leurs réglages et leur résultat.
+export-status-running = Encodage
+export-status-completed = Terminée
+export-status-failed = Échec
+export-status-cancelled = Annulée
+export-history-line = Sélection { $run }, { $codec }, { $duration }
+about-ffmpeg-notice = L’encodage vidéo utilise FFmpeg (LGPL 2.1 ou ultérieure) et SVT-AV1 (licence BSD-3-Clause-Clear et Alliance for Open Media Patent License 1.0). Leurs textes de licence, réglages de compilation et emplacements des sources sont inclus dans l’application, dans Resources/resources/ffmpeg/LICENSES.
+
 ## Erreurs (rendues via i18n/errors.ts → t(`error-${kind}`, args)).
 error-import-root-unreadable = Le dossier « { $path } » n’a pas pu être lu.
 error-image-unreadable = La photographie située à « { $path } » n’a pas pu être lue.
@@ -286,3 +336,17 @@ error-invalid-sampling = { $reason ->
    *[other] Les réglages d’échantillonnage doivent être des nombres positifs.
 }
 error-unknown-run = Cette sélection enregistrée n’existe plus.
+error-export = { $reason ->
+    [ffmpeg-missing] Le FFmpeg fourni avec l’application est introuvable.
+    [encoder-unavailable] Ce format ne peut pas être encodé sur ce Mac; choisissez-en un autre. Rien n’est remplacé en silence.
+    [invalid-settings] Ces réglages vidéo ne sont pas pris en charge (fréquence de 1 à 120, vitesse de 0,1 à 100, tailles paires).
+    [empty-run] Cette sélection ne contient aucune photographie.
+    [busy] Une autre vidéo est déjà en cours de création.
+    [cancelled] La vidéo a été annulée; le fichier partiel a été supprimé.
+    [ffmpeg-failed] FFmpeg s’est arrêté sur une erreur; le fichier partiel a été supprimé.
+    [invalid-output] Le fichier terminé n’a pas passé la vérification (format, taille ou nombre d’images) et a été écarté.
+    [output-exists] Un fichier portant ce nom existe déjà; rien n’a été écrasé.
+    [image-unreadable] Une photographie de la sélection n’a pas pu être lue.
+    [interrupted] L’application s’est fermée pendant la création de cette vidéo.
+   *[other] La vidéo n’a pas pu être créée.
+}

@@ -15,7 +15,7 @@ use super::scan::Candidate;
 use crate::Error;
 
 /// Current schema version, tracked in `PRAGMA user_version` (docs/DATABASE_SCHEMA.md §6).
-pub const SCHEMA_VERSION: i64 = 4;
+pub const SCHEMA_VERSION: i64 = 5;
 
 /// v1: the Phase 1 tables. Phase 1 databases were created with `user_version = 0` and
 /// these exact statements, so `IF NOT EXISTS` makes the step a no-op for them.
@@ -146,6 +146,29 @@ const MIGRATION_V4: &str = r#"
     CREATE INDEX IF NOT EXISTS idx_sampling_items_run ON sampling_items (sampling_run_id, sequence_index);
 "#;
 
+/// v5 (Phase 5 video export): one row per export attempt, with what produced it.
+const MIGRATION_V5: &str = r#"
+    CREATE TABLE IF NOT EXISTS video_exports (
+        id INTEGER PRIMARY KEY,
+        sampling_run_id INTEGER NOT NULL REFERENCES sampling_runs (id),
+        settings_json TEXT NOT NULL,
+        ffmpeg_version TEXT,
+        argv_json TEXT NOT NULL,
+        output_path TEXT NOT NULL,
+        status TEXT NOT NULL CHECK (status IN ('running', 'completed', 'failed', 'cancelled')),
+        input_photos INTEGER NOT NULL,
+        output_frames INTEGER NOT NULL,
+        duration_seconds REAL NOT NULL,
+        file_size INTEGER,
+        probe_json TEXT,
+        failure TEXT,
+        stderr_tail TEXT,
+        created_at INTEGER NOT NULL,
+        completed_at INTEGER
+    );
+    CREATE INDEX IF NOT EXISTS idx_video_exports_created ON video_exports (created_at);
+"#;
+
 /// Apply every outstanding step in order, each in its own transaction together with its
 /// `user_version` bump, so a failed step leaves the database at the previous version.
 /// A database from a newer build (`user_version > SCHEMA_VERSION`) is refused, not touched.
@@ -159,9 +182,13 @@ fn migrate(conn: &Connection) -> rusqlite::Result<()> {
     if version > SCHEMA_VERSION {
         return Err(rusqlite::Error::InvalidQuery);
     }
-    for (target, sql) in
-        [(1, MIGRATION_V1), (2, MIGRATION_V2), (3, MIGRATION_V3), (4, MIGRATION_V4)]
-    {
+    for (target, sql) in [
+        (1, MIGRATION_V1),
+        (2, MIGRATION_V2),
+        (3, MIGRATION_V3),
+        (4, MIGRATION_V4),
+        (5, MIGRATION_V5),
+    ] {
         if version < target {
             let tx = rusqlite::Transaction::new_unchecked(
                 conn,

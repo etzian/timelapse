@@ -9,6 +9,7 @@ company-name = Etzian inc.
 nav-home = Home
 nav-cleaning = Cleaning
 nav-sampling = Sampling
+nav-export = Export
 nav-settings = Settings
 
 home-title = Import collection
@@ -273,6 +274,55 @@ sampling-verify-identical = Still identical
 sampling-verify-differs = Would now differ
 sampling-verify-inputs-changed = The photographs have changed since
 
+## Phase 5 — export
+export-title = Export
+export-intro = Turn a saved selection into an MP4 video. Encoding runs on this device with the FFmpeg bundled in the app; the video is saved in the project's .timelapse/exports folder and nothing is overwritten.
+export-no-project-description = Import a folder first, then save a selection on the Sampling page.
+export-no-ffmpeg-title = Video encoding is not available in this build
+export-no-ffmpeg-description = The FFmpeg that ships with the app was not found. Install the app from an official package to export videos.
+export-no-runs-title = No saved selection
+export-no-runs-description = A video is made from a saved selection. Preview and save one on the Sampling page.
+export-go-sampling = Go to Sampling
+export-settings-title = Video
+export-run = Selection
+export-run-option = { $count ->
+    [one] Selection { $id } (one photograph)
+   *[other] Selection { $id } ({ $count } photographs)
+}
+export-codec = Format
+export-codec-av1 = AV1 (recommended)
+export-codec-h264 = H.264 (most compatible)
+export-codec-hevc = HEVC / H.265
+export-codec-unavailable = { $codec } (not available on this Mac)
+export-codec-av1-help = AV1 gives the smallest files at a given quality and plays in recent browsers, VLC and macOS 14 or later.
+export-codec-h264-help = H.264 plays almost everywhere. It is encoded by your Mac's video hardware; there is no slower software fallback.
+export-codec-hevc-help = HEVC is smaller than H.264 and plays on Apple devices and most recent players. It is encoded by your Mac's video hardware.
+export-resolution = Size
+export-resolution-option = { $width } × { $height }
+export-quality = Quality
+export-quality-high = High (larger file)
+export-quality-standard = Standard
+export-quality-small = Smaller file
+export-stat-photos = Photographs
+export-stat-frames = Video frames
+export-stat-duration = Video length
+export-start = Create the video
+export-exporting = Encoding…
+export-cancel = Cancel
+export-cancelling = Cancelling…
+export-done-title = Video created
+export-done = { $codec }, { $duration }, { $size }. It is saved at:
+export-technical-details = Technical details
+export-history-title = Videos made in this project
+export-history-empty-title = No video yet
+export-history-empty-description = Videos you create appear here with their settings and result.
+export-status-running = Encoding
+export-status-completed = Done
+export-status-failed = Failed
+export-status-cancelled = Cancelled
+export-history-line = Selection { $run }, { $codec }, { $duration }
+about-ffmpeg-notice = Video encoding uses FFmpeg (LGPL 2.1 or later) and SVT-AV1 (BSD-3-Clause-Clear licence and Alliance for Open Media Patent License 1.0). Their licence texts, build settings and source locations are included in the app, in Resources/resources/ffmpeg/LICENSES.
+
 ## Errors (rendered via i18n/errors.ts → t(`error-${kind}`, args)).
 error-import-root-unreadable = The folder “{ $path }” could not be read.
 error-image-unreadable = The photograph at “{ $path }” could not be read.
@@ -285,3 +335,17 @@ error-invalid-sampling = { $reason ->
    *[other] The sampling settings must be positive numbers.
 }
 error-unknown-run = This saved selection no longer exists.
+error-export = { $reason ->
+    [ffmpeg-missing] The FFmpeg bundled with the app was not found.
+    [encoder-unavailable] This format cannot be encoded on this Mac; choose another one. Nothing is substituted silently.
+    [invalid-settings] These video settings are not supported (frame rate 1 to 120, speed 0.1 to 100, even sizes).
+    [empty-run] This selection contains no photograph.
+    [busy] Another video is already being created.
+    [cancelled] The video was cancelled; the partial file was removed.
+    [ffmpeg-failed] FFmpeg stopped with an error; the partial file was removed.
+    [invalid-output] The finished file did not pass the check (format, size or frame count) and was discarded.
+    [output-exists] A file with this name already exists; nothing was overwritten.
+    [image-unreadable] A photograph of the selection could not be read.
+    [interrupted] The app closed while this video was being created.
+   *[other] The video could not be created.
+}

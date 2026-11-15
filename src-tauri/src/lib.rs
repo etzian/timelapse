@@ -255,6 +255,59 @@ async fn verify_sampling_run(
     blocking(move || sampling::verify_run_for_root(&root, run)).await
 }
 
+// ---- Phase 5: FFmpeg video generation (ADR-017, ADR-021, ADR-022) ---------------------
+
+use timelapse_core::export;
+
+/// The bundled FFmpeg: `<resources>/resources/ffmpeg`. Debug builds honour
+/// `TIMELAPSE_FFMPEG_DIR` so development on a machine without the bundle can still
+/// encode; release builds only ever use the bundle (ADR-021).
+fn ffmpeg_paths(app: &tauri::AppHandle) -> export::FfmpegPaths {
+    use tauri::Manager as _;
+    if cfg!(debug_assertions)
+        && let Some(dir) = std::env::var_os("TIMELAPSE_FFMPEG_DIR")
+    {
+        return export::FfmpegPaths::in_dir(std::path::Path::new(&dir));
+    }
+    let dir = app.path().resource_dir().unwrap_or_default().join("resources").join("ffmpeg");
+    export::FfmpegPaths::in_dir(&dir)
+}
+
+/// Which tiers the bundled FFmpeg can encode (unavailable ones are disabled in the UI).
+#[tauri::command]
+async fn ffmpeg_info(app: tauri::AppHandle) -> std::result::Result<export::FfmpegInfo, IpcError> {
+    let paths = ffmpeg_paths(&app);
+    blocking(move || Ok(export::info(&paths))).await
+}
+
+/// Encode saved sampling run `run` into an MP4 under `<root>/.timelapse/exports/`.
+#[tauri::command]
+async fn start_export(
+    app: tauri::AppHandle,
+    root: PathBuf,
+    run: i64,
+    settings: export::ExportSettings,
+    on_progress: tauri::ipc::Channel<export::ExportProgress>,
+) -> std::result::Result<export::ExportRecord, IpcError> {
+    let paths = ffmpeg_paths(&app);
+    blocking(move || {
+        export::export_run(&root, &paths, run, settings, |p| {
+            let _ = on_progress.send(p);
+        })
+    })
+    .await
+}
+
+#[tauri::command]
+fn cancel_export() {
+    export::cancel();
+}
+
+#[tauri::command]
+fn list_exports(root: PathBuf) -> std::result::Result<Vec<export::ExportRecord>, IpcError> {
+    Ok(export::exports_for_root(&root)?)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     // Dialog is used by the frontend for folder picking on every platform; the
@@ -294,7 +347,11 @@ pub fn run() {
             create_sampling_run,
             list_sampling_runs,
             get_sampling_items,
-            verify_sampling_run
+            verify_sampling_run,
+            ffmpeg_info,
+            start_export,
+            cancel_export,
+            list_exports
         ])
         .run(tauri::generate_context!())
         .expect("error while running Timelapse Studio");

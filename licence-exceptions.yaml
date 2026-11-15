@@ -24,3 +24,34 @@ exceptions:
       code. Ship its licence notice and where its source is available
       (https://crates.io/crates/option-ext) in THIRD-PARTY.md with the app.
       Re-check if the crate version changes or a fork is needed.
+
+  # DRAFT (2026-11-14): no `approved` date, so not applied. Only the user approves.
+  - package: ffmpeg
+    ecosystem: binary
+    licence: LGPL-2.1-or-later
+    version: 9.0.2
+    reason: >-
+      Video encoding (ADR-008, ADR-017, ADR-022). Shipped as a separate
+      executable plus shared libraries inside the app bundle and run as a
+      child process (ADR-021); not linked into the app.
+    conditions: >-
+      Built without --enable-gpl/--enable-nonfree and unmodified from the
+      pinned 9.0.2 tarball (sha256 8c3850283eb25fa026482078a04051e0be17347b09ef81a0849bec15a96e002e),
+      dynamically linked. Ship COPYING.LGPLv2.1, the configure line and the
+      source location in ffmpeg/LICENSES/; publish the exact source tarball
+      with each release; mention FFmpeg and its licence in the About box.
+      check-licence.sh must pass on every build.
+  # DRAFT (2026-11-14): no `approved` date, so not applied. Only the user approves.
+  - package: svt-av1
+    ecosystem: binary
+    licence: BSD-3-Clause-Clear AND AOMPL-1.0
+    version: 4.2.0
+    reason: >-
+      The AV1 encoder that ADR-017 makes the default output codec, loaded by
+      the bundled FFmpeg as a shared library.
+    conditions: >-
+      Unmodified v4.2.0 (sha256 c7b13c4a84bd3751aa35fcc72be13e6875467e7c2216879251a486e5b1e4e740).
+      Ship LICENSE.md and PATENTS.md in ffmpeg/LICENSES/. The AOM Patent
+      License 1.0 terminates for a licensee who brings AV1 patent litigation;
+      the company accepts that defensive condition.
+

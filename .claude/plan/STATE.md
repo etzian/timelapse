@@ -1,6 +1,6 @@
 # STATE
 
-STATUS: DONE
+STATUS: RUNNING
 <!-- PENDING | RUNNING | DONE | BLOCKED -->
 
 ## Contract
@@ -19,62 +19,29 @@ STATUS: DONE
 | 1 | Import & inventory | done (2026-11-12), `421f2d0` |
 | 2 | EXIF & timeline | done (2026-11-14), `7528260` + `2aeab8d` |
 | 3 | Brightness analysis & cleaning | done (2026-11-14), `e5318e7` |
-| 4 | Temporal sampling | **done (2026-11-14)**: full gate green; independent review BLOCK → fixed → SIGN-OFF WITH NOTES (notes fixed); committed and pushed |
+| 4 | Temporal sampling | done (2026-11-14), `60b554f` |
+| 5 | FFmpeg video generation | **in progress**: ADR-021 (subprocess), licence drafts, CI build/test and the 9.0.2 pin approved by the user 2026-11-14; slices in [PHASES.md](./PHASES.md) |
 
-## Slice status (Phase 4)
+## Slice status (Phase 5)
 
 | Slice | Status | Gate |
 | --- | --- | --- |
-| P4.1 Selection algorithms | done | GATE-FAST green |
-| P4.2 Store v4 + runs | done | GATE-FULL green |
-| P4.3 Commands + IPC | done | GATE-UI green |
-| P4.4 Sampling page | done | GATE-UI green |
-| P4.5 Exit tests + review | done | reviewer sign-off (2nd pass); GATE-FULL green |
-| P4.6 Final gate + commit/push | done | GATE-FULL green |
+| P5.0 Prerequisites, ADR-021/022, licence drafts | in progress | — |
+| P5.1 Build script + CI job | pending | — |
+| P5.2 Core export engine | pending | — |
+| P5.3 Commands + resources | pending | — |
+| P5.4 Export page + About notice | pending | — |
+| P5.5 Exit tests + review | pending | — |
+| P5.6 Final gate + commit/push | pending | — |
 
 ## Handoff log
 
-- **2026-11-14 — Phase 4 DONE.**
-  - **Core** (`crates/core/src/sampling/`):
-    - `select.rs`: the pure algorithms, `ALGORITHM_VERSION` 1.
-      - Fixed interval: integer-millisecond targets; closest / first-after / last-before. The default reach is half an interval for closest and strictly under one interval otherwise; an explicit tolerance is inclusive.
-      - Every Nth, with an offset.
-      - Uniform: exactly N photographs when N ≤ the available photographs; every photograph on spread targets when N is larger.
-      - Selection rules: no duplicates, picks stay in chronological order, ties go to the earlier frame, at most 5 000 000 targets.
-    - `store.rs`:
-      - input rules: everything except rejected and quarantined photographs, flagged ones optional; undated photographs and those outside the period are excluded and counted;
-      - a SHA-256 input fingerprint;
-      - `preview`: the first 200 items plus day counts over the whole selection;
-      - `create_run`: one transaction;
-      - `list_runs`, and `run_page` (SQL `LIMIT/OFFSET` and `GROUP BY` day counts);
-      - `verify_run`: re-runs the stored configuration on the current input.
-    - Schema v4: `sampling_runs`, `sampling_items`. Two new error kinds (`invalid-sampling` with a reason, `unknown-run`).
-  - **Shell:** 5 thin commands (preview, create and verify are async on the blocking pool). No capability or dependency change.
-  - **UI:** a new Sampling page (nav item) with:
-    - the method tabs and their parameters;
-    - an optional period (the "to" date is inclusive in the UI and becomes the exclusive next-day bound in the configuration);
-    - the include-flagged toggle;
-    - preview stats: input, selected, reduction, average interval, unmatched steps;
-    - an estimated length from FPS × playback multiplier (kept separate, PRD §5.7);
-    - the excluded breakdown, day distribution and thumbnail strip;
-    - saving exactly the previewed configuration;
-    - saved runs with Show (paged) and Check (reproducibility);
-    - all GUIDELINES §4 states.
-
-    All strings are in en and fr-CA (340 keys at parity).
-  - **Data map:** `sampling-runs`; legal docs regenerated. DATABASE_SCHEMA.md documents v4 and the input rule.
-  - **Review:**
-    - **First pass: BLOCK**, on:
-      - H1: the floating-point target count dropped the last step (2 504 misses in a sweep);
-      - H2: the first-after default tolerance let a step take the next step's exact photograph.
-
-      Both fixed, together with:
-      - M1: uniform returning fewer than N;
-      - M2: the preview sending every item over IPC;
-      - L1–L4: copy and fr-CA wording, run labels, resetting state on a project change;
-      - L6: more real-file exit tests (a tie, an unmatched step, rejection detected by verify, paging).
-    - **Second pass: SIGN-OFF WITH NOTES**, with the reviewer's fuzzer at 60 000 sets × 3 methods. Both notes are fixed too: uniform with N > photographs now uses every photograph, and run pages are paged in SQL. L5 (verify does not compare the counts, which follow from the inputs, configuration and algorithm) was accepted.
-  - **Gate (Windows host):** cargo fmt / clippy `-D warnings` / test (111); svelte-check / vitest (16) / vite build; `verify.sh`; `ez i18n-check` (340/340); `ez legal check` (the two known lawyer-review warnings); `ez legal gen`; `ez licence-audit`. All exit 0.
-  - **For the user:** the period dates and the strip times are in UTC, as on the timeline.
-- **2026-11-14 — Phase 4 kicked off.** Phase 3 plan/state archived. User answers: the pipeline/PRD strategies (fixed interval, every Nth, uniform); input = all but rejected/quarantined (flagged optional); the output is an ordered list in SQLite; preview = stats + timeline + thumbnail strip.
+- **2026-11-14 — Phase 5 kicked off.**
+  - **Archive:** Phase 4 plan/state archived.
+  - **Verified:**
+    - SVT-AV1 is BSD-3-Clause-Clear + AOMPL-1.0, not on the allow-list, so ADR-017 is wrong on that point;
+    - ffmpeg.org/legal.html requires dynamic linking, exact sources and the configure line;
+    - FFmpeg 9.0.2's libsvtav1 wrapper supports the SVT-AV1 4.x API.
+  - **Pinned:** the tarballs were downloaded only to hash them.
+  - **No FFmpeg on this host;** the app target is macOS aarch64 only.
 - **Earlier phases:** see [archive/](./archive/).

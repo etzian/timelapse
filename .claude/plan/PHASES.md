@@ -1,80 +1,90 @@
 # PHASES
 
-Phases 0–3 are **complete** and archived in [archive/](./archive/). This file tracks **Phase 4 — Temporal sampling**. The canonical scope and exit criteria stay in [docs/DEVELOPMENT_ROADMAP.md](../../docs/DEVELOPMENT_ROADMAP.md), quoted below; the slices implement that scope and nothing more.
+Phases 0–4 are **complete** and archived in [archive/](./archive/). This file tracks **Phase 5 — FFmpeg video generation**. The canonical scope and exit criteria stay in [docs/DEVELOPMENT_ROADMAP.md](../../docs/DEVELOPMENT_ROADMAP.md); the slices implement them and nothing more.
 
-> ## Phase 4 — Temporal sampling
-> **Scope:** Sampling strategies (uniform, threshold, keyframe) over the timeline; output sequence materialized; preview. (Pipeline §6.)
-> **Entry:** Phase 3 exit.
-> **Exit:** Given a config, produces the exact selected sequence; selection is deterministic for identical inputs (reproducibility, Pipeline §13).
+> ## Phase 5 — FFmpeg video generation
+> **Scope:** Sequence → MP4 (H.264/HEVC hardware path; AV1 tier per selected option); duration calculation; FFmpeg safety (explicit args, no shell interpolation). (Pipeline §10.)
+> **Entry:** ADR-017 adopted; pre-Phase-5 prerequisites (a)–(c) resolved before Phase 5 begins. Phase 4 exit.
+> **Exit:** A valid MP4 is produced from a sampled sequence; encode uses the committed encoder path (hardware H.264/HEVC; SVT-AV1 if AV1 tier enabled); no GPL/denied-licence encoder linked in the shipped binary.
 
 **User decisions, 2026-11-14:**
+1. **ADR-021 approved:** the app may start FFmpeg/ffprobe as child processes, under these limits:
+   - only the bundled binaries, by absolute path;
+   - an explicit argv (no shell, no interpolation), started from `crates/core`;
+   - no Tauri shell plugin and no capability change;
+   - output only into `<root>/.timelapse/exports/`;
+   - each spawn site marked `verify:allow` citing ADR-021.
+2. **Licences:**
+   - Draft (undated) `licence-exceptions.yaml` entries for FFmpeg (LGPL-2.1-or-later) and SVT-AV1 (BSD-3-Clause-Clear + AOM Patent License 1.0). **Only the user dates them**, and until then the licence audit may stay red.
+   - Correct ADR-017's "SVT-AV1 = BSD-3-Clause" statement.
+3. **Build and test on the macOS CI runner.** `tools/build-ffmpeg/` builds FFmpeg 9.0.2 and SVT-AV1 v4.2.0 from pinned, checksummed tarballs, then:
+   - runs the licence/GPL scan;
+   - encodes real MP4s;
+   - uploads the binaries and their exact sources.
 
-1. **Strategies** follow PROCESSING_PIPELINE.md §6 and PRD §5.6, since the roadmap's "threshold" and "keyframe" are defined nowhere:
-   - **fixed interval**: targets every *Δt*, matched closest / first-after / last-before within a tolerance;
-   - **every Nth** photograph, in chronological order;
-   - **uniform**: *N* photographs spread over the period.
-
-   No photograph is selected twice; unmatched targets are reported.
-2. **Input set:** every photograph *except* rejected and quarantined ones. Flagged and not-analysed photos are included, with a per-run option to exclude flagged ones. Photographs without a capture time are always excluded and counted (ADR-010).
-3. **Output** ("materialized"): an ordered selection in SQLite (`sampling_runs`, `sampling_items`). Each run stores its configuration, algorithm version and an input fingerprint. No files are written.
-4. **Preview:** counts, reduction %, effective interval, and estimated duration at a chosen FPS × playback multiplier (PRD §5.7; these stay separate concepts). Also a distribution bar of the selection and a strip of selected thumbnails. Contact sheets stay in Phase 7.
-
-No new dependency; no new capability.
+   On this Windows host, encode tests are skipped when no FFmpeg is configured; argv building, duration maths, frame fitting and ffprobe parsing are tested everywhere.
+4. **Pin:** FFmpeg **9.0.2** "Lei" (`sha256 8c3850283eb25fa026482078a04051e0be17347b09ef81a0849bec15a96e002e`); SVT-AV1 **v4.2.0** (`sha256 c7b13c4a84bd3751aa35fcc72be13e6875467e7c2216879251a486e5b1e4e740`, GitLab archive). v4.3.0 (2026-11-02) is too recent to pin.
 
 ---
 
 ## Slices
 
-Gate names are as in Phase 3: `GATE-FAST` = fmt + clippy `-D warnings` + `cargo test`; `GATE-UI` = GATE-FAST + svelte-check / vitest / build + `verify.sh` + `ez i18n-check`; `GATE-FULL` = GATE-UI + `ez legal check/gen` + `ez licence-audit`.
+Gate names are as before: `GATE-FAST`, `GATE-UI`, `GATE-FULL` (see Phase 4).
 
-### P4.1 — Selection algorithms (pure)
-`crates/core/src/sampling/select.rs`:
-- **Input:** frames sorted by `(epoch_ms, original_path)`. **Output:** a `Selection` holding the ordered picks (target and actual time) and the unmatched targets.
-- **Fixed interval:** targets from the first frame onward, matched with the *monotone no-duplicate* rule: each pick is later in the sequence than the previous pick. Tolerance defaults: half the interval for closest, one interval otherwise. Ties go to the earlier frame.
-- **Every Nth:** with an offset.
-- **Uniform:** *N* targets spread evenly over the first to last frame, matched closest.
-- **Limits:** configurations that would generate more than 5 000 000 targets, or have non-positive parameters, are rejected as `invalid-sampling`.
+### P5.0 — Prerequisites (a)–(c), ADR-021/022, licence drafts
+- **ADR-021:** the subprocess rule.
+- **ADR-022** resolves ADR-017's open items:
+  - **(a) provenance:** pinned tarballs + checksums; LGPL build, shared libraries (per ffmpeg.org/legal.html, dynamic linking), `--disable-autodetect`, only the components we use;
+  - **(b) no software fallback:** a runtime encoder probe; `-allow_sw 0` for VideoToolbox; refuse a tier whose encoder is missing;
+  - **(c) notices:** `LICENSES/` placement (COPYING.LGPLv2.1, configure line, source URLs + checksums, SVT-AV1 LICENSE + PATENTS) and an About-box mention.
+- Draft exception entries; correct ADR-017.
 
-Unit tests: each policy, tolerance edge cases, gaps that produce unmatched targets, ties, no duplicates, N ≥ the frame count, empty input, and determinism.
-**Gate:** GATE-FAST.
+**Gate:** GATE-FAST (docs only, plus `ez licence-audit .` run and its result recorded).
 
-### P4.2 — Store v4 + runs
-- **Migration v4:** `sampling_runs` (method, `configuration_json`, `algorithm_version`, input count, input fingerprint as the SHA-256 of `id:normalized_datetime` lines, selected count, unmatched targets, excluded counts, status, `created_at`) and `sampling_items` (`run`, `image`, `target_datetime`, `actual_datetime`, `sequence_index`, unique per run).
-- **Input query:** applies the input rules (status, period `[from, to)`, flagged option) and counts what was excluded and why.
-- **Functions:** `preview` (no write), `create_run` (one transaction), `list_runs`, `run_items`, and `verify_run`, which re-runs the stored configuration on the current inputs and reports whether the inputs and the selection are identical.
+### P5.1 — Build script + CI job
+- `tools/build-ffmpeg/build.sh`: download, verify sha256, build SVT-AV1 (shared, no apps) and FFmpeg (LGPL, shared, minimal), set `@rpath`, collect licence files.
+- `tools/build-ffmpeg/check-licence.sh`, failing when:
+  - `-L` does not report the LGPL;
+  - `-buildconf` contains `--enable-gpl`/`--enable-nonfree`;
+  - any binary references or contains x264/x265;
+  - a required encoder is missing, or `libx264`/`libx265` is present.
+- CI job (macos-latest) that caches by pin hash, exports `TIMELAPSE_FFMPEG_DIR` to the test run, and uploads the binaries and sources.
 
-**Gate:** GATE-FULL (the data map gains `sampling-runs`).
+**Gate:** the CI run is green (watched with `gh run`).
 
-### P4.3 — Tauri commands + IPC
-Thin commands: `preview_sampling`, `create_sampling_run`, `list_sampling_runs`, `get_sampling_items`, `verify_sampling_run`. TS types and wrappers.
+### P5.2 — Core export engine
+`crates/core/src/export/`:
+- **Locate and probe:** version, encoders, LGPL.
+- **Settings:** codec `av1` (default) | `h264` | `hevc`; fps; playback multiplier (separate from fps, PRD §5.7); resolution preset; quality.
+- **Frame preparation:** decode with EXIF orientation applied, fit with letterbox, piped as raw RGB on stdin, so file paths never reach FFmpeg's argv for inputs.
+- **argv builder (pure):** `-n` (never overwrite), output to `.part`, then a no-clobber rename.
+- **Process control:** progress, cancellation, bounded stderr capture.
+- **Validation:** ffprobe checks codec, dimensions and packet count.
+- **Store v5:** `video_exports`, recording settings, ffmpeg version, argv, encoder, output, status and probe results.
+- **Duration maths** matching the Sampling estimate.
+
+**Gate:** GATE-FAST, plus the CI encode tests for each available tier.
+
+### P5.3 — Tauri commands + resources
+- `ffmpeg_info`, `start_export` (async, progress Channel), `cancel_export`, `list_exports`.
+- FFmpeg is resolved from the bundle's resource dir. A `TIMELAPSE_FFMPEG_DIR` override exists for dev and tests only.
+- `bundle.resources` carries `resources/ffmpeg/**` (a placeholder README keeps non-mac builds working).
+
+No capability change. **Gate:** GATE-UI.
+
+### P5.4 — Export page (both locales) + About notice
+Pick a saved selection, codec tier (unavailable tiers disabled with the reason), FPS, speed, resolution, quality; estimated duration; export with progress and cancel; result (path, codec, duration, size); history; every GUIDELINES §4 state. Settings → About mentions FFmpeg/SVT-AV1 and their licences.
 **Gate:** GATE-UI.
 
-### P4.4 — Sampling page (both locales)
-- **Controls:** method; parameters (interval value + unit, policy, optional tolerance; N + offset; count); optional period; include-flagged toggle; FPS (12, 15, 24, 25, 30, 50, 60) and multiplier (0.5, 1, 2, 4), which drive the estimate only.
-- **Preview:** stats, distribution by day, thumbnail strip, unmatched count.
-- **Runs:** save as a run; a list of saved runs with a reproducibility check.
-- Every state from GUIDELINES §4; all strings in both catalogs.
+### P5.5 — Exit tests + independent review
+CI encode tests: a sampled sequence → MP4 per available tier, validated with ffprobe (codec, size, frame count ≈ the duration maths); no GPL symbols (P5.1 scan); an unavailable tier is refused, never substituted. Then an independent reviewer pass.
+**Gate:** reviewer sign-off; GATE-FULL (with the licence audit pending the user's approval dates, recorded as such); CI green.
 
-**Gate:** GATE-UI.
-
-### P4.5 — Exit tests + independent review
-Integration tests on real files: import → (clean) → sample. They check:
-- an exact expected sequence for each method on a known set;
-- identical inputs give an identical sequence;
-- a changed input is detected by `verify_run`;
-- rejected and quarantined images are never selected;
-- missing timestamps are excluded and counted.
-
-Then an independent reviewer pass.
-**Gate:** reviewer sign-off in STATE.md; GATE-FULL.
-
-### P4.6 — Final gate, status, commit, push
-**Gate:** GATE-FULL + push to `origin/main`.
+### P5.6 — Final gate, status, commit, push
 
 ---
 
-## Out of scope for Phase 4
-- "Threshold" / "keyframe" strategies (undefined; a future, separately specified addition), adaptive sampling.
-- Writing a sequence folder or any file (Phase 5 / Phase 6).
-- Contact sheets (Phase 7). Video encoding (Phase 5).
-- Repeating a photograph for several targets (PRD: only as an explicit separate option; not requested).
+## Out of scope
+- Code signing and notarisation of the bundled FFmpeg (it ships with the app's signing, later).
+- Audio, overlays, frame interpolation, deflicker (Phase 8+), contact sheets (Phase 7).
+- Publishing the exact source tarballs on a download page: CI uploads them as an artifact, and the release process must publish them (LGPL §6). Flagged for the lawyer review.

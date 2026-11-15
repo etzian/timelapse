@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, 'phase-*']
   pull_request:
 
 permissions:
@@ -20,7 +20,7 @@ jobs:
   build-macos-aarch64:
     name: Build + check (aarch64-apple-darwin)
     runs-on: macos-latest
-    timeout-minutes: 30
+    timeout-minutes: 75
     env:
       # Private @etzianco/ui package lives in GitHub Packages under the etzianco
       # org. The workflow github.token cannot be used — it lacks read access to
@@ -52,14 +52,45 @@ jobs:
         working-directory: frontend
         run: npm ci --no-audit --no-fund
 
-      - name: Rust workspace check (fmt + clippy -D warnings + test)
+      # ---- FFmpeg (ADR-017, ADR-022): pinned LGPL build, cached by its pins/scripts ----
+      - name: Cache the FFmpeg build
+        id: ffmpeg-cache
+        uses: actions/cache@v4
+        with:
+          path: ffmpeg-dist
+          key: ffmpeg-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('tools/build-ffmpeg/**') }}
+
+      - name: Build FFmpeg 9.0.2 + SVT-AV1 4.2.0 (LGPL, shared)
+        if: steps.ffmpeg-cache.outputs.cache-hit != 'true'
+        run: bash tools/build-ffmpeg/build.sh ffmpeg-dist
+
+      - name: Licence assertion on the FFmpeg we ship (no GPL, committed encoders)
+        run: bash tools/build-ffmpeg/check-licence.sh ffmpeg-dist
+
+      - name: Bundle FFmpeg into the app resources
+        run: |
+          mkdir -p src-tauri/resources/ffmpeg
+          cp -R ffmpeg-dist/bin ffmpeg-dist/lib ffmpeg-dist/LICENSES src-tauri/resources/ffmpeg/
+          echo "TIMELAPSE_FFMPEG_DIR=$PWD/ffmpeg-dist" >> "$GITHUB_ENV"
+
+      - name: Rust workspace check (fmt + clippy -D warnings + test, encode tests included)
         run: make check
+
+      - name: Encode tests, verbose (real MP4s per tier, validated with ffprobe)
+        run: cargo test -p timelapse-core export:: -- --nocapture
 
       - name: Frontend check (svelte-check --fail-on-warnings + vitest + vite build)
         run: make ui-check
 
       - name: Build the unsigned .app (signing is added once a team_id exists)
         run: make build
+
+      - name: Upload FFmpeg binaries, licences and exact sources (LGPL §6)
+        uses: actions/upload-artifact@v4
+        with:
+          name: ffmpeg-9.0.2-lgpl-aarch64
+          path: ffmpeg-dist
+          if-no-files-found: error
 
       - name: Upload the built .app for inspection
         uses: actions/upload-artifact@v4

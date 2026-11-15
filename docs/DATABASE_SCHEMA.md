@@ -302,6 +302,7 @@ whose version is newer than the build (left untouched, never recreated).
 | 2 | `idx_images_normalized_datetime` on `images(normalized_datetime)`; new column `images.timestamp_offset_minutes INTEGER` — the UTC offset applied when resolving, `NULL` when the source recorded no zone and UTC was assumed (ADR-019). |
 | 3 | Phase 3 cleaning (ADR-020): `image_analysis`, `image_status`, `file_operations` (below), indexes `idx_image_status_status`, `idx_file_operations_job`, `idx_file_operations_status`; new column `images.current_path` — where the original is now (`NULL` = at `original_path`; the quarantine path while quarantined). `original_path` stays the path of record and is never rewritten. |
 | 4 | Phase 4 sampling: `sampling_runs`, `sampling_items` (below), index `idx_sampling_items_run`. |
+| 5 | Phase 5 export: `video_exports` (below), index `idx_video_exports_created`. |
 
 **Timestamp columns as written by the Phase 2 backfill** (rows with `timestamp_source IS NULL` only — idempotent):
 
@@ -334,6 +335,12 @@ whose version is newer than the build (left untouched, never recreated).
 | `sampling_items` | `id`, `sampling_run_id` (FK, cascade), `image_id` (FK), `target_datetime` (`NULL` for every-Nth), `actual_datetime`, `sequence_index` | The ordered selection; unique per `(run, sequence_index)` and `(run, image)`, so no photograph appears twice. |
 
 **Sampling input rule:** every image except `rejected` and `quarantined`; `flagged` optional; images without `normalized_datetime` are excluded and counted; ordered as the timeline (`normalized_datetime`, `original_path`). `verify_run` recomputes the stored configuration on the current input and compares both the fingerprint and the sequence.
+
+**Phase 5 table (v5):**
+
+| Table | Columns | Notes |
+| --- | --- | --- |
+| `video_exports` | `id`, `sampling_run_id` (FK), `settings_json` (codec, fps, speed, width, height, quality), `ffmpeg_version`, `argv_json` (the exact FFmpeg arguments), `output_path`, `status` (`running` · `completed` · `failed` · `cancelled`), `input_photos`, `output_frames`, `duration_seconds`, `file_size`, `probe_json` (ffprobe: codec, size, packets, duration), `failure`, `stderr_tail`, `created_at`, `completed_at` | One row per attempt, written before FFmpeg starts. A row left `running` by a crash becomes `failed`/`interrupted` the next time exports are listed while none is running. |
 
 **Read queries (Phase 2):**
 

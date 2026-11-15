@@ -69,6 +69,7 @@
     endorsedBy={t('about-endorsed-by')}
     copyright={t('about-copyright', { year: String(year), company: t('company-name') })}
   />
+  <p class="app-notice">{t('about-ffmpeg-notice')}</p>
 
   <DangerZone kind="local-data" {t} {deleted} ondelete={eraseLocalData} />
 </div>
@@ -76,3 +77,11 @@
 <Modal open={openDoc !== null} {title} onclose={() => (openDoc = null)}>
   <pre class="app-doc" lang={getLocale()}>{openDoc ? docs[getLocale()][openDoc] : ''}</pre>
 </Modal>
+
+<style>
+  .app-notice {
+    font-size: var(--ez-fs-sm);
+    color: var(--ez-color-text-muted);
+    margin: 0;
+  }
+</style>

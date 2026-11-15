@@ -45,6 +45,8 @@ Voici ce que l'application conserve sur votre appareil :
 
 | Vos sélections d'échantillonnage enregistrées (méthode, réglages, liste ordonnée des photographies retenues et empreinte des photographies disponibles) | Autre | Produire la vidéo à partir d'une séquence exacte et reproductible | Nécessaire pour fournir le service demandé | Sur votre appareil | Jusqu'à ce que vous supprimiez la base de données du projet (dossier .timelapse/) |
 
+| Les vidéos que vous créez (dossier .timelapse/exports/) et le journal de chaque exportation (réglages, version de FFmpeg, commande, résultat) | Autre | Produire votre vidéo timelapse et pouvoir la reproduire à l'identique | Nécessaire pour fournir le service demandé | Sur votre appareil | Jusqu'à ce que vous supprimiez vous-même les vidéos ou le dossier .timelapse/ du projet |
+
 
 
 
