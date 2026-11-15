@@ -313,6 +313,88 @@ fn list_exports(root: PathBuf) -> std::result::Result<Vec<export::ExportRecord>,
     Ok(export::exports_for_root(&root)?)
 }
 
+// ---- Phase 6: consolidation (ADR-023) --------------------------------------------------
+
+use timelapse_core::consolidate;
+
+/// The dry run: targets, duplicates, collisions, bytes vs free space. Writes nothing.
+#[tauri::command]
+async fn preview_consolidation(
+    root: PathBuf,
+    config: consolidate::Config,
+) -> std::result::Result<consolidate::Preview, IpcError> {
+    blocking(move || consolidate::preview(&root, &config)).await
+}
+
+/// Carry out the plan the user confirmed (`fingerprint` from the dry run).
+#[tauri::command]
+async fn start_consolidation(
+    root: PathBuf,
+    config: consolidate::Config,
+    fingerprint: String,
+    token: u64,
+    on_progress: tauri::ipc::Channel<consolidate::Progress>,
+) -> std::result::Result<consolidate::RunRecord, IpcError> {
+    blocking(move || {
+        consolidate::execute(&root, &config, &fingerprint, token, |p| {
+            let _ = on_progress.send(p);
+        })
+    })
+    .await
+}
+
+/// Stop the consolidation or undo started with `token` after the current photograph.
+#[tauri::command]
+fn cancel_consolidation(token: u64) {
+    consolidate::cancel(token);
+}
+
+/// Remove a run's unmodified copies, or move its originals back.
+#[tauri::command]
+async fn undo_consolidation(
+    root: PathBuf,
+    run: i64,
+    token: u64,
+    on_progress: tauri::ipc::Channel<consolidate::Progress>,
+) -> std::result::Result<consolidate::RunRecord, IpcError> {
+    blocking(move || {
+        consolidate::undo(&root, run, token, |p| {
+            let _ = on_progress.send(p);
+        })
+    })
+    .await
+}
+
+#[tauri::command]
+fn list_consolidations(
+    root: PathBuf,
+) -> std::result::Result<Vec<consolidate::RunRecord>, IpcError> {
+    Ok(consolidate::runs_for_root(&root)?)
+}
+
+/// Re-hash every file a run placed against what it wrote.
+#[tauri::command]
+async fn verify_consolidation(
+    root: PathBuf,
+    run: i64,
+) -> std::result::Result<consolidate::RunCheck, IpcError> {
+    blocking(move || consolidate::verify_run(&root, run)).await
+}
+
+/// Re-hash every original at its location of record against its import hash.
+#[tauri::command]
+async fn verify_originals(
+    root: PathBuf,
+    on_progress: tauri::ipc::Channel<consolidate::Progress>,
+) -> std::result::Result<consolidate::OriginalsCheck, IpcError> {
+    blocking(move || {
+        consolidate::verify_originals(&root, |p| {
+            let _ = on_progress.send(p);
+        })
+    })
+    .await
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     // Dialog is used by the frontend for folder picking on every platform; the
@@ -356,7 +438,14 @@ pub fn run() {
             ffmpeg_info,
             start_export,
             cancel_export,
-            list_exports
+            list_exports,
+            preview_consolidation,
+            start_consolidation,
+            cancel_consolidation,
+            undo_consolidation,
+            list_consolidations,
+            verify_consolidation,
+            verify_originals
         ])
         .run(tauri::generate_context!())
         .expect("error while running Timelapse Studio");
