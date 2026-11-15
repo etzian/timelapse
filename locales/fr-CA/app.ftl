@@ -11,6 +11,7 @@ nav-home = Accueil
 nav-cleaning = Nettoyage
 nav-organize = Organisation
 nav-sampling = Échantillonnage
+nav-adjust = Ajuster
 nav-export = Exportation
 nav-sheets = Planches contact
 nav-settings = Réglages
@@ -424,6 +425,7 @@ error-export = { $reason ->
     [write-failed] La vidéo n’a pas pu être écrite dans le dossier d’exportation du projet (disque plein ou non accessible en écriture).
     [interrupted] L’application s’est fermée pendant la création de cette vidéo.
     [unknown-export] Cette vidéo n’existe plus.
+    [adjustment-mismatch] Une analyse du scintillement ou de la stabilisation choisie appartient à une autre sélection, ou ne couvre pas toutes les photographies de celle-ci.
     [record-write-failed] Le registre n’a pas pu être enregistré dans le dossier des exportations du projet (disque plein ou protégé en écriture).
    *[other] La vidéo n’a pas pu être créée.
 }
@@ -712,4 +714,84 @@ error-contact-sheet = { $reason ->
     [output-exists] Un fichier de ce nom existe déjà; rien n’a été écrasé.
     [interrupted] L’application s’est fermée pendant la création de cette planche contact.
    *[other] La planche contact n’a pas pu être créée.
+}
+
+## Phase 8 — réduction du scintillement et stabilisation
+
+adjust-title = Ajuster
+adjust-no-project-description = Importez d’abord un dossier de photographies et enregistrez une sélection; vous pourrez ensuite réduire le scintillement et les tremblements.
+adjust-no-runs-description = La réduction du scintillement et la stabilisation s’appliquent à une sélection enregistrée. Enregistrez-en une à la page Échantillonnage.
+adjust-intro = Analysez une sélection enregistrée, vérifiez le résultat ici, puis choisissez-le au moment de l’exportation. Vos photographies ne sont jamais modifiées : les corrections sont appliquées pendant la création de la vidéo.
+adjust-flicker-title = Réduction du scintillement
+adjust-flicker-help = Suit les changements lents de la lumière (lever et coucher du soleil, nuages) et atténue les sauts d’exposition rapides d’une photographie à l’autre. Les corrections sont limitées à un diaphragme d’exposition et à un tiers de diaphragme de couleur.
+adjust-strength = Intensité
+adjust-window = Lissage
+adjust-frames-option = { $count ->
+    [one] { $count } image
+   *[other] { $count } images
+}
+adjust-colour = Uniformiser aussi la couleur (balance des blancs)
+adjust-analyse = Analyser
+adjust-analysing = Analyse…
+adjust-stopped = L’analyse a été arrêtée; rien n’a été enregistré.
+adjust-other-running = Un autre projet est en cours d’analyse; vous pourrez lancer celle-ci quand il sera terminé.
+adjust-result = Résultat affiché
+adjust-flicker-option = no { $id } · { $date } · { $strength } · { $window } images
+adjust-stab-option = no { $id } · { $date } · recadrage { $crop }
+adjust-stat-largest = Plus forte correction
+adjust-stat-mean = Correction moyenne
+adjust-stat-colour = Plus forte correction de couleur
+adjust-stat-measured = Mesurées
+adjust-measured-of = { $measured } sur { $frames }
+adjust-stops = { $value } IL
+adjust-none-title = Rien d’analysé pour l’instant
+adjust-flicker-none = Analysez cette sélection pour voir sa luminosité, avant et après.
+adjust-stab-none = Analysez cette sélection pour voir le mouvement de l’appareil, avant et après.
+adjust-chart-brightness = Luminosité d’une image à l’autre (en diaphragmes, par rapport à la normale)
+adjust-chart-red = Équilibre du rouge (en diaphragmes, par rapport à la normale)
+adjust-chart-blue = Équilibre du bleu (en diaphragmes, par rapport à la normale)
+adjust-chart-horizontal = Position horizontale (part de l’image)
+adjust-chart-vertical = Position verticale (part de l’image)
+adjust-series-before = Telle que prise
+adjust-series-trend = Tendance conservée
+adjust-series-after = Corrigée
+adjust-series-path = Appareil tel que pris
+adjust-series-stabilized = Stabilisée
+adjust-axis-frame = Image
+adjust-show-table = Afficher les valeurs dans un tableau
+adjust-stab-title = Stabilisation
+adjust-stab-help = Mesure le déplacement de l’image d’une photographie à l’autre et maintient l’appareil sur une trajectoire régulière. Déplacements seulement (pas de rotation); chaque image est recadrée de la même petite marge pour que les bords ne paraissent jamais.
+adjust-smoothing = Lissage
+adjust-max-crop = Recadrage maximal par côté
+adjust-stat-crop = Recadrage par côté
+adjust-stat-shift = Plus grand déplacement
+adjust-stat-pairs = Mouvements mesurés
+adjust-stab-few = Peu de mouvements ont pu être mesurés avec confiance (photographies sans détails ou très différentes) : la stabilisation aura peu d’effet sur cette sélection.
+adjust-compare-title = Avant et après
+adjust-compare-none = Analysez le scintillement ou la stabilisation pour comparer une photographie à sa version corrigée.
+adjust-frame = { $count ->
+    [one] Image (sur { $count })
+   *[other] Image (sur { $count })
+}
+adjust-previous = Précédente
+adjust-next = Suivante
+adjust-apply-flicker = Réduction du scintillement
+adjust-apply-stab = Stabilisation
+adjust-label-before = Telle que prise
+adjust-label-after = Corrigée
+adjust-as-shot = Image { $frame } telle que prise
+adjust-adjusted = Image { $frame } corrigée
+export-flicker = Réduction du scintillement
+export-stab = Stabilisation
+export-adjust-none = Aucune
+export-flicker-option = no { $id } · intensité { $strength }
+export-stab-option = no { $id } · recadrage { $crop }
+
+error-adjust = { $reason ->
+    [busy] Une autre analyse est déjà en cours.
+    [empty-run] Cette sélection ne contient aucune photographie.
+    [unknown-adjustment] Cette analyse n’existe plus.
+    [adjustment-mismatch] Cette analyse appartient à une autre sélection, ou ne couvre pas toutes les photographies de celle-ci. Analysez de nouveau cette sélection.
+    [unknown-frame] Cette image ne fait pas partie de la sélection.
+   *[other] L’analyse n’a pas pu être effectuée.
 }

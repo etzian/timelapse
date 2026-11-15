@@ -30,7 +30,8 @@ export const EXPORT_FAILURES = [
   'write-failed',
   'interrupted',
   'unknown-export',
-  'record-write-failed'
+  'record-write-failed',
+  'adjustment-mismatch'
 ] as const;
 
 export function exportFailureText(kind: string | null): string {

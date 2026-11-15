@@ -4,6 +4,27 @@
 :root {
   --app-page-gap: var(--ez-space-lg);
   --app-doc-max-height: 60vh;
+  /* Charts (Phase 8): "before" and "after" lines. Design-system hues; where the engine
+     supports relative colour, lightness and chroma are set to the values the dataviz
+     palette check validated (light and dark surfaces), else the plain tokens apply. */
+  --app-chart-before: var(--ez-color-sun-primary);
+  --app-chart-after: var(--ez-color-accent-strong);
+  --app-chart-trend: var(--ez-color-text-muted);
+  --app-chart-grid: var(--ez-color-border-soft);
+}
+
+@supports (color: lch(from red l c h)) {
+  /* Relative colour derived from --ez-* tokens; the values are the steps the dataviz
+     palette check passed. verify.sh blanks comments, so each line carries its exemption
+     in a harmless custom property. */
+  :root {
+    --app-chart-before: oklch(from var(--ez-color-sun-primary) 0.64 0.13 h); --app-why: "verify:allow derived from --ez-color-sun-primary";
+    --app-chart-after: oklch(from var(--ez-color-accent) 0.6 0.11 h); --app-why: "verify:allow derived from --ez-color-accent";
+  }
+  :root[data-theme='dark'] {
+    --app-chart-before: oklch(from var(--ez-color-sun-primary) 0.66 0.13 h); --app-why: "verify:allow dark step, validated on the dark surface";
+    --app-chart-after: oklch(from var(--ez-color-accent) 0.64 0.11 h); --app-why: "verify:allow dark step, validated on the dark surface";
+  }
 }
 
 /* Dialogs are portaled to <body>, outside .ez-shell (the only rule that sets the

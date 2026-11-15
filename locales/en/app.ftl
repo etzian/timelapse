@@ -10,6 +10,7 @@ nav-home = Home
 nav-cleaning = Cleaning
 nav-organize = Organize
 nav-sampling = Sampling
+nav-adjust = Adjust
 nav-export = Export
 nav-sheets = Contact sheets
 nav-settings = Settings
@@ -424,6 +425,7 @@ error-export = { $reason ->
     [write-failed] The video could not be written to the project's exports folder (disk full or not writable).
     [interrupted] The app closed while this video was being created.
     [unknown-export] This video no longer exists.
+    [adjustment-mismatch] A chosen flicker or stabilization analysis belongs to another selection, or does not cover every photograph of this one.
     [record-write-failed] The record could not be saved in the project’s exports folder (disk full or not writable).
    *[other] The video could not be created.
 }
@@ -713,4 +715,84 @@ error-contact-sheet = { $reason ->
     [output-exists] A file with this name already exists; nothing was overwritten.
     [interrupted] The app closed while this contact sheet was being created.
    *[other] The contact sheet could not be created.
+}
+
+## Phase 8 — deflicker and stabilization
+
+adjust-title = Adjust
+adjust-no-project-description = Import a folder of photographs and save a selection first; you can then reduce flicker and shake.
+adjust-no-runs-description = Flicker reduction and stabilization work on a saved selection. Save one on the Sampling page.
+adjust-intro = Measure a saved selection, check the result here, then choose it when you export. Your photographs are never changed: the corrections are applied while the video is made.
+adjust-flicker-title = Flicker reduction
+adjust-flicker-help = Follows the slow changes of light (sunrise, sunset, clouds) and evens out the quick jumps in exposure between photographs. Corrections are limited to one stop of exposure and a third of a stop of colour.
+adjust-strength = Strength
+adjust-window = Smoothing
+adjust-frames-option = { $count ->
+    [one] { $count } frame
+   *[other] { $count } frames
+}
+adjust-colour = Also even out colour (white balance)
+adjust-analyse = Analyse
+adjust-analysing = Analysing…
+adjust-stopped = The analysis was stopped; nothing was stored.
+adjust-other-running = Another project is being analysed; you can start here when it ends.
+adjust-result = Result shown
+adjust-flicker-option = #{ $id } · { $date } · { $strength } · { $window } frames
+adjust-stab-option = #{ $id } · { $date } · crop { $crop }
+adjust-stat-largest = Largest correction
+adjust-stat-mean = Average correction
+adjust-stat-colour = Largest colour correction
+adjust-stat-measured = Measured
+adjust-measured-of = { $measured } of { $frames }
+adjust-stops = { $value } EV
+adjust-none-title = Nothing analysed yet
+adjust-flicker-none = Analyse this selection to see its brightness, before and after.
+adjust-stab-none = Analyse this selection to see the camera's movement, before and after.
+adjust-chart-brightness = Brightness from frame to frame (stops from typical)
+adjust-chart-red = Red balance (stops from typical)
+adjust-chart-blue = Blue balance (stops from typical)
+adjust-chart-horizontal = Horizontal position (share of the frame)
+adjust-chart-vertical = Vertical position (share of the frame)
+adjust-series-before = As shot
+adjust-series-trend = Trend kept
+adjust-series-after = Corrected
+adjust-series-path = Camera as shot
+adjust-series-stabilized = Stabilized
+adjust-axis-frame = Frame
+adjust-show-table = Show the values as a table
+adjust-stab-title = Stabilization
+adjust-stab-help = Measures how the picture moves from one photograph to the next and keeps the camera on a smooth path. Shifts only (no rotation); every frame is cropped by the same small amount so the edges never show.
+adjust-smoothing = Smoothing
+adjust-max-crop = Largest crop per side
+adjust-stat-crop = Crop per side
+adjust-stat-shift = Largest shift
+adjust-stat-pairs = Movements measured
+adjust-stab-few = Few movements could be measured with confidence (featureless or very different photographs): stabilization will do little on this selection.
+adjust-compare-title = Before and after
+adjust-compare-none = Analyse flicker or stabilization to compare a photograph with its corrected version.
+adjust-frame = { $count ->
+    [one] Frame (of { $count })
+   *[other] Frame (of { $count })
+}
+adjust-previous = Previous
+adjust-next = Next
+adjust-apply-flicker = Flicker reduction
+adjust-apply-stab = Stabilization
+adjust-label-before = As shot
+adjust-label-after = Corrected
+adjust-as-shot = Frame { $frame } as shot
+adjust-adjusted = Frame { $frame } corrected
+export-flicker = Flicker reduction
+export-stab = Stabilization
+export-adjust-none = None
+export-flicker-option = #{ $id } · strength { $strength }
+export-stab-option = #{ $id } · crop { $crop }
+
+error-adjust = { $reason ->
+    [busy] Another analysis is already running.
+    [empty-run] This selection contains no photograph.
+    [unknown-adjustment] This analysis no longer exists.
+    [adjustment-mismatch] This analysis belongs to another selection, or does not cover every photograph of this one. Analyse this selection again.
+    [unknown-frame] This frame is not part of the selection.
+   *[other] The analysis could not be completed.
 }

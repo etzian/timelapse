@@ -5,8 +5,8 @@
   import type { ResolutionKey } from '../export';
   import { formatDate, formatNumber, t } from '../i18n';
   import { errorText } from '../i18n/errors';
-  import { exportRecord, ffmpegInfo, listExports, listSamplingRuns, writeExportRecord } from '../ipc/app';
-  import type { Codec, ExportRecord, FfmpegInfo, Quality, RunSummary } from '../ipc/app';
+  import { exportRecord, ffmpegInfo, listAdjustments, listExports, listSamplingRuns, writeExportRecord } from '../ipc/app';
+  import type { Adjustments, Codec, ExportRecord, FfmpegInfo, Quality, RunSummary } from '../ipc/app';
   import type { IpcError } from '../ipc/invoke';
   import { FPS_OPTIONS, MULTIPLIERS } from '../sampling';
   import { openContactSheet } from '../stores/contactSheet.svelte';
@@ -23,6 +23,10 @@
   let loadError = $state('');
 
   let runId = $state('');
+  let adjustments = $state<Adjustments | null>(null);
+  /** Phase 8 runs of the chosen selection to apply ('' = none). */
+  let flickerRun = $state('');
+  let stabRun = $state('');
   let codec = $state<Codec>('av1');
   let fps = $state('30');
   let speed = $state('1');
@@ -40,6 +44,25 @@
   const history = $derived(mine ? job.history : null);
 
   const run = $derived(runs?.find((r) => String(r.id) === runId) ?? null);
+  const flickerOptions = $derived([
+    { value: '', label: t('export-adjust-none') },
+    ...(adjustments?.flicker ?? [])
+      .filter((r) => String(r.sampling_run_id) === runId)
+      .map((r) => ({ value: String(r.id), label: t('export-flicker-option', { id: r.id, strength: formatNumber(r.config.strength, { style: 'percent' }) }) }))
+  ]);
+  const stabOptions = $derived([
+    { value: '', label: t('export-adjust-none') },
+    ...(adjustments?.stabilization ?? [])
+      .filter((r) => String(r.sampling_run_id) === runId)
+      .map((r) => ({ value: String(r.id), label: t('export-stab-option', { id: r.id, crop: formatNumber(r.crop, { style: 'percent', maximumFractionDigits: 1 }) }) }))
+  ]);
+
+  // Another selection: its own runs, none chosen.
+  $effect(() => {
+    void runId;
+    flickerRun = '';
+    stabRun = '';
+  });
   const frames = $derived(run ? outputFrames(run.selected_count, Number(speed)) : 0);
   const duration = $derived(run ? durationSeconds(run.selected_count, Number(fps), Number(speed)) : 0);
   const canExport = $derived(!!run && supports(info, codec) && !exporting);
@@ -65,8 +88,9 @@
     const forRoot = root;
     loadError = '';
     try {
-      const [i, r, h] = await Promise.all([ffmpegInfo(), listSamplingRuns(forRoot), listExports(forRoot)]);
+      const [i, r, h, a] = await Promise.all([ffmpegInfo(), listSamplingRuns(forRoot), listExports(forRoot), listAdjustments(forRoot)]);
       if (forRoot !== root) return;
+      adjustments = a;
       info = i;
       runs = r;
       if (exportJob.state.root === forRoot || !exportJob.state.exporting) {
@@ -93,7 +117,16 @@
   function start(): void {
     if (!run || !canExport) return;
     const r = RESOLUTIONS.find((x) => x.key === resolution) ?? RESOLUTIONS[2];
-    void runExport(root, run.id, { codec, fps: Number(fps), speed: Number(speed), width: r.width, height: r.height, quality });
+    void runExport(root, run.id, {
+      codec,
+      fps: Number(fps),
+      speed: Number(speed),
+      width: r.width,
+      height: r.height,
+      quality,
+      flicker_run: flickerRun ? Number(flickerRun) : null,
+      stabilization_run: stabRun ? Number(stabRun) : null
+    });
   }
 
   function cancel(): void {
@@ -179,6 +212,8 @@
           <Select label={t('sampling-multiplier')} options={speedOptions} bind:value={speed} disabled={exporting} />
           <Select label={t('export-resolution')} options={resolutionOptions} bind:value={resolution} disabled={exporting} />
           <Select label={t('export-quality')} options={qualityOptions} bind:value={quality} disabled={exporting} />
+          <Select label={t('export-flicker')} options={flickerOptions} bind:value={flickerRun} disabled={exporting} />
+          <Select label={t('export-stab')} options={stabOptions} bind:value={stabRun} disabled={exporting} />
         </div>
         <p class="app-export__note">{t(`export-codec-${codec}-help`)}</p>
 

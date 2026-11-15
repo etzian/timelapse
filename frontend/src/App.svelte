@@ -1,6 +1,7 @@
 <script lang="ts">
   import { AppShell, Sidebar, TabBar } from '@etzianco/ui';
 
+  import Adjust from './lib/pages/Adjust.svelte';
   import Cleaning from './lib/pages/Cleaning.svelte';
   import ContactSheets from './lib/pages/ContactSheets.svelte';
   import Export from './lib/pages/Export.svelte';
@@ -38,6 +39,8 @@
     <Organize ongohome={() => nav.go('home')} />
   {:else if active === 'sampling'}
     <Sampling ongohome={() => nav.go('home')} />
+  {:else if active === 'adjust'}
+    <Adjust ongohome={() => nav.go('home')} />
   {:else if active === 'export'}
     <Export ongohome={() => nav.go('home')} ongosampling={() => nav.go('sampling')} />
   {:else if active === 'sheets'}
