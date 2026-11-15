@@ -22,6 +22,7 @@
 //! only ever sees rows a crashed process left behind. Journal updates only touch rows
 //! that are still `pending`. No byte of an original is ever written.
 
+use std::collections::HashSet;
 use std::fs::{self, File, OpenOptions};
 use std::io::{self, ErrorKind};
 use std::path::{Path, PathBuf};
@@ -221,7 +222,7 @@ fn place_no_clobber(src: &Path, dst: &Path) -> std::result::Result<(), &'static 
         Err(e) if e.kind() == ErrorKind::AlreadyExists => return Err("destination-exists"),
         Err(_) => {}
     }
-    copy_new(src, dst)
+    clone_or_copy_no_clobber(src, dst)
 }
 
 /// Create `dst` as an independent copy of `src`, failing if `dst` exists: an APFS clone
@@ -470,6 +471,15 @@ pub(crate) fn run(conn: &Connection, step: &Step) -> Result<OpOutcome> {
         // Something else is at the source now: keep both files and let a person look.
         return mark_failed(conn, id, op, "inconsistent");
     }
+    // The copy's identity: an undo removes the file only while it is still this one.
+    if kind == Kind::Copy
+        && let Some(identity) = file_identity(dest)
+    {
+        let _ = conn.execute(
+            "UPDATE file_operations SET identity = ?2 WHERE id = ?1 AND status = 'pending'",
+            params![op, identity],
+        );
+    }
     // (6) record. If this fails the row stays `pending` and the next open settles it.
     if complete(conn, op, id, kind, dest).is_err() {
         return Ok(fail(id, Some(op), "record-failed"));
@@ -485,6 +495,8 @@ pub(crate) fn remove_copy(
     image_id: i64,
     copy: &Path,
     checksum: &str,
+    identity: Option<&str>,
+    locations: &HashSet<String>,
 ) -> Result<OpOutcome> {
     let step = Step {
         image_id,
@@ -499,8 +511,15 @@ pub(crate) fn remove_copy(
     }
     // The same bytes at the same path may now be an original that a later run moved there:
     // that file is never ours to remove.
-    if is_location_of_record(conn, copy)? {
+    if locations.contains(&copy.to_string_lossy().to_lowercase()) {
         return journal_failed(conn, &step, None, "now-an-original");
+    }
+    // Another file at the same path (the copy was deleted and something else, perhaps
+    // another project's original with the same bytes, put there): never ours.
+    if let (Some(made), Some(now)) = (identity, file_identity(copy))
+        && made != now
+    {
+        return journal_failed(conn, &step, None, "replaced");
     }
     match dedup_hash(copy) {
         Ok(h) if h == checksum => {}
@@ -526,44 +545,31 @@ pub(crate) fn remove_copy(
     Ok(OpOutcome { image_id, operation_id: Some(op), failure: None })
 }
 
-/// Whether `path` is where some image of this project is now (compared case-insensitively,
-/// as the default APFS volume would, and through the canonical form when it exists).
-fn is_location_of_record(conn: &Connection, path: &Path) -> Result<bool> {
-    let text = path.to_string_lossy();
-    let direct: bool = conn
-        .query_row(
-            "SELECT EXISTS (SELECT 1 FROM images
-                            WHERE COALESCE(current_path, original_path) = ?1 COLLATE NOCASE)",
-            [text.as_ref()],
-            |r| r.get(0),
-        )
-        .map_err(|_| Error::StoreTransaction)?;
-    if direct {
-        return Ok(true);
-    }
-    let Ok(canonical) = fs::canonicalize(path) else {
-        return Ok(false);
-    };
-    let name = path.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
-    // Only rows ending in the same file name can alias it; canonicalise just those.
+/// Every image's location of record, lowercased (the default APFS volume ignores case),
+/// built once per undo while the file lock is held, so it cannot change meanwhile.
+pub(crate) fn locations_of_record(conn: &Connection) -> Result<HashSet<String>> {
     let mut stmt = conn
-        .prepare(
-            "SELECT COALESCE(current_path, original_path) FROM images
-             WHERE filename = ?1 COLLATE NOCASE OR current_path LIKE ?2",
-        )
+        .prepare("SELECT COALESCE(current_path, original_path) FROM images")
         .map_err(|_| Error::StoreTransaction)?;
-    // `%` and `_` in the name only widen the match; every candidate is compared exactly.
-    let like = format!("%{name}");
-    let rows = stmt
-        .query_map(params![name, like], |r| r.get::<_, String>(0))
-        .map_err(|_| Error::StoreTransaction)?;
-    for row in rows {
-        let row = row.map_err(|_| Error::StoreTransaction)?;
-        if fs::canonicalize(&row).is_ok_and(|c| c == canonical) {
-            return Ok(true);
-        }
+    let rows =
+        stmt.query_map([], |r| r.get::<_, String>(0)).map_err(|_| Error::StoreTransaction)?;
+    rows.map(|r| r.map(|p| p.to_lowercase()).map_err(|_| Error::StoreTransaction)).collect()
+}
+
+/// The identity of the file at `p` (device and inode), which survives renames and is new
+/// for any file created later at the same path. `None` where the platform does not say.
+pub(crate) fn file_identity(p: &Path) -> Option<String> {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::MetadataExt;
+        let m = fs::symlink_metadata(p).ok()?;
+        Some(format!("{}:{}", m.dev(), m.ino()))
     }
-    Ok(false)
+    #[cfg(not(unix))]
+    {
+        let _ = p;
+        None
+    }
 }
 
 /// Settle abandoned `pending` rows; the caller holds [`lock`], so none of them is live.
@@ -750,7 +756,7 @@ fn settle(conn: &Connection) -> Result<usize> {
         };
         let inconsistent = || mark_failed(conn, *image, *op, "inconsistent").map(|_| ());
         let parsed = Kind::parse(kind);
-        if parsed.is_some_and(|k| !k.may_link())
+        if parsed.is_some()
             && let Some(part) = part_name(dst)
         {
             let _ = fs::remove_file(part);
@@ -774,7 +780,9 @@ fn settle(conn: &Connection) -> Result<usize> {
             }
             Some(k) => {
                 let (src_ok, dst_ok) = (matches(src), matches(dst));
-                let ours = k.may_link(); // the target is inside the project
+                // Only a quarantine's target is inside the project; a restore goes back to
+                // the collection or a working folder, which are never ours to clean.
+                let ours = k == Kind::Quarantine;
                 if dst_ok && !src.exists() {
                     complete(conn, *op, *image, k, dst)?;
                 } else if src_ok && dst_ok && !same_entry(src, dst) {
@@ -849,16 +857,16 @@ pub fn list_operations(conn: &Connection, limit: usize) -> Result<Vec<FileOperat
 pub(crate) fn completed_placements(
     conn: &Connection,
     job: i64,
-) -> Result<Vec<(FileOperation, String)>> {
+) -> Result<Vec<(FileOperation, String, Option<String>)>> {
     let mut stmt = conn
         .prepare(&format!(
-            "SELECT {OPERATION_COLUMNS}, checksum FROM file_operations
+            "SELECT {OPERATION_COLUMNS}, checksum, identity FROM file_operations
              WHERE job_id = ?1 AND status = 'completed' AND operation_type IN ('copy', 'move')
              ORDER BY id"
         ))
         .map_err(|_| Error::StoreTransaction)?;
     let rows = stmt
-        .query_map([job], |r| Ok((operation_row(r)?, r.get::<_, String>(10)?)))
+        .query_map([job], |r| Ok((operation_row(r)?, r.get::<_, String>(10)?, r.get(11)?)))
         .map_err(|_| Error::StoreTransaction)?;
     rows.collect::<std::result::Result<_, _>>().map_err(|_| Error::StoreTransaction)
 }

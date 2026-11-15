@@ -206,7 +206,8 @@ const MIGRATION_V6: &str = r#"
         checksum TEXT,
         failure TEXT,
         created_at INTEGER NOT NULL,
-        completed_at INTEGER
+        completed_at INTEGER,
+        identity TEXT
     );
     INSERT INTO file_operations_v6 (id, job_id, image_id, operation_type, source_path,
                                     destination_path, status, checksum, failure, created_at,

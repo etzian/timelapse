@@ -473,6 +473,26 @@ fn undoing_an_old_copy_never_removes_an_original_moved_there_since() {
     f.originals_ok();
 }
 
+/// Review finding (Phase 6): a copy deleted and replaced by an identical file (for
+/// example another project's original) is not the file the run made, so an undo keeps it.
+#[test]
+fn undo_keeps_a_file_that_replaced_the_copy_even_with_the_same_bytes() {
+    let _s = serial();
+    let f = Fixture::new("replaced");
+    let rec = f.run(&f.cfg(Operation::Copy, Naming::Original));
+    let copy = f.dest().join("G002.JPG");
+    fs::remove_file(&copy).unwrap();
+    fs::write(&copy, b"photo three").unwrap(); // same bytes, another file
+    let undone = undo(f.root(), rec.id, 0, |_| {}).unwrap();
+    if cfg!(unix) {
+        assert_eq!((undone.undone, undone.undo_failed), (2, 1));
+        assert_eq!(fs::read(&copy).unwrap(), b"photo three");
+    } else {
+        // No file identity here (Windows is not a target): the byte check alone applies.
+        assert_eq!(undone.undone, 3);
+    }
+}
+
 /// An undo removes the folders the run created, never one the user made.
 #[test]
 fn undo_removes_only_the_folders_the_run_created() {

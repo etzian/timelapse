@@ -441,12 +441,13 @@ pub fn undo(
     let todo: Vec<_> = files::completed_placements(&conn, run)?
         .into_iter()
         .rev()
-        .filter(|(op, _)| op.image_id.is_some_and(|i| !done_before.contains(&i)))
+        .filter(|(op, _, _)| op.image_id.is_some_and(|i| !done_before.contains(&i)))
         .collect();
     let total = todo.len();
     let (mut done, mut failed, mut stopped) = (0, 0, false);
     on_progress(Progress { done, total, failed });
-    for (op, checksum) in &todo {
+    let locations = files::locations_of_record(&conn)?;
+    for (op, checksum, identity) in &todo {
         if cancelled(token) {
             stopped = true;
             break;
@@ -454,7 +455,15 @@ pub fn undo(
         let image = op.image_id.unwrap_or_default();
         let placed = PathBuf::from(&op.destination_path);
         let outcome = if op.operation_type == "copy" {
-            files::remove_copy(&conn, run, image, &placed, checksum)?
+            files::remove_copy(
+                &conn,
+                run,
+                image,
+                &placed,
+                checksum,
+                identity.as_deref(),
+                &locations,
+            )?
         } else {
             let back = PathBuf::from(&op.source_path);
             let step = Step {
@@ -529,7 +538,7 @@ pub fn verify_run(root: &Path, run: i64) -> Result<RunCheck> {
     store::get(&conn, run)?.ok_or_else(|| fail("unknown-consolidation"))?;
     let undone = store::undone_images(&conn, run)?;
     let mut items = Vec::new();
-    for (op, checksum) in files::completed_placements(&conn, run)? {
+    for (op, checksum, _) in files::completed_placements(&conn, run)? {
         let Some(image) = op.image_id.filter(|i| !undone.contains(i)) else {
             continue;
         };

@@ -195,6 +195,7 @@ files-failure-moved-since = the photograph was moved again since (for example in
 files-failure-remove-failed = the copy could not be removed; it is still there
 files-failure-now-an-original = an original was moved to this place since, so it was left there
 files-failure-unrecorded-copy = the app closed while this file was being placed; what is at the target was left as it is
+files-failure-replaced = the file there is no longer the copy this app made, so it was left there
 files-failure-other = the operation failed
 
 ## Phase 4 — sampling

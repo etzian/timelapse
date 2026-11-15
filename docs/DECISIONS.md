@@ -316,7 +316,7 @@ Every target is a relative path of normal components joined under the destinatio
 Cancellation and progress happen between photos. A run ends `completed`, `partial` (some photos failed), `cancelled` or `failed`.
 
 **Undo.** A run can be undone once.
-- **Copy:** a copy we made is removed only while it still has the hash we wrote, and **never when that path is now the location of record of any photograph**: a later run may have moved an original there with the same bytes (`now-an-original`, compared case-insensitively and through the canonical path). `modified` and `missing` copies are left and reported.
+- **Copy:** a copy we made is removed only while it still has the hash we wrote, and **never when that path is now the location of record of any photograph**: a later run may have moved an original there with the same bytes (`now-an-original`, compared case-insensitively against a set built once per undo), and only while it is **still the file the run made**: its device and inode, recorded when it was placed, must match (`replaced` otherwise: the copy was deleted and another file, perhaps another project's original with the same bytes, now has its name). `modified` and `missing` copies are left and reported.
 - **Move:** a moved photo goes back only while `current_path` is still the run's target (`moved-since` otherwise), never overwriting.
 
 Each removal or move-back is journaled (`remove-copy`, `move-back`). Afterwards, only the folders **this run created** (recorded in `consolidation_runs.created_dirs_json`) are removed, deepest first, and only if empty (`remove_dir` cannot remove a non-empty one). A folder the user made stays. The run's undo state is `undone` or `partially-undone`.
@@ -333,7 +333,8 @@ Each removal or move-back is journaled (`remove-copy`, `move-back`). Afterwards,
 | `move` / `move-back` | both have the hash | `interrupted`; the original stays, the identical target is left |
 | `move` / `move-back` | source present, target absent | `interrupted` |
 | `move` / `move-back` / quarantine / restore | both absent, a folder of either side unreachable (volume not mounted) | stays `pending` for a later open |
-| quarantine / restore | as in ADR-020 (inside the project: our duplicate or partial copy is removed) | as in ADR-020 |
+| quarantine | as in ADR-020 (the target is inside the project: our duplicate or partial copy is removed) | as in ADR-020 |
+| restore | target in the collection or a working folder: as for `move` (never removed) | as for `move` |
 | `remove-copy` | target gone | completed |
 | `remove-copy` | target still has the hash | `interrupted` |
 | any | anything else | `inconsistent`; no file is touched |

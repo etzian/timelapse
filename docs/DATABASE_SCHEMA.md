@@ -303,7 +303,7 @@ whose version is newer than the build (left untouched, never recreated).
 | 3 | Phase 3 cleaning (ADR-020): `image_analysis`, `image_status`, `file_operations` (below), indexes `idx_image_status_status`, `idx_file_operations_job`, `idx_file_operations_status`; new column `images.current_path` — where the original is now (`NULL` = at `original_path`; the quarantine path while quarantined). `original_path` stays the path of record and is never rewritten. |
 | 4 | Phase 4 sampling: `sampling_runs`, `sampling_items` (below), index `idx_sampling_items_run`. |
 | 5 | Phase 5 export: `video_exports` (below), index `idx_video_exports_created`. |
-| 6 | Phase 6 consolidation (ADR-023): `consolidation_runs` (below). `file_operations` is rebuilt in the same step (SQLite cannot alter a CHECK in place): its rows are copied, `operation_type` also accepts `copy` · `move` · `move-back` · `remove-copy`, `job_id` references `consolidation_runs`, and the new index `idx_file_operations_image` serves restore. `images.current_path` may now point into a working folder (a moved original). |
+| 6 | Phase 6 consolidation (ADR-023): `consolidation_runs` (below). `file_operations` is rebuilt in the same step (SQLite cannot alter a CHECK in place): its rows are copied, `operation_type` also accepts `copy` · `move` · `move-back` · `remove-copy`, `job_id` references `consolidation_runs`, the new column `identity` holds the device:inode of a placed copy (an undo removes the copy only while it is still that file), and the new index `idx_file_operations_image` serves restore. `images.current_path` may now point into a working folder (a moved original). |
 
 **Timestamp columns as written by the Phase 2 backfill** (rows with `timestamp_source IS NULL` only — idempotent):
 
