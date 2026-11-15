@@ -211,3 +211,39 @@ export function planDecision(items: ReviewItem[], ids: number[], decision: Decis
   }
   return { ids: changed, undo: [...groups].map(([d, g]) => ({ decision: d, ids: g })) };
 }
+
+// ---- Presets over the three thresholds -----------------------------------------------
+
+export type CleanPresetKey = 'lenient' | 'balanced' | 'strict';
+
+export interface CleanPreset {
+  key: CleanPresetKey;
+  min_mean_luma: number;
+  dark_level: number;
+  /** 0–1, as the core stores it. */
+  max_dark_fraction: number;
+}
+
+/** Balanced equals the core's defaults (`Thresholds::default`). The Lightroom flag is not part of a preset. */
+export const CLEAN_PRESETS: readonly CleanPreset[] = [
+  { key: 'lenient', min_mean_luma: 25, dark_level: 30, max_dark_fraction: 0.8 },
+  { key: 'balanced', min_mean_luma: 40, dark_level: 30, max_dark_fraction: 0.6 },
+  { key: 'strict', min_mean_luma: 60, dark_level: 30, max_dark_fraction: 0.4 }
+];
+
+const close = (a: number, b: number) => Math.abs(a - b) < 1e-6;
+
+/** The preset these thresholds equal, else `'custom'` (also for missing or non-numeric values). */
+export function matchCleanPreset(th: Pick<Thresholds, 'min_mean_luma' | 'dark_level' | 'max_dark_fraction'> | null): CleanPresetKey | 'custom' {
+  if (!th) return 'custom';
+  const hit = CLEAN_PRESETS.find(
+    (p) => close(p.min_mean_luma, th.min_mean_luma) && close(p.dark_level, th.dark_level) && close(p.max_dark_fraction, th.max_dark_fraction)
+  );
+  return hit ? hit.key : 'custom';
+}
+
+/** The preset as thresholds, keeping the current Lightroom flag. */
+export function presetThresholds(key: CleanPresetKey, flagXmp: boolean): Thresholds {
+  const p = CLEAN_PRESETS.find((x) => x.key === key) ?? CLEAN_PRESETS[1];
+  return { min_mean_luma: p.min_mean_luma, dark_level: p.dark_level, max_dark_fraction: p.max_dark_fraction, flag_xmp_rejected: flagXmp };
+}

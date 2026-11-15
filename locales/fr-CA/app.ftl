@@ -921,3 +921,34 @@ adjust-loop-help = Lit jusqu’à { $count } photographies autour de l’image c
 adjust-loop-adjusted = Lire avec les corrections appliquées
 export-preview-title = Aperçu
 export-preview-help = La sélection à la cadence et à la vitesse ci-dessus, telle que prise. Les corrections s’appliquent seulement dans la vidéo exportée.
+
+## Presets and summaries
+clean-preset-label = Sensibilité
+clean-preset-lenient = Indulgente
+clean-preset-balanced = Équilibrée
+clean-preset-strict = Stricte
+clean-preset-custom = Réglages personnalisés
+clean-preset-lenient-help = Ne signale que les photographies nettement sombres.
+clean-preset-balanced-help = Un bon point de départ pour la plupart des collections.
+clean-preset-strict-help = Signale tout ce qui semble même un peu sombre.
+clean-preset-current = Réglage actuel : { $preset }
+clean-advanced = Réglages avancés
+export-preset-label = Usage
+export-preset-share = Partage
+export-preset-archive = Archive
+export-preset-master = Copie maître
+export-preset-share-help = Se lit presque partout. Pleine HD, qualité standard.
+export-preset-archive-help = Le fichier le plus petit, en pleine HD et en qualité standard.
+export-preset-master-help = La meilleure qualité, en 4K. Un fichier volumineux.
+export-preset-custom = Réglages personnalisés
+export-preset-current = Réglage actuel : { $preset }
+export-preset-unavailable = Le réglage « { $preset } » nécessite { $codec }, qui n’est pas disponible sur ce Mac.
+export-advanced = Réglages avancés
+summary-line = { $photos ->
+    [one] { $photos } photographie devient
+   *[other] { $photos } photographies deviennent
+} { $frames ->
+    [one] { $frames } image
+   *[other] { $frames } images
+}, qui durent { $duration } à { $fps } images par seconde.
+summary-empty = Aucune photographie n’est sélectionnée : il n’y a encore rien à lire.

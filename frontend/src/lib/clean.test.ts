@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  CLEAN_PRESETS,
   FILE_FAILURES,
   STATUS_KEYS,
   columnsFromTops,
@@ -8,10 +9,12 @@ import {
   fileFailureText,
   focusAfterRemoval,
   limited,
+  matchCleanPreset,
   moveIndex,
   neighbourId,
   parseThresholds,
   planDecision,
+  presetThresholds,
   previousDecision,
   reasonText,
   thresholdsToForm
@@ -195,5 +198,37 @@ describe('decisions and their undo snapshot', () => {
   it('plans nothing when nothing applies', () => {
     expect(planDecision([item(1, 'flagged')], [1], 'clear')).toEqual({ ids: [], undo: [] });
     expect(planDecision([], [1], 'accept')).toEqual({ ids: [], undo: [] });
+  });
+});
+
+describe('cleaning presets', () => {
+  it('Balanced equals the core defaults', () => {
+    expect(presetThresholds('balanced', true)).toEqual({ min_mean_luma: 40, dark_level: 30, max_dark_fraction: 0.6, flag_xmp_rejected: true });
+  });
+
+  it('matches each preset, whatever the Lightroom flag', () => {
+    for (const p of CLEAN_PRESETS) {
+      expect(matchCleanPreset(presetThresholds(p.key, false))).toBe(p.key);
+      expect(matchCleanPreset(presetThresholds(p.key, true))).toBe(p.key);
+    }
+  });
+
+  it('is custom when a value differs, is missing or is not a number', () => {
+    expect(matchCleanPreset({ min_mean_luma: 41, dark_level: 30, max_dark_fraction: 0.6 })).toBe('custom');
+    expect(matchCleanPreset({ min_mean_luma: 40, dark_level: 31, max_dark_fraction: 0.6 })).toBe('custom');
+    expect(matchCleanPreset({ min_mean_luma: Number.NaN, dark_level: 30, max_dark_fraction: 0.6 })).toBe('custom');
+    expect(matchCleanPreset(null)).toBe('custom');
+  });
+
+  it('tolerates the rounding of a percentage typed back in', () => {
+    expect(matchCleanPreset({ min_mean_luma: 40, dark_level: 30, max_dark_fraction: 60 / 100 + 1e-9 })).toBe('balanced');
+  });
+
+  it('presets are ordered from lenient to strict and pass the form parser', () => {
+    const [a, b, c] = CLEAN_PRESETS;
+    expect(a.min_mean_luma).toBeLessThan(b.min_mean_luma);
+    expect(b.min_mean_luma).toBeLessThan(c.min_mean_luma);
+    expect(a.max_dark_fraction).toBeGreaterThan(c.max_dark_fraction);
+    for (const p of CLEAN_PRESETS) expect(parseThresholds(thresholdsToForm(presetThresholds(p.key, true)), true)).toEqual(presetThresholds(p.key, true));
   });
 });

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { CODECS, EXPORT_FAILURES, QUALITIES, durationSeconds, exportFailureText, formatBytes, outputFrames, supports } from './export';
+import { CODECS, EXPORT_FAILURES, EXPORT_PRESETS, QUALITIES, RESOLUTIONS, durationSeconds, exportFailureText, formatBytes, matchExportPreset, outputFrames, presetAvailable, summarize, summaryText, supports } from './export';
+import type { FfmpegInfo } from './ipc/app';
 import { setLocale, t } from './i18n';
 
 describe('export helpers', () => {
@@ -37,5 +38,61 @@ describe('export helpers', () => {
     setLocale('en');
     expect(formatBytes(512)).toContain('512');
     expect(formatBytes(2_500_000)).toContain('2.5');
+  });
+});
+
+describe('export presets and summary', () => {
+  const all: FfmpegInfo = { available: true, av1: true, h264: true, hevc: true } as FfmpegInfo;
+
+  it('matches the preset the values equal, else custom', () => {
+    for (const p of EXPORT_PRESETS) expect(matchExportPreset(p)).toBe(p.key);
+    expect(matchExportPreset({ codec: 'h264', resolution: '1080', quality: 'high' })).toBe('custom');
+  });
+
+  it('treats unknown values as custom', () => {
+    expect(matchExportPreset({ codec: 'vp9', resolution: '1080', quality: 'standard' })).toBe('custom');
+    expect(matchExportPreset({ codec: '', resolution: '', quality: '' })).toBe('custom');
+  });
+
+  it('presets only use known codecs, sizes and qualities', () => {
+    for (const p of EXPORT_PRESETS) {
+      expect(CODECS).toContain(p.codec);
+      expect(QUALITIES).toContain(p.quality);
+      expect(RESOLUTIONS.map((r) => r.key)).toContain(p.resolution);
+    }
+  });
+
+  it('refuses a preset whose codec is unavailable', () => {
+    const share = EXPORT_PRESETS.find((p) => p.key === 'share')!;
+    expect(presetAvailable(all, share)).toBe(true);
+    expect(presetAvailable({ ...all, h264: false }, share)).toBe(false);
+    expect(presetAvailable({ ...all, available: false }, share)).toBe(false);
+    expect(presetAvailable(null, share)).toBe(false);
+  });
+
+  it('summarizes photographs, frames and seconds', () => {
+    expect(summarize(300, 30, 2)).toEqual({ photos: 300, frames: 150, seconds: 5 });
+    expect(summarize(7, 24, 1.5)).toEqual({ photos: 7, frames: 5, seconds: 5 / 24 });
+  });
+
+  it('gives zero frames for zero, negative or invalid input', () => {
+    expect(summarize(0, 30, 1)).toEqual({ photos: 0, frames: 0, seconds: 0 });
+    expect(summarize(-3, 30, 1).frames).toBe(0);
+    expect(summarize(Number.NaN, 30, 1).frames).toBe(0);
+    expect(summarize(10, 30, 0).frames).toBe(0);
+    expect(summarize(10, 0, 1).seconds).toBe(0);
+  });
+
+  it('writes the sentence in both locales, and the empty one for no frames', () => {
+    for (const locale of ['en', 'fr-CA'] as const) {
+      setLocale(locale);
+      const line = summaryText(300, 30, 2);
+      expect(line).not.toBe('summary-line');
+      expect(line).toContain('150');
+      expect(summaryText(0, 30, 1)).not.toBe('summary-empty');
+      expect(summaryText(0, 30, 1)).not.toBe(line);
+    }
+    setLocale('en');
+    expect(summaryText(1, 30, 1)).toMatch(/^1 photograph becomes 1 frame,/);
   });
 });

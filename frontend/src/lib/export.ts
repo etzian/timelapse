@@ -4,6 +4,7 @@
  */
 import { formatNumber, t } from './i18n';
 import type { Codec, FfmpegInfo, Quality } from './ipc/app';
+import { formatDuration } from './timeline';
 
 export const CODECS: readonly Codec[] = ['av1', 'h264', 'hevc'];
 export const QUALITIES: readonly Quality[] = ['high', 'standard', 'small'];
@@ -62,4 +63,58 @@ export function formatBytes(bytes: number): string {
     i++;
   }
   return formatNumber(v, { style: 'unit', unit: units[i], unitDisplay: 'short', maximumFractionDigits: i === 0 ? 0 : 1 });
+}
+
+// ---- Presets and the plain-language summary ------------------------------------------
+
+export type ExportPresetKey = 'share' | 'archive' | 'master';
+
+export interface ExportPreset {
+  key: ExportPresetKey;
+  codec: Codec;
+  resolution: ResolutionKey;
+  quality: Quality;
+}
+
+/** Presets only set parameters that already exist; frame rate, speed and adjustments are left alone. */
+export const EXPORT_PRESETS: readonly ExportPreset[] = [
+  { key: 'share', codec: 'h264', resolution: '1080', quality: 'standard' },
+  { key: 'archive', codec: 'av1', resolution: '1080', quality: 'standard' },
+  { key: 'master', codec: 'hevc', resolution: '2160', quality: 'high' }
+];
+
+/** The preset these values equal exactly, else `'custom'` (also for values this build does not know). */
+export function matchExportPreset(values: { codec: string; resolution: string; quality: string }): ExportPresetKey | 'custom' {
+  const hit = EXPORT_PRESETS.find((p) => p.codec === values.codec && p.resolution === values.resolution && p.quality === values.quality);
+  return hit ? hit.key : 'custom';
+}
+
+/** Whether the encoder a preset needs is available on this Mac. */
+export function presetAvailable(info: FfmpegInfo | null, preset: ExportPreset): boolean {
+  return supports(info, preset.codec);
+}
+
+export interface ExportSummary {
+  photos: number;
+  frames: number;
+  seconds: number;
+}
+
+/** Photographs → frames → seconds at the chosen rate. Invalid or empty input yields zero frames. */
+export function summarize(photos: number, fps: number, speed: number): ExportSummary {
+  const p = Number.isFinite(photos) && photos > 0 ? Math.floor(photos) : 0;
+  const frames = outputFrames(p, speed);
+  return { photos: p, frames, seconds: durationSeconds(p, fps, speed) };
+}
+
+/** The summary as one sentence, or the "nothing selected" sentence when there are no frames. */
+export function summaryText(photos: number, fps: number, speed: number): string {
+  const s = summarize(photos, fps, speed);
+  if (s.frames === 0) return t('summary-empty');
+  return t('summary-line', {
+    photos: s.photos,
+    frames: s.frames,
+    duration: formatDuration(s.seconds),
+    fps: formatNumber(fps)
+  });
 }

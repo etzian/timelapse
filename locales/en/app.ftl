@@ -923,3 +923,34 @@ adjust-loop-help = Plays up to { $count } photographs around the chosen frame, s
 adjust-loop-adjusted = Play with the corrections applied
 export-preview-title = Preview
 export-preview-help = The selection at the frame rate and speed above, as shot. Corrections are applied only in the exported video.
+
+## Presets and summaries
+clean-preset-label = Sensitivity
+clean-preset-lenient = Lenient
+clean-preset-balanced = Balanced
+clean-preset-strict = Strict
+clean-preset-custom = Custom settings
+clean-preset-lenient-help = Flags only the clearly dark photographs.
+clean-preset-balanced-help = A good starting point for most collections.
+clean-preset-strict-help = Flags anything that looks even a little dark.
+clean-preset-current = Current setting: { $preset }
+clean-advanced = Advanced settings
+export-preset-label = Purpose
+export-preset-share = Share
+export-preset-archive = Archive
+export-preset-master = Master
+export-preset-share-help = Plays almost everywhere. Full HD, standard quality.
+export-preset-archive-help = The smallest file at full HD and standard quality.
+export-preset-master-help = The best quality, in 4K. A large file.
+export-preset-custom = Custom settings
+export-preset-current = Current setting: { $preset }
+export-preset-unavailable = { $preset } needs { $codec }, which is not available on this Mac.
+export-advanced = Advanced settings
+summary-line = { $photos ->
+    [one] { $photos } photograph becomes
+   *[other] { $photos } photographs become
+} { $frames ->
+    [one] { $frames } frame
+   *[other] { $frames } frames
+}, which play for { $duration } at { $fps } frames per second.
+summary-empty = No photographs are selected, so there is nothing to play yet.

@@ -4,8 +4,8 @@
   import { runLabel, runLabelWithId } from '../selectionLabel';
   import { Badge, Banner, Button, Card, EmptyState, PageHeader, SectionLabel, Select, Skeleton, Stat, StatGrid } from '@etzianco/ui';
 
-  import { CODECS, QUALITIES, RESOLUTIONS, durationSeconds, exportFailureText, formatBytes, outputFrames, supports } from '../export';
-  import type { ResolutionKey } from '../export';
+  import { CODECS, EXPORT_PRESETS, QUALITIES, RESOLUTIONS, exportFailureText, formatBytes, matchExportPreset, presetAvailable, summarize, summaryText, supports } from '../export';
+  import type { ExportPreset, ResolutionKey } from '../export';
   import { formatDate, formatNumber, t } from '../i18n';
   import { errorText } from '../i18n/errors';
   import { exportRecord, ffmpegInfo, getSamplingItems, listAdjustments, listExports, listSamplingRuns, writeExportRecord } from '../ipc/app';
@@ -70,8 +70,16 @@
     flickerRun = '';
     stabRun = '';
   });
-  const frames = $derived(run ? outputFrames(run.selected_count, Number(speed)) : 0);
-  const duration = $derived(run ? durationSeconds(run.selected_count, Number(fps), Number(speed)) : 0);
+  const summary = $derived(run ? summarize(run.selected_count, Number(fps), Number(speed)) : null);
+  const preset = $derived(matchExportPreset({ codec, resolution, quality }));
+  const unavailablePresets = $derived(EXPORT_PRESETS.filter((p) => !presetAvailable(info, p)));
+
+  function choosePreset(p: ExportPreset): void {
+    if (exporting || !presetAvailable(info, p)) return;
+    codec = p.codec;
+    resolution = p.resolution;
+    quality = p.quality;
+  }
   const canExport = $derived(!!run && supports(info, codec) && !exporting);
 
   const runOptions = $derived(
@@ -248,21 +256,53 @@
         <SectionLabel text={t('export-settings-title')} />
         <div class="app-export__form">
           <Select label={t('export-run')} options={runOptions} bind:value={runId} disabled={exporting} />
-          <Select label={t('export-codec')} options={codecOptions} bind:value={codec} disabled={exporting} />
-          <Select label={t('sampling-fps')} options={fpsOptions} bind:value={fps} disabled={exporting} />
-          <Select label={t('sampling-multiplier')} options={speedOptions} bind:value={speed} disabled={exporting} />
-          <Select label={t('export-resolution')} options={resolutionOptions} bind:value={resolution} disabled={exporting} />
-          <Select label={t('export-quality')} options={qualityOptions} bind:value={quality} disabled={exporting} />
-          <Select label={t('export-flicker')} options={flickerOptions} bind:value={flickerRun} disabled={exporting} />
-          <Select label={t('export-stab')} options={stabOptions} bind:value={stabRun} disabled={exporting} />
         </div>
-        <p class="app-export__note">{t(`export-codec-${codec}-help`)}</p>
+
+        <SectionLabel text={t('export-preset-label')} />
+        <div class="app-export__presets" role="group" aria-label={t('export-preset-label')}>
+          {#each EXPORT_PRESETS as p (p.key)}
+            <button
+              type="button"
+              class="ez-btn ez-btn--md ez-btn--{preset === p.key ? 'primary' : 'secondary'}"
+              aria-pressed={preset === p.key}
+              aria-describedby="app-export-preset-help"
+              onclick={() => choosePreset(p)}
+              disabled={exporting || !presetAvailable(info, p)}
+            >
+              {t(`export-preset-${p.key}`)}
+            </button>
+          {/each}
+        </div>
+        <p id="app-export-preset-help" class="app-export__note" aria-live="polite">
+          {preset === 'custom' ? t('export-preset-custom') : t(`export-preset-${preset}-help`)}
+        </p>
+        {#each unavailablePresets as p (p.key)}
+          <p class="app-export__note">{t('export-preset-unavailable', { preset: t(`export-preset-${p.key}`), codec: t(`export-codec-${p.codec}`) })}</p>
+        {/each}
 
         {#if run}
+          <p class="app-export__summary" aria-live="polite">{summaryText(run.selected_count, Number(fps), Number(speed))}</p>
+        {/if}
+
+        <details class="app-export__advanced">
+          <summary>{t('export-advanced')}</summary>
+          <div class="app-export__form">
+            <Select label={t('export-codec')} options={codecOptions} bind:value={codec} disabled={exporting} />
+            <Select label={t('sampling-fps')} options={fpsOptions} bind:value={fps} disabled={exporting} />
+            <Select label={t('sampling-multiplier')} options={speedOptions} bind:value={speed} disabled={exporting} />
+            <Select label={t('export-resolution')} options={resolutionOptions} bind:value={resolution} disabled={exporting} />
+            <Select label={t('export-quality')} options={qualityOptions} bind:value={quality} disabled={exporting} />
+            <Select label={t('export-flicker')} options={flickerOptions} bind:value={flickerRun} disabled={exporting} />
+            <Select label={t('export-stab')} options={stabOptions} bind:value={stabRun} disabled={exporting} />
+          </div>
+          <p class="app-export__note">{t(`export-codec-${codec}-help`)}</p>
+        </details>
+
+        {#if run && summary}
           <StatGrid>
-            <Stat label={t('export-stat-photos')} value={formatNumber(run.selected_count)} />
-            <Stat label={t('export-stat-frames')} value={formatNumber(frames)} />
-            <Stat label={t('export-stat-duration')} value={formatDuration(duration)} />
+            <Stat label={t('export-stat-photos')} value={formatNumber(summary.photos)} />
+            <Stat label={t('export-stat-frames')} value={formatNumber(summary.frames)} />
+            <Stat label={t('export-stat-duration')} value={formatDuration(summary.seconds)} />
           </StatGrid>
         {/if}
 
@@ -390,6 +430,21 @@
     grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
     gap: var(--ez-space-sm);
     margin: var(--ez-space-sm) 0;
+  }
+  .app-export__presets {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--ez-space-xs);
+    margin: var(--ez-space-xs) 0;
+  }
+  .app-export__summary {
+    font-size: var(--ez-fs-md);
+    margin: var(--ez-space-sm) 0;
+  }
+  .app-export__advanced {
+    margin: var(--ez-space-sm) 0;
+    font-size: var(--ez-fs-sm);
+    color: var(--ez-color-text-muted);
   }
   .app-export__actions {
     display: flex;

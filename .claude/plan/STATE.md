@@ -49,7 +49,7 @@ STATUS: RUNNING
 | P6 | Flipbook | sonnet | GATE-UI | done |
 | P7 | Flipbook in Adjust and Export, wipe | sonnet | GATE-UI | done |
 | P8 | Fast triage | sonnet | GATE-UI | done |
-| P9 | Presets and summaries | sonnet | GATE-UI | pending |
+| P9 | Presets and summaries | sonnet | GATE-UI | done |
 | P10 | Open and reveal commands | opus | full | pending |
 | P11 | Progress and the export finish | sonnet | GATE-UI | pending |
 | P12 | Motion, menu and shortcuts | sonnet | GATE-UI | pending |
@@ -111,6 +111,12 @@ STATUS: RUNNING
 - CHANGED: pure triage logic in clean.ts (columnsFromTops, moveIndex, focusAfterRemoval, neighbourId, decisionApplies, previousDecision, planDecision) with 19 vitest cases; new `Inspector.svelte` (Previous/Next, Keep/Reject/Undo, "n of N", moves on after a decision); Cleaning grid is role=listbox with roving tabindex, keys arrows/Home/End/A/R/U/Space/Enter/X, key legend, immediate decisions with an 8 s Undo toast through `set_decision`, three bulk dialogs removed, quarantine modal kept; `<Toast />` mounted once in App.svelte; clean-* keys in en and fr-CA.
 - DECISIONS: Toast is mounted once; later phases call `toast.*` from @etzianco/ui. Keys act on the focused tile only; bulk buttons act on ticked photos; X ticks. Per-tile mouse buttons are native `ez-btn` buttons with tabindex=-1 (ui Button forwards no tabindex). Undo is a toast action, not Cmd+Z. No-op decisions are skipped without a toast. Analysis start/end still reported to the pipeline store; NextStep unchanged.
 - DEFERRED: fr-CA copy polish (P13). `clean-close` key is unused (the viewer uses the Modal's own close); remove in P13. Modal footer may wrap tightly in fr-CA with 5 buttons. Rendered keyboard and VoiceOver pass goes to P14/P15.
+- MANUAL: none
+
+### P9 — pass
+- CHANGED: CLEAN_PRESETS (Lenient 25/30/0.8, Balanced 40/30/0.6 = core defaults, Strict 60/30/0.4) with matchCleanPreset and presetThresholds; EXPORT_PRESETS (Share h264/1080/standard, Archive av1/1080/standard, Master hevc/2160/high) with matchExportPreset, presetAvailable, summarize, summaryText; vitest cases for edges and refusals; Cleaning presets row with the thresholds under "Advanced settings"; Export selection first, presets (disabled with a note when the codec is missing), summary sentence, other selects under Advanced; Sampling duration line is now the summary sentence; keys in en and fr-CA.
+- DECISIONS: A preset click applies at once; the shown preset is matched against applied values, else "Custom settings". Presets do not touch the Lightroom flag, fps, speed or adjustments. Export defaults (av1/1080/standard) equal Archive. Preset buttons are native `ez-btn` (ui Button has no aria-pressed). Nothing new persisted, so the data map is unchanged. Balanced checked against `Thresholds::default` by the orchestrator.
+- DEFERRED: Unused `sampling-duration` key and `estimatedDurationSeconds` (still tested) go in P13. fr-CA preset names ("Copie maître", "Indulgente") are drafts for P13. The Sampling summary now rounds frames up like the encoder.
 - MANUAL: none
 
 ## Open user items

@@ -15,14 +15,17 @@
     formatLuma,
     formatPercent,
     limited,
+    CLEAN_PRESETS,
+    matchCleanPreset,
     moveIndex,
     neighbourId,
     parseThresholds,
     planDecision,
+    presetThresholds,
     reasonText,
     thresholdsToForm
   } from '../clean';
-  import type { MoveKey } from '../clean';
+  import type { CleanPresetKey, MoveKey } from '../clean';
   import { formatNumber, t } from '../i18n';
   import { errorText } from '../i18n/errors';
   import {
@@ -36,7 +39,7 @@
     setCleanSettings,
     setDecision
   } from '../ipc/app';
-  import type { AnalyzeProgress, Decision, ImageStatus, OpOutcome, ReviewItem, StatusCounts } from '../ipc/app';
+  import type { AnalyzeProgress, Decision, ImageStatus, OpOutcome, ReviewItem, StatusCounts, Thresholds } from '../ipc/app';
   import { openContactSheet } from '../stores/contactSheet.svelte';
   import type { IpcError } from '../ipc/invoke';
   import { pipeline } from '../stores/pipeline.svelte';
@@ -58,6 +61,8 @@
 
   let form = $state({ minMean: '', darkLevel: '', maxDarkPercent: '' });
   let flagXmp = $state(true);
+  /** The thresholds the core is using now (what the preset buttons compare against). */
+  let applied = $state<Thresholds | null>(null);
   let formInvalid = $state(false);
   let savingSettings = $state(false);
 
@@ -94,6 +99,7 @@
       { eligible: 0, flagged: 0, rejected: 0, quarantined: 0, unanalyzed: 0 }
     )
   );
+  const preset = $derived(matchCleanPreset(applied));
   const visible = $derived((items ?? []).filter((i) => filter === 'all' || i.status === filter));
   const page = $derived(visible.slice(0, shown));
   const visibleIds = $derived(visible.map((i) => i.id));
@@ -132,6 +138,7 @@
     try {
       const th = await getCleanSettings(forRoot);
       if (forRoot !== root) return;
+      applied = th;
       form = thresholdsToForm(th);
       flagXmp = th.flag_xmp_rejected;
     } catch (err) {
@@ -142,6 +149,7 @@
   $effect(() => {
     if (!root) return;
     items = null;
+    applied = null;
     thumbs = {};
     thumbFailed = {};
     requested = new Set();
@@ -214,14 +222,23 @@
     savingSettings = true;
     actionError = '';
     try {
-      const applied = await setCleanSettings(root, th);
-      form = thresholdsToForm(applied.thresholds);
+      const result = await setCleanSettings(root, th);
+      form = thresholdsToForm(result.thresholds);
+      applied = result.thresholds;
       await loadReview();
     } catch (err) {
       actionError = errorText(err as IpcError);
     } finally {
       savingSettings = false;
     }
+  }
+
+  /** A preset fills the three thresholds (the Lightroom switch stays as it is) and applies them. */
+  async function choosePreset(key: CleanPresetKey): Promise<void> {
+    if (savingSettings || analyzing) return;
+    form = thresholdsToForm(presetThresholds(key, flagXmp));
+    formInvalid = false;
+    await applySettings();
   }
 
   /**
@@ -394,21 +411,6 @@
     <p class="app-clean__intro">{t('clean-intro')}</p>
 
     <Card>
-      <SectionLabel text={t('clean-thresholds-title')} />
-      <div class="app-clean__form">
-        <Input label={t('clean-threshold-min-mean')} type="number" bind:value={form.minMean} />
-        <Input label={t('clean-threshold-dark-level')} type="number" bind:value={form.darkLevel} />
-        <Input label={t('clean-threshold-max-dark')} type="number" bind:value={form.maxDarkPercent} />
-      </div>
-      <Toggle label={t('clean-threshold-xmp')} bind:checked={flagXmp} />
-      {#if formInvalid}<p role="alert" class="app-clean__error">{t('clean-thresholds-invalid')}</p>{/if}
-      <p class="app-clean__note">{t('clean-thresholds-note')}</p>
-      <Button variant="secondary" onclick={applySettings} disabled={savingSettings || analyzing}>
-        {savingSettings ? t('clean-applying') : t('clean-apply')}
-      </Button>
-    </Card>
-
-    <Card>
       <SectionLabel text={t('clean-analysis-title')} />
       {#if items}
         <StatGrid>
@@ -421,6 +423,38 @@
       {:else if !loadError}
         <Skeleton lines={2} label={t('clean-loading')} />
       {/if}
+      <SectionLabel text={t('clean-preset-label')} />
+      <div class="app-clean__presets" role="group" aria-label={t('clean-preset-label')}>
+        {#each CLEAN_PRESETS as p (p.key)}
+          <button
+            type="button"
+            class="ez-btn ez-btn--md ez-btn--{preset === p.key ? 'primary' : 'secondary'}"
+            aria-pressed={preset === p.key}
+            aria-describedby="app-clean-preset-help"
+            onclick={() => choosePreset(p.key)}
+            disabled={savingSettings || analyzing}
+          >
+            {t(`clean-preset-${p.key}`)}
+          </button>
+        {/each}
+      </div>
+      <p id="app-clean-preset-help" class="app-clean__note" aria-live="polite">
+        {preset === 'custom' ? t('clean-preset-custom') : t(`clean-preset-${preset}-help`)}
+      </p>
+      <details class="app-clean__keys">
+        <summary>{t('clean-advanced')}</summary>
+        <div class="app-clean__form">
+          <Input label={t('clean-threshold-min-mean')} type="number" bind:value={form.minMean} />
+          <Input label={t('clean-threshold-dark-level')} type="number" bind:value={form.darkLevel} />
+          <Input label={t('clean-threshold-max-dark')} type="number" bind:value={form.maxDarkPercent} />
+        </div>
+        <Toggle label={t('clean-threshold-xmp')} bind:checked={flagXmp} />
+        {#if formInvalid}<p role="alert" class="app-clean__error">{t('clean-thresholds-invalid')}</p>{/if}
+        <p class="app-clean__note">{t('clean-thresholds-note')}</p>
+        <Button variant="secondary" onclick={applySettings} disabled={savingSettings || analyzing}>
+          {savingSettings ? t('clean-applying') : t('clean-apply')}
+        </Button>
+      </details>
       <div class="app-clean__actions">
         <Button onclick={analyze} disabled={analyzing || moving}>{analyzing ? t('clean-analyzing') : t('clean-analyze')}</Button>
         {#if analyzing}
@@ -647,6 +681,12 @@
     grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
     gap: var(--ez-space-sm);
     margin-bottom: var(--ez-space-sm);
+  }
+  .app-clean__presets {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--ez-space-xs);
+    margin: var(--ez-space-sm) 0 var(--ez-space-xs);
   }
   .app-clean__actions {
     display: flex;

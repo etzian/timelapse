@@ -11,9 +11,10 @@
   import { openContactSheet } from '../stores/contactSheet.svelte';
   import type { DayCount, RunSummary, SampledItem, SamplingPreview, VerifyReport } from '../ipc/app';
   import type { IpcError } from '../ipc/invoke';
-  import { FPS_OPTIONS, METHODS, MULTIPLIERS, POLICIES, UNIT_SECONDS, buildConfig, defaultForm, estimatedDurationSeconds } from '../sampling';
+  import { FPS_OPTIONS, METHODS, MULTIPLIERS, POLICIES, UNIT_SECONDS, buildConfig, defaultForm } from '../sampling';
   import type { IntervalUnit, MethodName } from '../sampling';
   import { project } from '../stores/project.svelte';
+  import { summaryText } from '../export';
   import { barPercent, formatDuration, formatInstant } from '../timeline';
 
   let { ongohome }: { ongohome: () => void } = $props();
@@ -59,7 +60,6 @@
     MULTIPLIERS.map((v) => ({ value: String(v), label: t('sampling-multiplier-option', { multiplier: formatNumber(v) }) }))
   );
   const maxDay = $derived(Math.max(0, ...shownDays.map((d) => d.count)));
-  const duration = $derived(preview ? estimatedDurationSeconds(preview.selected_count, Number(fps), Number(multiplier)) : 0);
   const excludedTotal = $derived(
     preview ? Object.values(preview.excluded).reduce((a, b) => a + b, 0) : 0
   );
@@ -327,7 +327,7 @@
             <Select label={t('sampling-fps')} options={fpsOptions} bind:value={fps} />
             <Select label={t('sampling-multiplier')} options={multiplierOptions} bind:value={multiplier} />
           </div>
-          <p class="app-sampling__duration">{t('sampling-duration', { duration: formatDuration(duration) })}</p>
+          <p class="app-sampling__duration" aria-live="polite">{summaryText(preview.selected_count, Number(fps), Number(multiplier))}</p>
           {#if excludedTotal > 0}
             <p class="app-sampling__note">
               {t('sampling-excluded', {
