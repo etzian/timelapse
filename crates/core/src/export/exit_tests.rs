@@ -169,6 +169,69 @@ fn assert_valid(rec: &ExportRecord, codec: Codec, photos: usize, speed: f64) {
     assert_eq!(&head[4..8], b"ftyp", "an MP4 container");
 }
 
+/// Phase 8 (D5): the encode consumes the stored deflicker and stabilization values. The
+/// refusal of another selection's runs needs no FFmpeg; the encode itself runs where
+/// the bundled FFmpeg is present.
+#[test]
+fn an_export_applies_stored_adjustments_without_a_manifest() {
+    use crate::adjust::exit_tests::{FRAMES, Fixture, serial as adjust_serial};
+    use crate::adjust::{DeflickerConfig, StabilizeConfig, deflicker_for_root, stabilize_for_root};
+    let _serial = serial();
+    let _adjust = adjust_serial();
+    let f = Fixture::new("export-encode");
+    let fl = deflicker_for_root(f.root(), f.run, &DeflickerConfig::default(), 0, |_| {})
+        .unwrap()
+        .unwrap();
+    let st = stabilize_for_root(f.root(), f.run, &StabilizeConfig::default(), 0, |_| {})
+        .unwrap()
+        .unwrap();
+    let s = ExportSettings {
+        width: 320,
+        height: 240,
+        flicker_run: Some(fl.id),
+        stabilization_run: Some(st.id),
+        ..settings(Codec::Av1, 1.0)
+    };
+
+    let other = create_run_for_root(
+        f.root(),
+        &Config {
+            method: Method::EveryNth { n: 3, offset: 0 },
+            from: None,
+            to: None,
+            include_flagged: true,
+        },
+    )
+    .unwrap();
+    let nowhere = FfmpegPaths::in_dir(&f.root().join("no-ffmpeg"));
+    assert!(matches!(
+        export_run(f.root(), &nowhere, other.id, s, 1, |_| {}),
+        Err(Error::Export { reason: "adjustment-mismatch" })
+    ));
+
+    let Some(dir) = ffmpeg_dir() else {
+        eprintln!("SKIP adjusted encode: TIMELAPSE_FFMPEG_DIR not set (runs on the macOS CI job)");
+        return;
+    };
+    let rec = export_run(f.root(), &FfmpegPaths::in_dir(&dir), f.run, s, 3, |_| {}).unwrap();
+    assert_eq!(rec.status, "completed", "{rec:?}");
+    assert_eq!((rec.input_photos, rec.output_frames), (FRAMES, FRAMES));
+    assert_eq!(
+        (rec.settings.flicker_run, rec.settings.stabilization_run),
+        (Some(fl.id), Some(st.id))
+    );
+    // The runs used are in the derived export record; the exports folder holds the video
+    // and nothing else (no manifest).
+    let json = record::record_json(f.root(), rec.id).unwrap();
+    assert!(json.contains(&format!("\"flicker_run\": {}", fl.id)), "{json}");
+    let names: Vec<String> = std::fs::read_dir(exports_dir(f.root()))
+        .unwrap()
+        .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
+        .collect();
+    assert_eq!(names.len(), 1, "{names:?}");
+    assert!(names[0].ends_with(".mp4"));
+}
+
 #[test]
 fn av1_tier_produces_a_valid_mp4_from_a_sampled_sequence() {
     let _serial = serial();

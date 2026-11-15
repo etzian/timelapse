@@ -124,6 +124,9 @@ pub fn export_run(
     if items.is_empty() {
         return Err(fail("empty-run"));
     }
+    // A run of another selection is a settings error: say so before looking for FFmpeg.
+    let adjust =
+        adjustments(&conn, run, settings.flicker_run, settings.stabilization_run, items.len())?;
     let probe = ffmpeg::probe(paths);
     if !probe.available {
         return Err(fail("ffmpeg-missing"));
@@ -138,8 +141,6 @@ pub fn export_run(
         .into_iter()
         .map(|p| p.ok_or(Error::StoreTransaction))
         .collect::<Result<_>>()?;
-    let adjust =
-        adjustments(&conn, run, settings.flicker_run, settings.stabilization_run, sources.len())?;
     let plan = frame_plan(sources.len(), settings.speed);
 
     let dir = exports_dir(root);
