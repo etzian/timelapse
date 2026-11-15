@@ -1,7 +1,7 @@
 <script lang="ts">
   import { Button, Card, PageHeader } from '@etzianco/ui';
 
-  import { t } from '../i18n';
+  import { formatNumber, t } from '../i18n';
   import { errorText } from '../i18n/errors';
   import { backfillMetadata, pickFolder, importRoot, integrityCheck } from '../ipc/app';
   import type { IpcError } from '../ipc/invoke';
@@ -62,33 +62,33 @@
 
 <div class="app-page">
   <PageHeader title={t('home-title')} />
-  <p class="tagline">{t('app-tagline')}</p>
+  <p class="app-home__tagline">{t('app-tagline')}</p>
 
   <Card>
-    <p class="intro">{t('home-intro')}</p>
+    <p class="app-home__intro">{t('home-intro')}</p>
     <Button onclick={doImport} disabled={busy || dating}>{busy ? t('home-importing') : t('home-import-action')}</Button>
   </Card>
 
   {#if report}
-    <Card class="report">
-      <dl>
-        <div><dt>{t('home-stat-scanned')}</dt><dd>{report.scanned_count}</dd></div>
-        <div><dt>{t('home-stat-hashed')}</dt><dd>{report.hash_computed}</dd></div>
-        <div><dt>{t('home-stat-new')}</dt><dd>{report.new_rows}</dd></div>
-        <div><dt>{t('home-stat-unchanged')}</dt><dd>{report.unchanged}</dd></div>
-        <div><dt>{t('home-stat-duplicates')}</dt><dd>{report.duplicates_found}</dd></div>
+    <Card class="app-home__report">
+      <dl class="app-home__stats">
+        <div><dt>{t('home-stat-scanned')}</dt><dd>{formatNumber(report.scanned_count)}</dd></div>
+        <div><dt>{t('home-stat-hashed')}</dt><dd>{formatNumber(report.hash_computed)}</dd></div>
+        <div><dt>{t('home-stat-new')}</dt><dd>{formatNumber(report.new_rows)}</dd></div>
+        <div><dt>{t('home-stat-unchanged')}</dt><dd>{formatNumber(report.unchanged)}</dd></div>
+        <div><dt>{t('home-stat-duplicates')}</dt><dd>{formatNumber(report.duplicates_found)}</dd></div>
       </dl>
 
       {#if report.hidden_removed > 0}
-        <p class="note">{t('home-hidden-removed', { count: report.hidden_removed })}</p>
+        <p class="app-home__note">{t('home-hidden-removed', { count: report.hidden_removed })}</p>
       {/if}
 
       {#if report.skipped_unreadable > 0}
-        <p class="note">{t('home-skipped-unreadable', { count: report.skipped_unreadable })}</p>
+        <p class="app-home__note">{t('home-skipped-unreadable', { count: report.skipped_unreadable })}</p>
       {/if}
 
       {#if integrity && (integrity.missing_files.length > 0 || integrity.duplicates.length > 0)}
-        <section class="integrity">
+        <section class="app-home__integrity">
           {#if integrity.missing_files.length > 0}
             <h3>{t('home-integrity-missing', { count: integrity.missing_files.length })}</h3>
             <ul>
@@ -122,43 +122,43 @@
   {/if}
 
   {#if dating}
-    <p class="progress" aria-live="polite">{t('timeline-dating')}</p>
+    <p class="app-home__progress" aria-live="polite">{t('timeline-dating')}</p>
   {:else if backfillError}
-    <div role="alert" class="error">
+    <div role="alert" class="app-home__error">
       <p>{backfillError}</p>
       <Button onclick={doBackfill}>{t('timeline-retry')}</Button>
     </div>
   {:else if backfill}
-    <p class="intro">
+    <p class="app-home__intro">
       {t('timeline-backfill-result', { resolved: backfill.newly_resolved, unresolved: backfill.unresolved_this_run })}
     </p>
     <TimelineSection {root} {backfill} />
   {/if}
 
-  {#if error}<p role="alert" class="error">{error}</p>{/if}
+  {#if error}<p role="alert" class="app-home__error">{error}</p>{/if}
 
-  {#if root}<p class="root-note" title={root}>{t('home-root', { path: root })}</p>{/if}
+  {#if root}<p class="app-home__root" title={root}>{t('home-root', { path: root })}</p>{/if}
 </div>
 
 <style>
-  .tagline {
+  .app-home__tagline {
     color: var(--ez-color-text-muted);
-    margin: 0 0 1rem;
+    margin: 0 0 var(--ez-space-md);
   }
-  .intro {
-    margin: 0 0 1rem;
+  .app-home__intro {
+    margin: 0 0 var(--ez-space-md);
   }
-  dl {
+  .app-home__stats {
     display: grid;
     grid-template-columns: auto minmax(0, 1fr);
-    gap: 0.25rem 1rem;
-    margin: 0 0 1rem;
+    gap: var(--ez-space-2xs) var(--ez-space-md);
+    margin: 0 0 var(--ez-space-md);
   }
-  dt { color: var(--ez-color-text-muted); }
-  dd { margin: 0; font-variant-numeric: tabular-nums; }
-  .note { font-size: 0.9em; color: var(--ez-color-warning); }
-  .integrity h3 { font-size: 1em; margin: 0.75rem 0 0.25rem; }
-  .error { color: var(--ez-color-error); }
-  .progress { color: var(--ez-color-text-muted); }
-  .root-note { font-size: 0.85em; color: var(--ez-color-text-muted); word-break: break-all; }
+  .app-home__stats dt { color: var(--ez-color-text-muted); }
+  .app-home__stats dd { margin: 0; font-variant-numeric: tabular-nums; }
+  .app-home__note { font-size: var(--ez-fs-sm); color: var(--ez-color-warning); }
+  .app-home__integrity h3 { font-size: var(--ez-fs-md); margin: var(--ez-space-sm) 0 var(--ez-space-2xs); }
+  .app-home__error { color: var(--ez-color-error); }
+  .app-home__progress { color: var(--ez-color-text-muted); }
+  .app-home__root { font-size: var(--ez-fs-sm); color: var(--ez-color-text-muted); word-break: break-all; }
 </style>

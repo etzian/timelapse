@@ -25,7 +25,24 @@
 
 <AppShell mode="auto">
   {#snippet sidebar()}
-    <Sidebar brand={t('app-name')} items={items} active={activeHref} />
+    <Sidebar brand={t('app-name')} items={items} active={activeHref}>
+      {#snippet footer()}
+        <div class="app-sidebar-footer">
+          <svg class="app-sidebar-footer__mark" viewBox="0 0 200 200" aria-hidden="true">
+            <defs>
+              <clipPath id="app-sun-clip"><circle cx="100" cy="100" r="70" /></clipPath>
+            </defs>
+            <circle class="app-sidebar-footer__sun" cx="100" cy="100" r="70" />
+            <g clip-path="url(#app-sun-clip)">
+              <rect class="app-sidebar-footer__stripe" x="30" y="70" width="140" height="16" />
+              <rect class="app-sidebar-footer__stripe" x="30" y="98" width="140" height="14" />
+              <rect class="app-sidebar-footer__stripe" x="30" y="122" width="140" height="12" />
+            </g>
+          </svg>
+          <span>{t('app-endorsement')}</span>
+        </div>
+      {/snippet}
+    </Sidebar>
   {/snippet}
   {#snippet tabbar()}
     <TabBar items={items.map((i) => ({ id: i.id, label: i.label }))} {active} onselect={(id: string) => nav.go(id as Page)} />

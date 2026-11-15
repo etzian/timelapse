@@ -1,6 +1,6 @@
 # STATE
 
-STATUS: PENDING
+STATUS: RUNNING
 <!-- PENDING | RUNNING | DONE | BLOCKED -->
 
 ## Preconditions
@@ -41,7 +41,7 @@ STATUS: PENDING
 
 | # | Slice | Model | Gate | Status |
 | --- | --- | --- | --- | --- |
-| P1 | ADR-027 and baseline debts | sonnet | GATE-UI | pending |
+| P1 | ADR-027 and baseline debts | sonnet | GATE-UI | done |
 | P2 | Project store and continuity | sonnet | GATE-UI + GATE-FAST + legal | pending |
 | P3 | Home as the project overview | sonnet | GATE-UI | pending |
 | P4 | Pipeline navigation | sonnet | GATE-UI | pending |
@@ -59,7 +59,12 @@ STATUS: PENDING
 
 ## Handoff log
 
-_(empty)_
+### P1 — pass
+- CHANGED: ADR-027 in docs/DECISIONS.md; new docs/design-review.md; Home.svelte tokens, formatNumber, .app-home__*; Sidebar footer (sun mark, "by Etzian") and per-destination icons; app-endorsement key in en and fr-CA.
+- DECISIONS: The installed `Sidebar` renders `icon` as escaped text, not markup. Icons are drawn in app.css as `.ez-sidebar__item[href='#<page>']::before` with a currentColor mask over a data-URI SVG, and `icon` is not passed. A later phase that renames or adds a page must add a matching icon rule. ADR-027 names the P10 commands `open_output` and `reveal_output`, checked against `video_exports.output_path` and `contact_sheets.output_path`; P2 and P10 must follow that.
+- DEFERRED: Home copy about hashing and a database goes to P3. Moving icons to the `icon` field is noted in design-review.md for the design system.
+- MANUAL: none (sidebar icons and footer not rendered; covered by the P14/P15 rendered pass)
+
 
 ## Open user items
 

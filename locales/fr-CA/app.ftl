@@ -5,6 +5,7 @@
 -app-name = Timelapse Studio
 app-name = { -app-name }
 app-tagline = Transformez d’importants fichiers de photos en vidéos timelapse de haute qualité, localement.
+app-endorsement = par Etzian
 company-name = Etzian inc.
 
 nav-home = Accueil

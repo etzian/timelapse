@@ -477,6 +477,22 @@ Copies are removed through the copy runs' undo (ADR-023), so a copy that changed
 
 ---
 
+## ADR-027 — UX milestone: opener through Rust commands, recent projects on the device, a flipbook of cached thumbnails
+
+**Status:** Accepted (2026-11-15, decided by the user with the UX milestone, `docs/UX_MILESTONE.md` §3)
+
+**Context.** The milestone adds Play and Show in Finder after an export, a list of recent projects, and a way to watch a selection before exporting. Each touches a boundary the app has kept narrow: what the webview may do, what is stored, what is decoded where.
+
+**Decisions and how each is built.**
+1. **The opener is reached only through Rust commands.** `tauri-plugin-opener` (the only dependency the milestone adds) is registered in `src-tauri`, but the webview gets no opener permission and `capabilities/default.json` does not change. Two commands (P10), `open_output` and `reveal_output`, take an id (never a path), look the path up in SQLite (`video_exports.output_path`, `contact_sheets.output_path`), canonicalise it and refuse it unless it lies inside `<root>/Timelapse exports/` (ADR-026). The refusal is an error `{ kind, args }`; tests prove a path outside the folder, a `..` escape and a symlink out of it are refused.
+2. **Recent projects live in `localStorage` beside the settings**, as folder paths, at most 8, most recent first. They are erased with "app settings" in Settings, and `legal/data-map.yaml` lists them in the same commit as the code (P2). There is no schema change and the core keeps no list of folders (ADR-026 stands: only the open folder can be erased).
+3. **The flipbook plays cached thumbnails.** It steps through the review thumbnails already in `.timelapse/` with a scrubber; no video is decoded in the webview, so no asset protocol, codec dependency or capability is needed. It is a `.app-*` component in this repo; `@etzianco/ui` stays read-only.
+4. **The progress bar and flipbook are app components**; what `@etzianco/ui` could adopt is listed in `docs/design-review.md`.
+
+**Consequences.** Playing the exported video inside the app, naming selections by hand and notifications at the end of a job stay out of scope (each would need a schema change, a capability or another plugin). Selections keep their numeric id and get a label derived from method, count and date.
+
+---
+
 ## Open decisions
 
 The following decisions must be investigated and presented for approval before implementation makes them difficult to change.
