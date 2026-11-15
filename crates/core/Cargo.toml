@@ -25,6 +25,10 @@ time = "0.3"
 image = { version = "0.25", default-features = false, features = ["jpeg", "png", "tiff"] }
 rayon = "1"
 
+# Phase 6 follow-up (ADR-023, approved 2026-11-15). MIT OR Apache-2.0: names that differ
+# only in Unicode normalisation (NFC vs NFD, as macOS may store them) compare equal.
+unicode-normalization = "0.1"
+
 # Phase 6 — consolidation (ADR-023). MIT OR Apache-2.0, already in the lockfile through
 # Tauri: `clonefile` (APFS copy-on-write clones, macOS) and `statvfs` (free space).
 [target.'cfg(unix)'.dependencies]

@@ -290,6 +290,8 @@ Settings → About names FFmpeg (LGPL-2.1-or-later) and SVT-AV1 (BSD-3-Clause-Cl
 
 **`libc` 0.2** (MIT OR Apache-2.0, already in the lockfile through Tauri) becomes a direct dependency of the core for `clonefile` (macOS) and `statvfs` (free space, Unix).
 
+**`unicode-normalization` 0.1** (MIT OR Apache-2.0; approved by the user 2026-11-15, after the Phase 6 review) is a direct dependency of the core too. Names are compared NFC-normalised and lowercased, as the default APFS volume ignores both, so `café` written precomposed and decomposed are the same name.
+
 **Input.** By default, every photograph except rejected and quarantined ones; alternatively, a saved sampling selection in its sequence order. Exact duplicates (same SHA-256) are kept once (the first in order), and the dry run lists the skipped ones. Photos without a hash are never treated as duplicates.
 
 **Naming.**
@@ -298,7 +300,7 @@ Settings → About names FFmpeg (LGPL-2.1-or-later) and SVT-AV1 (BSD-3-Clause-Cl
 - `folder-prefix`: flat, `<parent folder>_<filename>`;
 - `sequence`: flat, `000001.ext`… with at least 6 digits.
 
-Names that collide within the plan, compared case-insensitively, get `_2`, `_3`… A file already at the destination:
+Names that collide within the plan, compared case- and normalisation-insensitively, get `_2`, `_3`… A file already at the destination:
 - that is byte-identical is `already-present`. It is skipped, and an undo never touches it;
 - otherwise, the next free suffix is used.
 
@@ -316,7 +318,7 @@ Every target is a relative path of normal components joined under the destinatio
 Cancellation and progress happen between photos. A run ends `completed`, `partial` (some photos failed), `cancelled` or `failed`.
 
 **Undo.** A run can be undone once.
-- **Copy:** a copy we made is removed only while it still has the hash we wrote, and **never when that path is now the location of record of any photograph**: a later run may have moved an original there with the same bytes (`now-an-original`, compared case-insensitively against a set built once per undo), and only while it is **still the file the run made**: its device and inode, recorded when it was placed, must match (`replaced` otherwise: the copy was deleted and another file, perhaps another project's original with the same bytes, now has its name). `modified` and `missing` copies are left and reported.
+- **Copy:** a copy we made is removed only while it still has the hash we wrote, and **never when that path is now the location of record of any photograph**: a later run may have moved an original there with the same bytes (`now-an-original`, compared case- and normalisation-insensitively against a set built once per undo), and only while it is **still the file the run made**: its device and inode, recorded when it was placed, must match (`replaced` otherwise: the copy was deleted and another file, perhaps another project's original with the same bytes, now has its name). `modified` and `missing` copies are left and reported.
 - **Move:** a moved photo goes back only while `current_path` is still the run's target (`moved-since` otherwise), never overwriting.
 
 Each removal or move-back is journaled (`remove-copy`, `move-back`). Afterwards, only the folders **this run created** (recorded in `consolidation_runs.created_dirs_json`) are removed, deepest first, and only if empty (`remove_dir` cannot remove a non-empty one). A folder the user made stays. The run's undo state is `undone` or `partially-undone`.

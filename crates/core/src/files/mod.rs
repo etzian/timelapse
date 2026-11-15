@@ -511,7 +511,7 @@ pub(crate) fn remove_copy(
     }
     // The same bytes at the same path may now be an original that a later run moved there:
     // that file is never ours to remove.
-    if locations.contains(&copy.to_string_lossy().to_lowercase()) {
+    if locations.contains(&name_key(&copy.to_string_lossy())) {
         return journal_failed(conn, &step, None, "now-an-original");
     }
     // Another file at the same path (the copy was deleted and something else, perhaps
@@ -545,15 +545,21 @@ pub(crate) fn remove_copy(
     Ok(OpOutcome { image_id, operation_id: Some(op), failure: None })
 }
 
-/// Every image's location of record, lowercased (the default APFS volume ignores case),
-/// built once per undo while the file lock is held, so it cannot change meanwhile.
+/// How a path or name is compared with others: NFC-normalised, then lowercased, as the
+/// default APFS volume ignores both case and normalisation.
+pub(crate) fn name_key(s: &str) -> String {
+    use unicode_normalization::UnicodeNormalization;
+    s.nfc().collect::<String>().to_lowercase()
+}
+
+/// Every image's location of record, as a [`name_key`], built once per undo while the file lock is held, so it cannot change meanwhile.
 pub(crate) fn locations_of_record(conn: &Connection) -> Result<HashSet<String>> {
     let mut stmt = conn
         .prepare("SELECT COALESCE(current_path, original_path) FROM images")
         .map_err(|_| Error::StoreTransaction)?;
     let rows =
         stmt.query_map([], |r| r.get::<_, String>(0)).map_err(|_| Error::StoreTransaction)?;
-    rows.map(|r| r.map(|p| p.to_lowercase()).map_err(|_| Error::StoreTransaction)).collect()
+    rows.map(|r| r.map(|p| name_key(&p)).map_err(|_| Error::StoreTransaction)).collect()
 }
 
 /// The identity of the file at `p` (device and inode), which survives renames and is new

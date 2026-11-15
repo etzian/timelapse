@@ -177,7 +177,7 @@ fn free_name(
             target.push('/');
         }
         target.push_str(&name);
-        let key = target.to_lowercase();
+        let key = crate::files::name_key(&target);
         if taken.contains(&key) {
             continue;
         }
@@ -320,6 +320,18 @@ mod tests {
         let p = plan(&ins, Naming::Original, absent);
         assert_eq!(targets(&p), [Some("G001.JPG"), Some("g001_2.jpg"), Some("G001_3.JPG")]);
         assert_eq!(p.iter().map(|x| x.renamed).collect::<Vec<_>>(), [false, true, true]);
+    }
+
+    #[test]
+    fn names_differing_only_in_normalisation_collide() {
+        // "café" precomposed (NFC) and decomposed (NFD, as macOS may store it).
+        let ins = [
+            input(1, &rel(&["a", "caf\u{e9}.jpg"]), Some("a")),
+            input(2, &rel(&["b", "cafe\u{301}.jpg"]), Some("b")),
+        ];
+        let p = plan(&ins, Naming::Original, absent);
+        assert_eq!(targets(&p), [Some("caf\u{e9}.jpg"), Some("cafe\u{301}_2.jpg")]);
+        assert_eq!(p.iter().map(|x| x.renamed).collect::<Vec<_>>(), [false, true]);
     }
 
     #[test]
