@@ -89,7 +89,8 @@ fn invalid_settings_and_empty_runs_are_refused() {
 }
 
 /// Encode with `codec`; `None` = the environment cannot (reported, not hidden).
-fn encode_or_skip(codec: Codec, speed: f64) -> Option<(ExportRecord, usize)> {
+/// Returns the project folder too: it holds the MP4 and must outlive the checks.
+fn encode_or_skip(codec: Codec, speed: f64) -> Option<(ExportRecord, usize, TempDir)> {
     let Some(dir) = ffmpeg_dir() else {
         eprintln!(
             "SKIP {codec:?}: TIMELAPSE_FFMPEG_DIR not set (encode tests run on the macOS CI job)"
@@ -110,7 +111,7 @@ fn encode_or_skip(codec: Codec, speed: f64) -> Option<(ExportRecord, usize)> {
                 progress.last().map(|p| (p.done, p.total)),
                 Some((rec.output_frames, rec.output_frames))
             );
-            Some((rec, 24))
+            Some((rec, 24, project))
         }
         Ok(rec)
             if codec != Codec::Av1
@@ -162,7 +163,7 @@ fn assert_valid(rec: &ExportRecord, codec: Codec, photos: usize, speed: f64) {
 #[test]
 fn av1_tier_produces_a_valid_mp4_from_a_sampled_sequence() {
     let _serial = serial();
-    if let Some((rec, n)) = encode_or_skip(Codec::Av1, 1.0) {
+    if let Some((rec, n, _project)) = encode_or_skip(Codec::Av1, 1.0) {
         assert_valid(&rec, Codec::Av1, n, 1.0);
     }
 }
@@ -170,7 +171,7 @@ fn av1_tier_produces_a_valid_mp4_from_a_sampled_sequence() {
 #[test]
 fn playback_speed_changes_frames_not_fps() {
     let _serial = serial();
-    if let Some((rec, n)) = encode_or_skip(Codec::Av1, 2.0) {
+    if let Some((rec, n, _project)) = encode_or_skip(Codec::Av1, 2.0) {
         assert_valid(&rec, Codec::Av1, n, 2.0);
         assert_eq!(rec.output_frames, 12);
     }
@@ -179,7 +180,7 @@ fn playback_speed_changes_frames_not_fps() {
 #[test]
 fn h264_videotoolbox_tier_produces_a_valid_mp4() {
     let _serial = serial();
-    if let Some((rec, n)) = encode_or_skip(Codec::H264, 1.0) {
+    if let Some((rec, n, _project)) = encode_or_skip(Codec::H264, 1.0) {
         assert_valid(&rec, Codec::H264, n, 1.0);
     }
 }
@@ -187,7 +188,7 @@ fn h264_videotoolbox_tier_produces_a_valid_mp4() {
 #[test]
 fn hevc_videotoolbox_tier_produces_a_valid_mp4() {
     let _serial = serial();
-    if let Some((rec, n)) = encode_or_skip(Codec::Hevc, 1.0) {
+    if let Some((rec, n, _project)) = encode_or_skip(Codec::Hevc, 1.0) {
         assert_valid(&rec, Codec::Hevc, n, 1.0);
     }
 }
