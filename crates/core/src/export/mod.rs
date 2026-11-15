@@ -138,6 +138,7 @@ pub fn export_run(
         .into_iter()
         .map(|p| p.ok_or(Error::StoreTransaction))
         .collect::<Result<_>>()?;
+    let adjust = adjustments(&conn, run, &settings, sources.len())?;
     let plan = frame_plan(sources.len(), settings.speed);
 
     let dir = exports_dir(root);
@@ -159,7 +160,8 @@ pub fn export_run(
     }
     let mut cleanup = Cleanup { conn: &conn, id, part: part.clone(), armed: true };
 
-    let result = encode(paths, &args, &sources, &plan, &settings, &part, token, &mut on_progress);
+    let result =
+        encode(paths, &args, &sources, &adjust, &plan, &settings, &part, token, &mut on_progress);
     let outcome = match result {
         Ok(()) => finish(paths, &settings, &part, &output, plan.len()),
         Err(e) => Err(e),
@@ -183,11 +185,47 @@ pub fn export_run(
 
 type Failure = (&'static str, String);
 
+/// Per-photograph adjustments of the chosen deflicker and stabilization runs, read from
+/// SQLite (D5). A run of another selection, or one that does not cover every photograph
+/// of this one, is refused (`adjustment-mismatch`).
+pub(crate) fn adjustments(
+    conn: &rusqlite::Connection,
+    run: i64,
+    settings: &ExportSettings,
+    photos: usize,
+) -> Result<Vec<frames::FrameAdjust>> {
+    use crate::adjust::{deflicker, store as adjust_store};
+    let mismatch = || fail("adjustment-mismatch");
+    let mut out = vec![frames::FrameAdjust::NONE; photos];
+    if let Some(id) = settings.flicker_run {
+        let r = adjust_store::flicker_run(conn, id)?.ok_or_else(mismatch)?;
+        let frames = adjust_store::flicker_frames(conn, id)?;
+        if r.sampling_run_id != run || frames.len() != photos {
+            return Err(mismatch());
+        }
+        for (slot, f) in out.iter_mut().zip(&frames) {
+            slot.luts = (f.gains != [1.0; 3]).then(|| deflicker::luts(f.gains));
+        }
+    }
+    if let Some(id) = settings.stabilization_run {
+        let r = adjust_store::stabilization_run(conn, id)?.ok_or_else(mismatch)?;
+        let frames = adjust_store::stabilization_frames(conn, id)?;
+        if r.sampling_run_id != run || frames.len() != photos {
+            return Err(mismatch());
+        }
+        for (slot, f) in out.iter_mut().zip(&frames) {
+            slot.shift = (r.crop > 0.0).then_some((f.shift.0, f.shift.1, r.crop));
+        }
+    }
+    Ok(out)
+}
+
 #[allow(clippy::too_many_arguments)]
 fn encode(
     paths: &FfmpegPaths,
     args: &[std::ffi::OsString],
     sources: &[PathBuf],
+    adjust: &[frames::FrameAdjust],
     plan: &[usize],
     s: &ExportSettings,
     part: &Path,
@@ -216,7 +254,7 @@ fn encode(
         }
         let decoded: Vec<(usize, std::result::Result<Vec<u8>, Error>)> = wanted
             .par_iter()
-            .map(|&i| (i, frames::prepare(&sources[i], s.width, s.height)))
+            .map(|&i| (i, frames::prepare_adjusted(&sources[i], s.width, s.height, &adjust[i])))
             .collect();
         let mut decoded = decoded.into_iter().peekable();
         while k < total {

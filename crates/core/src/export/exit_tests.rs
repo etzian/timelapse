@@ -48,7 +48,16 @@ fn project() -> (TempDir, i64) {
 }
 
 fn settings(codec: Codec, speed: f64) -> ExportSettings {
-    ExportSettings { codec, fps: 12.0, speed, width: 320, height: 180, quality: Quality::Small }
+    ExportSettings {
+        codec,
+        fps: 12.0,
+        speed,
+        width: 320,
+        height: 180,
+        quality: Quality::Small,
+        flicker_run: None,
+        stabilization_run: None,
+    }
 }
 
 #[test]

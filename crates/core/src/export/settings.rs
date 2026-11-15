@@ -67,6 +67,12 @@ pub struct ExportSettings {
     pub height: u32,
     #[serde(default)]
     pub quality: Quality,
+    /// Deflicker run whose gains are applied (ADR-025); its selection must be the export's.
+    #[serde(default)]
+    pub flicker_run: Option<i64>,
+    /// Stabilization run whose shifts and crop are applied.
+    #[serde(default)]
+    pub stabilization_run: Option<i64>,
 }
 
 impl ExportSettings {
@@ -143,6 +149,8 @@ mod tests {
             width: 1920,
             height: 1080,
             quality: Quality::High,
+            flicker_run: None,
+            stabilization_run: None,
         };
         assert!(ok.check().is_ok());
         for bad in [

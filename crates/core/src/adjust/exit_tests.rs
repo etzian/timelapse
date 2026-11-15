@@ -176,6 +176,98 @@ fn stabilization_recovers_the_shake_and_is_reproducible() {
 }
 
 #[test]
+fn the_export_takes_its_frames_from_the_stored_runs() {
+    use crate::export::frames::prepare_adjusted;
+    use crate::export::{Codec, ExportSettings, Quality};
+    let _s = serial();
+    let f = Fixture::new("export-input");
+    let fl = deflicker_for_root(
+        f.root(),
+        f.run,
+        &DeflickerConfig { strength: 1.0, window: 9, colour: true },
+        0,
+        |_| {},
+    )
+    .unwrap()
+    .unwrap();
+    let st = stabilize_for_root(
+        f.root(),
+        f.run,
+        &StabilizeConfig { smoothing: 9, max_crop: 0.05 },
+        0,
+        |_| {},
+    )
+    .unwrap()
+    .unwrap();
+    let conn = open_root(f.root()).unwrap();
+    let settings = ExportSettings {
+        codec: Codec::Av1,
+        fps: 24.0,
+        speed: 1.0,
+        width: 320,
+        height: 240,
+        quality: Quality::Small,
+        flicker_run: Some(fl.id),
+        stabilization_run: Some(st.id),
+    };
+    let adjust = crate::export::adjustments(&conn, f.run, &settings, FRAMES).unwrap();
+    let gains = store::flicker_frames(&conn, fl.id).unwrap();
+    let shifts = store::stabilization_frames(&conn, st.id).unwrap();
+    for i in 0..FRAMES {
+        let expect = (gains[i].gains != [1.0; 3]).then(|| deflicker::luts(gains[i].gains));
+        assert_eq!(adjust[i].luts, expect, "frame {i}");
+        assert_eq!(adjust[i].shift, Some((shifts[i].shift.0, shifts[i].shift.1, st.crop)));
+    }
+
+    // The prepared frames are steadier and more even than the photographs.
+    let items = crate::sampling::store::run_items(&conn, f.run).unwrap();
+    let path =
+        |i: usize| crate::clean::store::location(&conn, items[i].image_id).unwrap().unwrap().0;
+    let frame = |i: usize, adjusted: bool| {
+        let a = if adjusted { adjust[i] } else { crate::export::frames::FrameAdjust::NONE };
+        RgbImage::from_raw(320, 240, prepare_adjusted(&path(i), 320, 240, &a).unwrap()).unwrap()
+    };
+    let luma = |img: &RgbImage| deflicker::measure(img).unwrap().luma().ln();
+    let spread =
+        |adjusted: bool| stdev(&(0..8).map(|i| luma(&frame(i, adjusted))).collect::<Vec<_>>());
+    assert!(spread(true) < spread(false) / 2.0, "{} → {}", spread(false), spread(true));
+    let motion = |adjusted: bool| {
+        (1..8)
+            .map(|i| {
+                let s = stabilize::estimate(
+                    &stabilize::gray(&frame(i - 1, adjusted)),
+                    &stabilize::gray(&frame(i, adjusted)),
+                );
+                s.dx.abs() + s.dy.abs()
+            })
+            .sum::<f64>()
+    };
+    assert!(motion(true) < motion(false) / 2.0, "{} → {}", motion(false), motion(true));
+
+    // Runs of another selection are refused.
+    let other = create_run_for_root(
+        f.root(),
+        &Config {
+            method: Method::EveryNth { n: 2, offset: 0 },
+            from: None,
+            to: None,
+            include_flagged: true,
+        },
+    )
+    .unwrap()
+    .id;
+    assert!(matches!(
+        crate::export::adjustments(&conn, other, &settings, FRAMES / 2),
+        Err(Error::Export { reason: "adjustment-mismatch" })
+    ));
+    let unknown = ExportSettings { flicker_run: Some(999), stabilization_run: None, ..settings };
+    assert!(matches!(
+        crate::export::adjustments(&conn, f.run, &unknown, FRAMES),
+        Err(Error::Export { reason: "adjustment-mismatch" })
+    ));
+}
+
+#[test]
 fn cancel_stores_nothing_and_one_analysis_runs_at_a_time() {
     let _s = serial();
     let f = Fixture::new("cancel");

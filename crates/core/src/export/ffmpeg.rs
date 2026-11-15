@@ -312,6 +312,8 @@ mod tests {
             width: 1920,
             height: 1080,
             quality: Quality::Standard,
+            flicker_run: None,
+            stabilization_run: None,
         }
     }
 
