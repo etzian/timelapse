@@ -54,7 +54,7 @@ STATUS: RUNNING
 | P11 | Progress and the export finish | sonnet | GATE-UI | done |
 | P12 | Motion, menu and shortcuts | sonnet | GATE-UI | done |
 | P13 | Copy pass, en and fr-CA | sonnet | GATE-UI | done |
-| P14 | Review slice | opus | full + sign-off | pending |
+| P14 | Review slice | opus | full + sign-off | done |
 | P15 | Polish | sonnet | full | pending |
 
 ## Handoff log
@@ -142,6 +142,12 @@ STATUS: RUNNING
 - DECISIONS: Dynamic key families (error-*, nav-*, files-failure-*, organize-*, clean-filter-*, clean-done-*, preset/codec help) kept. `error-output` [open-failed] no longer names Finder. Message IDs unchanged (adjust-analyse, adjust-analysing, next-reason-analysing keep the old spelling). Orchestrator re-ran check, test, build, verify, i18n-check after the fr-CA fixes.
 - DEFERRED: "Dry run" and "Preview" wording on Organize; technical Timeline strings (EXIF source names, "Dates are shown in UTC"); "Analysis" as a noun in job names. Guardian nice-to-haves left: `selection-every-*` for n=1 ("Toutes les 1 s"), `pipeline-state-running` vs `in-progress` wording overlap, "par Organiser" phrasing, "timelapse" vs "vidéo accélérée" in sampling-intro, "Fréquence" vs "cadence", `wipe-hint`. Lawyer review of generated legal documents still pending.
 - MANUAL: Read the French in the running app for line length (Sidebar, menu, Modal footer with 5 buttons) in P14/P15.
+
+### P14 — pass (reviewed from source only; no sign-off from a re-review)
+- CHANGED: Reviewers run: ui-reviewer, rust-reviewer, legal-compliance (i18n-guardian ran in P13); `ez licence-audit .` ok. Rust (ab3d01d): read-only database opener for `project_summary` and open/reveal (no migrate, reconcile or move), extension allow-list (mp4, pdf, json) with reasons `unsupported-type` and `unsupported-name`, exports directory canonicalised, ADR-027 amended. Frontend: sidebar icon moved to `::after` (accent bar untouched), wrapping viewer with Previous/Next in the body, triage tiles as plain `role="group"` list, selection ring vs focus ring, ⌘Z undo on Cleaning (12 s toast after keyboard use), focus to the new page heading, repeatable job announcements incl. starts, `aria-disabled` buttons, NextStep reason linked, ProjectSteps keeps figures on refresh with a 300 ms skeleton gate, persistent status region on Home, named recent-project buttons, export finish card focus, system focus tokens, pause playback when hidden, menu rebuild guard, one retry key (`action-retry`), `storageKeys.ts` plus a test that Erase leaves no `timelapse*` key (found and fixed a write-back of settings after erase). Data map: sidebar fold state added; documents regenerated. `docs/design-review.md` records the pass. Orchestrator re-ran `make gate`: exit 0 (135 vitest, core 229).
+- DECISIONS: The reviewers did not re-review the fixes, so this is not a reviewer sign-off; it is recorded as such in design-review.md. `project_summary` on an outdated database says "not imported" instead of an error. Buttons that can lose their action are native `ez-btn` with `aria-disabled` (installed Button forwards neither aria-disabled nor aria-label).
+- DEFERRED: Sidebar state glyphs read aloud and no state in the tab bar (needs a design-system slot); native Edit > Undo wiring; field-linked errors in Advanced; flipbook retry; raw px/rem to tokens and other nice-to-haves (items 15, 18, 20 to 26 in the review). 
+- MANUAL (user, lawyer): launch-time reopen needs a setting or notice? are folder paths personal information for local-only data? window-state file (position and size) not erased and not in the data map (predates the milestone); the privacy policy says nothing about handing exports to the default player; three legal templates unreviewed. Rendered pass on the Mac (P15 user item), including ⌘Z against the native Edit menu, the viewer in fr-CA at 520 px, sidebar icons and accent bar light and dark, VoiceOver on tiles and the wipe slider.
 
 ## Open user items
 
