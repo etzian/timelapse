@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { buildConfig, defaultForm, estimatedDurationSeconds, nextDay } from './sampling';
+import { buildConfig, defaultForm, nextDay } from './sampling';
 
 describe('sampling helpers', () => {
   it('builds each method from the form', () => {
@@ -36,13 +36,6 @@ describe('sampling helpers', () => {
     expect(buildConfig({ ...defaultForm(), method: 'uniform', count: '' })).toBeNull();
     expect(buildConfig({ ...defaultForm(), from: '2024-02-01', to: '2024-01-01' })).toBeNull();
     expect(buildConfig({ ...defaultForm(), from: '2024-13-01' })).toBeNull();
-  });
-
-  it('estimates duration from FPS and the playback multiplier separately', () => {
-    expect(estimatedDurationSeconds(300, 30, 1)).toBe(10);
-    expect(estimatedDurationSeconds(300, 30, 2)).toBe(5);
-    expect(estimatedDurationSeconds(300, 30, 0.5)).toBe(20);
-    expect(estimatedDurationSeconds(300, 0, 1)).toBe(0);
   });
 });
 

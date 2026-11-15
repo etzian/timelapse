@@ -53,7 +53,7 @@ STATUS: RUNNING
 | P10 | Open and reveal commands | opus | full | done |
 | P11 | Progress and the export finish | sonnet | GATE-UI | done |
 | P12 | Motion, menu and shortcuts | sonnet | GATE-UI | done |
-| P13 | Copy pass, en and fr-CA | sonnet | GATE-UI | pending |
+| P13 | Copy pass, en and fr-CA | sonnet | GATE-UI | done |
 | P14 | Review slice | opus | full + sign-off | pending |
 | P15 | Polish | sonnet | full | pending |
 
@@ -136,6 +136,12 @@ STATUS: RUNNING
 - DECISIONS: Menu is built in JS; `core:default` includes `core:menu:default` (checked by the orchestrator in the generated schema), so capabilities/default.json is unchanged and no Rust was touched. Shortcuts: CmdOrCtrl+1–5 for the workflow steps, CmdOrCtrl+, Settings, CmdOrCtrl+O Open folder. App.svelte renders `shown` (updated inside the transition); the sidebar highlight follows `nav.active` immediately. Predefined items (Hide, Quit, Undo, Copy, Window) keep OS labels. Every menu action also has a visible control.
 - DEFERRED: Localizing the predefined menu item labels; per-page `view-transition-name` for shared elements.
 - MANUAL: In the real app (`make dev`): the menu shows with shortcuts; ⌘1–⌘5, ⌘, and ⌘O work; labels switch with the language; the cross-fade is absent under reduced motion.
+
+### P13 — pass
+- CHANGED: about 48 English strings reworded to plain words (no database, inventory, fingerprint, consolidation, run, FFmpeg or "Sampling page" outside Advanced; page names used instead); "analyse" normalized to "analyze" in text; 6 unused keys removed in both locales (clean-close, sampling-duration, clean-detail-status, clean-thresholds-title, clean-preset-current, export-preset-current) and the unused `estimatedDurationSeconds` with its test; fr-CA run through `etzian:translator` (190 keys) then `etzian:i18n-guardian`; must-fix findings applied (no hardcoded "Une" in `[one]` variants, "{ $job } : terminé.", summary-line, progress-remaining, clean-inspector-keys wording, non-breaking spaces before colons, inside « » and in "nº { $id }" / "{ $n } s|min|h"), plus Exportations, Étapes, non commencé, "dans « path »", dimensions paires.
+- DECISIONS: Dynamic key families (error-*, nav-*, files-failure-*, organize-*, clean-filter-*, clean-done-*, preset/codec help) kept. `error-output` [open-failed] no longer names Finder. Message IDs unchanged (adjust-analyse, adjust-analysing, next-reason-analysing keep the old spelling). Orchestrator re-ran check, test, build, verify, i18n-check after the fr-CA fixes.
+- DEFERRED: "Dry run" and "Preview" wording on Organize; technical Timeline strings (EXIF source names, "Dates are shown in UTC"); "Analysis" as a noun in job names. Guardian nice-to-haves left: `selection-every-*` for n=1 ("Toutes les 1 s"), `pipeline-state-running` vs `in-progress` wording overlap, "par Organiser" phrasing, "timelapse" vs "vidéo accélérée" in sampling-intro, "Fréquence" vs "cadence", `wipe-hint`. Lawyer review of generated legal documents still pending.
+- MANUAL: Read the French in the running app for line length (Sidebar, menu, Modal footer with 5 buttons) in P14/P15.
 
 ## Open user items
 

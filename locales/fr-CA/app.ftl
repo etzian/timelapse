@@ -16,7 +16,7 @@ nav-adjust = Ajuster
 nav-export = Exporter
 nav-sheets = Planches contact
 nav-settings = Réglages
-nav-group-workflow = Marche à suivre
+nav-group-workflow = Étapes
 nav-group-tools = Outils
 nav-group-app = Application
 menu-settings = Réglages…
@@ -24,7 +24,7 @@ menu-file = Fichier
 menu-open-folder = Ouvrir un dossier…
 menu-edit = Édition
 menu-window = Fenêtre
-pipeline-state-not-started = pas commencé
+pipeline-state-not-started = non commencé
 pipeline-state-in-progress = en cours
 pipeline-state-done = terminé
 pipeline-state-running = en exécution
@@ -33,7 +33,7 @@ pipeline-job-adjust = L’ajustement
 pipeline-job-export = L’exportation
 pipeline-job-consolidation = Le déplacement des fichiers
 pipeline-job-sheet = La planche contact
-pipeline-job-ended = { $job } a terminé.
+pipeline-job-ended = { $job } : terminé.
 
 home-import-action = Choisir un dossier à importer
 home-importing = Importation…
@@ -49,7 +49,7 @@ home-step-photos = Photographies
 home-step-flagged = Signalées pour révision
 home-step-not-analyzed = Pas encore analysées
 home-step-selections = Sélections
-home-step-exports = Exports
+home-step-exports = Exportations
 home-step-open = Ouvrir
 home-summary = { $new } nouvelle(s), { $unchanged } déjà dans le projet.
 home-details-summary = Détails
@@ -59,10 +59,10 @@ home-hidden-removed = { $count ->
     [one] { $count } fichier macOS caché (une copie « ._ » des métadonnées d’une photo) importé plus tôt a été retiré du projet. Vos photographies ne sont pas touchées.
    *[other] { $count } fichiers macOS cachés (des copies « ._ » des métadonnées de photos) importés plus tôt ont été retirés du projet. Vos photographies ne sont pas touchées.
 }
-home-skipped-unreadable = { $count } fichier(s) n’ont pas pu être lus et ont été importés sans vérification du contenu.
+home-skipped-unreadable = { $count } fichier(s) n’ont pas pu être lus; ils ont été ajoutés sans vérification des doublons.
 home-duplicate-groups-summary = Groupes de doublons trouvés lors de cet import
-home-integrity-missing = { $count } entrée(s) de l’inventaire n’a/ont plus de fichier sur disque
-home-integrity-dups = { $count } groupe(s) distinct(s) de doublon(s) dans l’inventaire
+home-integrity-missing = { $count } photographie(s) du projet sont introuvables sur le disque
+home-integrity-dups = { $count } groupe(s) de photographies identiques dans le projet
 
 settings-section-privacy = Confidentialité
 settings-privacy-description = Tout reste sur cet appareil. Rien n’est transmis.
@@ -71,7 +71,7 @@ erase-section = Choisir ce qu'il faut effacer
 erase-section-description = Utilisez ensuite Effacer toutes les données ci-dessous. Vos photographies originales ne sont jamais touchées, sauf celles rejetées qui sont en quarantaine si vous la choisissez.
 erase-choice-settings = Réglages de l'application
 erase-choice-project = Données du projet
-erase-choice-project-hint = Le dossier caché « .timelapse » de { $folder } ({ $size }) : décisions, sélections, analyses d'ajustement, vignettes, fichiers temporaires et historique d'annulation.
+erase-choice-project-hint = Le dossier caché « .timelapse » de { $folder } ({ $size }) : vos décisions, sélections, analyses d’ajustement, aperçus, fichiers temporaires et historique d’annulation.
 erase-choice-exports = Exportations
 erase-choice-exports-hint = { $count ->
     [one] { $count } fichier ({ $size }) dans le dossier « Timelapse exports » : vidéos, leurs fiches et planches contact.
@@ -79,12 +79,12 @@ erase-choice-exports-hint = { $count ->
 }
 erase-choice-copies = Photographies copiées
 erase-choice-copies-hint = { $count ->
-    [one] { $count } copie ({ $size }) faite par le regroupement dans { $folders }. Une copie que vous avez modifiée est conservée.
-   *[other] { $count } copies ({ $size }) faites par le regroupement dans { $folders }. Une copie que vous avez modifiée est conservée.
+    [one] { $count } copie ({ $size }) faite par Organiser dans { $folders }. Une copie que vous avez modifiée est conservée.
+   *[other] { $count } copies ({ $size }) faites par Organiser dans { $folders }. Une copie que vous avez modifiée est conservée.
 }
 erase-choice-copies-moved = { $count ->
-    [one] { $count } photographie déplacée par le regroupement n'est jamais effacée : c'est le seul exemplaire.
-   *[other] { $count } photographies déplacées par le regroupement ne sont jamais effacées : ce sont les seuls exemplaires.
+    [one] { $count } photographie déplacée par Organiser n’est jamais effacée : c’est le seul exemplaire.
+   *[other] { $count } photographies déplacées par Organiser ne sont jamais effacées : ce sont les seuls exemplaires.
 }
 erase-choice-quarantine = Quarantaine
 erase-choice-quarantine-hint = { $count ->
@@ -92,7 +92,7 @@ erase-choice-quarantine-hint = { $count ->
    *[other] { $count } photographies originales rejetées ({ $size }) dans le dossier « Timelapse quarantine ». Elles seront supprimées définitivement.
 }
 erase-choice-empty = Rien à effacer.
-erase-no-project = Ouvrez un dossier source dans Accueil pour effacer aussi ses données de projet, ses exportations, ses copies ou sa quarantaine.
+erase-no-project = Ouvrez un dossier dans la page Importer pour aussi effacer ses données de projet, ses exportations, ses copies ou sa quarantaine.
 erase-nothing-chosen = Rien : choisissez au moins un élément ci-dessus.
 erase-item-project = Les données du projet de { $folder } ({ $size })
 erase-item-exports = { $count ->
@@ -100,8 +100,8 @@ erase-item-exports = { $count ->
    *[other] Les exportations : { $count } fichiers ({ $size })
 }
 erase-item-copies = { $count ->
-    [one] { $count } photographie copiée par le regroupement ({ $size })
-   *[other] { $count } photographies copiées par le regroupement ({ $size })
+    [one] { $count } photographie copiée par Organiser ({ $size })
+   *[other] { $count } photographies copiées par Organiser ({ $size })
 }
 erase-item-quarantine = { $count ->
     [one] { $count } photographie originale rejetée en quarantaine ({ $size })
@@ -122,7 +122,7 @@ error-output = { $reason ->
     [missing] Ce fichier n’est plus dans le dossier « Timelapse exports ». Il a peut-être été déplacé, renommé ou supprimé. Remettez-le à cet endroit ou exportez de nouveau la vidéo.
     [not-a-file] Ce n’est pas un fichier que l’application peut ouvrir.
     [outside-exports] Par sécurité, seuls les fichiers du dossier « Timelapse exports » de ce projet peuvent être ouverts.
-    [open-failed] Le fichier n’a pas pu être ouvert. Vérifiez qu’une application de ce Mac peut lire des vidéos, ou utilisez « Afficher dans le Finder » et ouvrez-la à partir de là.
+    [open-failed] Le fichier n’a pas pu être ouvert. Vérifiez qu’une application de cet ordinateur peut lire des vidéos, ou affichez le fichier dans son dossier et ouvrez-le à partir de là.
    *[other] Le fichier n’a pas pu être ouvert.
 }
 
@@ -176,12 +176,11 @@ timeline-loading = Construction de la chronologie…
 timeline-retry = Réessayer
 
 ## Phase 3 — nettoyage
-clean-title = Nettoyer vos photos
+clean-title = Nettoyer vos photographies
 clean-intro = Timelapse Studio mesure la luminosité de chaque photographie et signale celles qui semblent trop sombres ou que Lightroom a marquées comme rejetées. Rien n’est retiré automatiquement : vous décidez, et une photo rejetée ne va dans la quarantaine du projet que lorsque vous le confirmez.
 clean-no-project-title = Aucune collection ouverte
 clean-no-project-description = Importez d’abord un dossier; ses photographies pourront ensuite être analysées et nettoyées ici.
 clean-go-import = Aller à l’importation
-clean-thresholds-title = Seuils
 clean-threshold-min-mean = Luminosité moyenne minimale (0–255)
 clean-threshold-dark-level = Niveau d’un pixel sombre (0–255)
 clean-threshold-max-dark = Proportion maximale de pixels sombres (%)
@@ -258,7 +257,7 @@ clean-done-clear = { $count ->
 clean-undo = Annuler
 clean-undone = Décisions rétablies.
 clean-keys-title = Clavier
-clean-keys-hint = La touche Tab atteint les photographies en un seul arrêt; les flèches se déplacent entre elles. Les boutons sur chaque photographie et dans la visionneuse font la même chose.
+clean-keys-hint = La touche Tab donne accès aux photographies en une seule étape; les flèches se déplacent entre elles. Les boutons sur chaque photographie et dans la visionneuse font la même chose.
 clean-cap-keep = A
 clean-cap-reject = R
 clean-cap-clear = U
@@ -275,8 +274,7 @@ clean-photo-label = { $path }, { $status }
 clean-inspector-position = { $index } de { $total }
 clean-previous = Précédente
 clean-next = Suivante
-clean-close = Fermer
-clean-inspector-keys = Flèches gauche et droite : précédente et suivante. A conserve, R rejette, U efface la décision.
+clean-inspector-keys = Flèches gauche et droite : précédente et suivante. Touche A : conserver; R : rejeter; U : effacer la décision.
 clean-reject = Rejeter
 clean-clear = Annuler la décision
 clean-restore = Restaurer
@@ -314,7 +312,6 @@ clean-restored-result = { $ok ->
     [one] ; { $failed } n’a pas pu être restaurée :
    *[other] ; { $failed } n’ont pas pu être restaurées :
 }
-clean-detail-status = Statut
 clean-detail-mean = Luminosité moyenne
 clean-detail-median = Luminosité médiane
 clean-detail-dark = Pixels sombres
@@ -351,8 +348,8 @@ files-failure-other = l’opération a échoué
 
 ## Phase 4 — échantillonnage
 sampling-title = Sélectionner les images
-sampling-intro = Choisissez les photographies qui deviendront les images du timelapse. L’échantillonnage suit les dates de prise de vue, jamais l’ordre des fichiers; les photographies non retenues sont simplement laissées de côté, jamais supprimées.
-sampling-no-project-description = Importez d’abord un dossier; ses photographies pourront ensuite être échantillonnées ici.
+sampling-intro = Choisissez les photographies qui deviendront les images du timelapse. Les images suivent les dates de prise de vue, jamais l’ordre des fichiers; les photographies non retenues sont simplement laissées de côté, jamais supprimées.
+sampling-no-project-description = Importez d’abord un dossier; vous pourrez ensuite choisir ses images ici.
 sampling-method-title = Méthode
 sampling-method-fixed-interval = Intervalle fixe
 sampling-method-every-nth = Une photo sur N
@@ -386,7 +383,7 @@ sampling-preview = Aperçu
 sampling-previewing = Calcul en cours…
 sampling-save = Enregistrer cette sélection
 sampling-saving = Enregistrement…
-sampling-saved = Enregistrée : { $label }.
+sampling-saved = Enregistrée : { $label }.
 sampling-preview-title = Aperçu
 sampling-preview-empty-title = Aucun aperçu pour l’instant
 sampling-preview-empty-description = Choisissez une méthode, puis Aperçu pour voir quelles photographies seraient utilisées.
@@ -400,7 +397,6 @@ sampling-fps = Images par seconde
 sampling-fps-option = { $fps } i/s
 sampling-multiplier = Vitesse de lecture
 sampling-multiplier-option = { $multiplier } ×
-sampling-duration = Durée estimée de la vidéo : { $duration }
 sampling-excluded = Laissées de côté : { $rejected } rejetées, { $quarantined } en quarantaine, { $flagged } à examiner, { $undated } sans date, { $outside } hors de la période.
 sampling-nothing-selected-title = Aucune photographie retenue
 sampling-nothing-selected-description = Élargissez la période, incluez les photographies à examiner ou choisissez un intervalle plus court.
@@ -428,17 +424,17 @@ sampling-run-verify = Vérifier
 sampling-verifying = Vérification…
 sampling-verify-identical = Toujours identique
 sampling-verify-differs = Différerait maintenant
-sampling-verify-inputs-changed = Les photographies ont changé depuis
+sampling-verify-inputs-changed = Les photographies ont changé depuis cet enregistrement
 
 ## Phase 5 — exportation
 export-title = Exporter la vidéo
-export-intro = Transformez une sélection enregistrée en vidéo MP4. L’encodage se fait sur cet appareil avec le FFmpeg fourni avec l’application; la vidéo est enregistrée dans le dossier « Timelapse exports » du dossier source et rien n’est écrasé.
-export-no-project-description = Importez d’abord un dossier, puis enregistrez une sélection dans la page Échantillonnage.
-export-no-ffmpeg-title = L’encodage vidéo n’est pas offert dans cette version
-export-no-ffmpeg-description = Le FFmpeg fourni avec l’application est introuvable. Installez l’application à partir d’un paquet officiel pour exporter des vidéos.
+export-intro = Transformez une sélection enregistrée en vidéo MP4. Elle est créée sur cet appareil et enregistrée dans le dossier « Timelapse exports » de votre dossier de photos; rien n’est écrasé.
+export-no-project-description = Importez d’abord un dossier, puis enregistrez une sélection à la page Sélectionner.
+export-no-ffmpeg-title = Cette application ne peut pas créer de vidéos
+export-no-ffmpeg-description = L’outil vidéo fourni avec l’application est introuvable. Installez l’application à partir d’un paquet officiel pour créer des vidéos.
 export-no-runs-title = Aucune sélection enregistrée
-export-no-runs-description = Une vidéo est produite à partir d’une sélection enregistrée. Prévisualisez-en une et enregistrez-la dans la page Échantillonnage.
-export-go-sampling = Aller à l’échantillonnage
+export-no-runs-description = Une vidéo est créée à partir d’une sélection enregistrée. Prévisualisez-en une et enregistrez-la à la page Sélectionner.
+export-go-sampling = Aller à Sélectionner
 export-settings-title = Vidéo
 export-run = Sélection
 export-codec = Format
@@ -447,7 +443,7 @@ export-codec-h264 = H.264 (le plus compatible)
 export-codec-hevc = HEVC / H.265
 export-codec-unavailable = { $codec } (non offert sur ce Mac)
 export-codec-av1-help = L’AV1 produit les fichiers les plus légers à qualité égale et se lit dans les navigateurs récents, VLC et macOS 14 ou ultérieur.
-export-codec-h264-help = Le H.264 se lit presque partout. Il est encodé par le matériel vidéo de votre Mac; aucun encodage plus lent par le processeur ne prend le relais.
+export-codec-h264-help = Le H.264 se lit presque partout. Il est encodé par le matériel vidéo de votre Mac.
 export-codec-hevc-help = Le HEVC est plus léger que le H.264 et se lit sur les appareils Apple et la plupart des lecteurs récents. Il est encodé par le matériel vidéo de votre Mac.
 export-resolution = Taille
 export-resolution-option = { $width } × { $height }
@@ -459,7 +455,7 @@ export-stat-photos = Photographies
 export-stat-frames = Images de la vidéo
 export-stat-duration = Durée de la vidéo
 export-start = Créer la vidéo
-export-exporting = Encodage…
+export-exporting = Création de la vidéo…
 export-cancel = Annuler
 export-cancelling = Annulation…
 export-done-title = Vidéo créée
@@ -468,7 +464,7 @@ export-technical-details = Détails techniques
 export-history-title = Vidéos produites dans ce projet
 export-history-empty-title = Aucune vidéo pour l’instant
 export-history-empty-description = Les vidéos que vous créez apparaissent ici avec leurs réglages et leur résultat.
-export-status-running = Encodage
+export-status-running = En cours
 export-status-completed = Terminée
 export-status-failed = Échec
 export-status-cancelled = Annulée
@@ -476,11 +472,11 @@ export-history-line = { $run }, { $codec }, { $duration }
 about-ffmpeg-notice = L’encodage vidéo utilise FFmpeg (LGPL 2.1 ou ultérieure) et SVT-AV1 (licence BSD-3-Clause-Clear et Alliance for Open Media Patent License 1.0). Leurs textes de licence, réglages de compilation et emplacements des sources sont inclus dans l’application, dans Resources/resources/ffmpeg/LICENSES.
 
 ## Erreurs (rendues via i18n/errors.ts → t(`error-${kind}`, args)).
-error-import-root-unreadable = Le dossier « { $path } » n’a pas pu être lu.
+error-import-root-unreadable = Le dossier « { $path } » n’a pas pu être lu.
 error-image-unreadable = La photographie située à « { $path } » n’a pas pu être lue.
-error-database = La base de données du projet n’a pas pu être ouverte ou écrite à l’emplacement « { $path } ».
-error-store-transaction = L’enregistrement dans la base de données du projet a échoué.
-error-image-undecodable = La photographie située à « { $path } » n’est pas une image lisible.
+error-database = Les données enregistrées du projet n’ont pas pu être ouvertes ou enregistrées dans « { $path } ».
+error-store-transaction = Vos modifications n’ont pas pu être enregistrées dans le projet.
+error-image-undecodable = La photographie située à « { $path } » n’est pas une image lisible.
 error-unknown-image = Cette photographie ne fait plus partie du projet.
 error-invalid-sampling = { $reason ->
     [too-many-targets] Cet intervalle est trop court pour la période : il créerait plus de cinq millions de pas.
@@ -488,13 +484,13 @@ error-invalid-sampling = { $reason ->
 }
 error-unknown-run = Cette sélection enregistrée n’existe plus.
 error-export = { $reason ->
-    [ffmpeg-missing] Le FFmpeg fourni avec l’application est introuvable.
+    [ffmpeg-missing] L’outil vidéo fourni avec l’application est introuvable.
     [encoder-unavailable] Ce format ne peut pas être encodé sur ce Mac; choisissez-en un autre. Rien n’est remplacé en silence.
-    [invalid-settings] Ces réglages vidéo ne sont pas pris en charge (fréquence de 1 à 120, vitesse de 0,1 à 100, tailles paires).
+    [invalid-settings] Ces réglages vidéo ne sont pas pris en charge (fréquence de 1 à 120, vitesse de 0,1 à 100, dimensions paires).
     [empty-run] Cette sélection ne contient aucune photographie.
     [busy] Une autre vidéo est déjà en cours de création.
     [cancelled] La vidéo a été annulée; le fichier partiel a été supprimé.
-    [ffmpeg-failed] FFmpeg s’est arrêté sur une erreur; le fichier partiel a été supprimé.
+    [ffmpeg-failed] L’outil vidéo s’est arrêté sur une erreur; le fichier partiel a été supprimé.
     [invalid-output] Le fichier terminé n’a pas passé la vérification (format, taille ou nombre d’images) et a été écarté.
     [output-exists] Un fichier portant ce nom existe déjà; rien n’a été écrasé.
     [image-unreadable] Une photographie de la sélection n’a pas pu être lue.
@@ -503,7 +499,7 @@ error-export = { $reason ->
     [unknown-export] Cette vidéo n’existe plus.
     [adjustment-stale] Une photographie de cette sélection a changé depuis l’analyse du scintillement ou de la stabilisation choisie. Analysez-la de nouveau à la page Ajuster.
     [adjustment-mismatch] Une analyse du scintillement ou de la stabilisation choisie appartient à une autre sélection, ou ne couvre pas toutes les photographies de celle-ci.
-    [record-write-failed] Le registre n’a pas pu être enregistré dans le dossier des exportations du projet (disque plein ou protégé en écriture).
+    [record-write-failed] Le registre n’a pas pu être enregistré dans le dossier d’exportation du projet (disque plein ou non accessible en écriture).
    *[other] La vidéo n’a pas pu être créée.
 }
 error-consolidation = { $reason ->
@@ -521,7 +517,7 @@ error-consolidation = { $reason ->
 
 organize-title = Organiser vos fichiers
 organize-no-project-description = Importez d’abord un dossier de photographies; vous pourrez ensuite les regrouper dans un dossier de travail.
-organize-intro = Regroupez les photographies des dossiers de la collection dans un seul dossier de travail, en copies ou en déplaçant les originaux. Une simulation montre exactement ce qui se passera avant toute écriture, chaque fichier est vérifié, rien n’est jamais écrasé et chaque opération peut être annulée.
+organize-intro = Regroupez les photographies des dossiers de la collection dans un seul dossier de travail, en copies ou en déplaçant les originaux. Une simulation montre exactement ce qui se passera avant toute écriture, chaque fichier est vérifié, rien n’est jamais écrasé et chaque copie ou déplacement peut être annulé.
 organize-settings-title = Réglages
 organize-destination = Dossier de travail
 organize-destination-none = Aucun dossier choisi
@@ -585,7 +581,7 @@ organize-confirm-body-move = { $count ->
     [one] { $count } original sera déplacé vers { $path }. Il ne sera plus dans le dossier de la collection.
    *[other] { $count } originaux seront déplacés vers { $path }. Ils ne seront plus dans les dossiers de la collection.
 }
-organize-confirm-safety = Chaque fichier est vérifié avant et après; rien n’est jamais écrasé et l’opération peut être annulée depuis l’historique.
+organize-confirm-safety = Chaque fichier est vérifié avant et après; rien n’est jamais écrasé, et l’opération peut être annulée depuis l’historique.
 organize-confirm-move-understood = Je comprends que les originaux quitteront les dossiers de la collection
 organize-result-copy = { $failed ->
     [0] { $placed } photographies copiées.
@@ -638,7 +634,7 @@ organize-undo-body-move = { $count ->
 }
 organize-undo-safety = Seuls les fichiers encore exactement tels qu’ils ont été créés sont repris; tout ce qui a changé depuis reste en place et est listé. Rien d’autre dans le dossier n’est touché.
 organize-originals-title = Vérification des originaux
-organize-originals-help = Relit chaque original à l’endroit indiqué par le projet et le compare à son empreinte prise à l’importation.
+organize-originals-help = Relit chaque original à l’endroit indiqué par le projet et le compare à son état lors de l’importation.
 organize-originals-check = Vérifier les originaux
 organize-originals-ok = Intacts
 organize-originals-changed = Modifiés
@@ -658,7 +654,7 @@ organize-problem-changed = Modifié depuis l’importation
 
 sheets-title = Planches contact
 sheets-no-project-description = Importez d’abord un dossier de photographies; vous pourrez ensuite les imprimer en planches contact.
-sheets-intro = Une planche contact est un PDF de vignettes avec leur nom de fichier et leur heure de prise de vue, établi à partir des registres du projet. Elle est enregistrée dans le dossier « Timelapse exports/contact-sheets » du dossier source.
+sheets-intro = Une planche contact est un PDF de vignettes avec leur nom de fichier et leur heure de prise de vue, créé à partir de votre projet. Elle est enregistrée dans le dossier « Timelapse exports/contact-sheets » de votre dossier de photos.
 sheets-source-title = Quoi afficher
 sheets-source = Photographies
 sheets-source-all = Toutes les photographies
@@ -668,16 +664,16 @@ sheets-source-quarantined = Photographies en quarantaine
 sheets-source-sampling = Une sélection enregistrée
 sheets-source-export = La séquence d’une vidéo
 sheets-source-period-line = Du { $from } au { $to } (UTC)
-sheets-source-sampling-line = Sélection no { $id }
-sheets-source-export-line = Vidéo no { $id }
+sheets-source-sampling-line = Sélection nº { $id }
+sheets-source-export-line = Vidéo nº { $id }
 sheets-period-from = Du (UTC)
 sheets-period-to = Jusqu’au, exclu (UTC)
 sheets-period-help = Les photographies prises à partir de la première heure, jusqu’à la seconde exclue.
 sheets-period-invalid = Choisissez un début et une fin; la fin doit suivre le début.
 sheets-sampling-run = Sélection
-sheets-no-runs = Aucune sélection enregistrée pour l’instant. Enregistrez-en une à la page Échantillonnage.
+sheets-no-runs = Aucune sélection enregistrée pour l’instant. Enregistrez-en une à la page Sélectionner.
 sheets-export = Vidéo
-sheets-export-option = Vidéo no { $id } ({ $selection }, { $count } photographies)
+sheets-export-option = Vidéo nº { $id } ({ $selection }, { $count } photographies)
 sheets-no-exports = Aucune vidéo créée pour l’instant.
 sheets-layout-title = Mise en page
 sheets-page-size = Papier
@@ -776,8 +772,8 @@ export-record-show = Afficher le registre
 export-record-hide = Masquer le registre
 export-record-save = Enregistrer le registre
 export-record-saved = Registre enregistré :
-export-record-help = Établi à partir des registres du projet chaque fois qu’il est affiché; l’application ne le relit jamais.
-export-record-label = Registre de la vidéo no { $id }
+export-record-help = Établi à partir de votre projet chaque fois qu’il est affiché; l’application ne le relit jamais.
+export-record-label = Registre de la vidéo nº { $id }
 
 error-timeout = L’application a mis trop de temps à répondre. Le travail est peut-être encore en cours : patientez un instant, puis réessayez.
 error-contact-sheet = { $reason ->
@@ -797,7 +793,7 @@ error-contact-sheet = { $reason ->
 
 adjust-title = Ajuster
 adjust-no-project-description = Importez d’abord un dossier de photographies et enregistrez une sélection; vous pourrez ensuite réduire le scintillement et les tremblements.
-adjust-no-runs-description = La réduction du scintillement et la stabilisation s’appliquent à une sélection enregistrée. Enregistrez-en une à la page Échantillonnage.
+adjust-no-runs-description = La réduction du scintillement et la stabilisation s’appliquent à une sélection enregistrée. Enregistrez-en une à la page Sélectionner.
 adjust-intro = Analysez une sélection enregistrée, vérifiez le résultat ici, puis choisissez-le au moment de l’exportation. Vos photographies ne sont jamais modifiées : les corrections sont appliquées pendant la création de la vidéo.
 adjust-flicker-title = Réduction du scintillement
 adjust-flicker-help = Suit les changements lents de la lumière (lever et coucher du soleil, nuages) et atténue les sauts d’exposition rapides d’une photographie à l’autre. Les corrections sont limitées à un diaphragme d’exposition et à un tiers de diaphragme de couleur.
@@ -811,10 +807,10 @@ adjust-colour = Uniformiser aussi la couleur (balance des blancs)
 adjust-analyse = Analyser
 adjust-analysing = Analyse…
 adjust-stopped = L’analyse a été arrêtée; rien n’a été enregistré.
-adjust-other-running = Un autre projet est en cours d’analyse; vous pourrez lancer celle-ci quand il sera terminé.
+adjust-other-running = Un autre projet est en cours d’analyse; vous pourrez commencer ici quand il sera terminé.
 adjust-result = Résultat affiché
-adjust-flicker-option = no { $id } · { $date } · { $strength } · { $window } images
-adjust-stab-option = no { $id } · { $date } · recadrage { $crop }
+adjust-flicker-option = nº { $id } · { $date } · { $strength } · { $window } images
+adjust-stab-option = nº { $id } · { $date } · recadrage { $crop }
 adjust-stat-largest = Plus forte correction
 adjust-stat-mean = Correction moyenne
 adjust-stat-colour = Plus forte correction de couleur
@@ -863,8 +859,8 @@ adjust-adjusted = Image { $frame } corrigée
 export-flicker = Réduction du scintillement
 export-stab = Stabilisation
 export-adjust-none = Aucune
-export-flicker-option = no { $id } · intensité { $strength }
-export-stab-option = no { $id } · recadrage { $crop }
+export-flicker-option = nº { $id } · intensité { $strength }
+export-stab-option = nº { $id } · recadrage { $crop }
 
 error-adjust = { $reason ->
     [busy] Une autre analyse est déjà en cours.
@@ -883,26 +879,26 @@ project-remove = Retirer de la liste
 project-opening = Ouverture de votre projet…
 project-unreachable = Ce dossier est inaccessible.
 project-unreachable-hint = Il a peut-être été déplacé ou renommé, ou son disque n’est pas branché. Branchez-le et réessayez, ou retirez-le de la liste. Vos photographies ne sont pas touchées.
-project-last-opened = Dernière ouverture : { $date }
+project-last-opened = Dernière ouverture : { $date }
 
 # Sélections nommées et étape suivante (P5)
 selection-label = { $method } · { $count ->
-    [one] une photographie
+    [one] { $photos } photographie
    *[other] { $photos } photographies
 } · { $date }
-selection-every-seconds = Toutes les { $n } s
-selection-every-minutes = Toutes les { $n } min
-selection-every-hours = Toutes les { $n } h
+selection-every-seconds = Toutes les { $n } s
+selection-every-minutes = Toutes les { $n } min
+selection-every-hours = Toutes les { $n } h
 selection-every-days = { $count ->
     [one] Chaque jour
    *[other] Tous les { $n } jours
 }
 selection-nth = Une sur { $n }
 selection-uniform = Répartition égale
-selection-with-id = { $label } (no { $id })
-sampling-run-id = Sélection no { $id }
-sheets-selection-unknown = sélection no { $id }
-next-action = Suivant : { $step }
+selection-with-id = { $label } (nº { $id })
+sampling-run-id = Sélection nº { $id }
+sheets-selection-unknown = sélection nº { $id }
+next-action = Suivant : { $step }
 next-reason-checking = Vérification du projet…
 next-reason-no-photos = Importez d’abord des photographies.
 next-reason-analysing = Attendez la fin de l’analyse.
@@ -933,7 +929,7 @@ adjust-loop-title = Lire la boucle
 adjust-loop-help = Lit jusqu’à { $count } photographies autour de l’image choisie, pour voir le scintillement et les secousses comme ils bougeraient.
 adjust-loop-adjusted = Lire avec les corrections appliquées
 export-preview-title = Aperçu
-export-preview-help = La sélection à la cadence et à la vitesse ci-dessus, telle que prise. Les corrections s’appliquent seulement dans la vidéo exportée.
+export-preview-help = La sélection à la cadence et à la vitesse ci-dessus, telle que prise. Les corrections ne s’appliquent que dans la vidéo exportée.
 
 ## Presets and summaries
 clean-preset-label = Sensibilité
@@ -944,7 +940,6 @@ clean-preset-custom = Réglages personnalisés
 clean-preset-lenient-help = Ne signale que les photographies nettement sombres.
 clean-preset-balanced-help = Un bon point de départ pour la plupart des collections.
 clean-preset-strict-help = Signale tout ce qui semble même un peu sombre.
-clean-preset-current = Réglage actuel : { $preset }
 clean-advanced = Réglages avancés
 export-preset-label = Usage
 export-preset-share = Partage
@@ -954,8 +949,7 @@ export-preset-share-help = Se lit presque partout. Pleine HD, qualité standard.
 export-preset-archive-help = Le fichier le plus petit, en pleine HD et en qualité standard.
 export-preset-master-help = La meilleure qualité, en 4K. Un fichier volumineux.
 export-preset-custom = Réglages personnalisés
-export-preset-current = Réglage actuel : { $preset }
-export-preset-unavailable = Le réglage « { $preset } » nécessite { $codec }, qui n’est pas disponible sur ce Mac.
+export-preset-unavailable = Le réglage « { $preset } » nécessite { $codec }, qui n’est pas disponible sur ce Mac.
 export-advanced = Réglages avancés
 summary-line = { $photos ->
     [one] { $photos } photographie devient
@@ -963,11 +957,11 @@ summary-line = { $photos ->
 } { $frames ->
     [one] { $frames } image
    *[other] { $frames } images
-}, qui durent { $duration } à { $fps } images par seconde.
-summary-empty = Aucune photographie n’est sélectionnée : il n’y a encore rien à lire.
+}, pour une durée de { $duration } à { $fps } images par seconde.
+summary-empty = Aucune photographie n’est sélectionnée : il n’y a encore rien à lire.
 
 ## UX — progression et résultat
-progress-remaining = Environ { $time } restantes
+progress-remaining = Temps restant : environ { $time }
 output-play = Lire
 output-reveal-mac = Afficher dans le Finder
 output-reveal = Afficher dans le dossier

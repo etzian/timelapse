@@ -58,10 +58,10 @@ home-hidden-removed = { $count ->
     [one] { $count } hidden macOS file (a “._” copy of a photo’s metadata) imported earlier was removed from the project. Your photographs are not affected.
    *[other] { $count } hidden macOS files (“._” copies of photos’ metadata) imported earlier were removed from the project. Your photographs are not affected.
 }
-home-skipped-unreadable = { $count } file(s) could not be read and were imported without a content check.
+home-skipped-unreadable = { $count } file(s) could not be read, so they were added without a check for duplicates.
 home-duplicate-groups-summary = Duplicate groups found in this import
-home-integrity-missing = { $count } inventory entry(ies) has/have no file on disk
-home-integrity-dups = { $count } distinct duplicate group(s) in the inventory
+home-integrity-missing = { $count } photograph(s) listed in the project can no longer be found on disk
+home-integrity-dups = { $count } group(s) of identical photographs in the project
 
 settings-section-privacy = Privacy
 settings-privacy-description = Everything stays on this device. Nothing is sent anywhere.
@@ -70,7 +70,7 @@ erase-section = Choose what to erase
 erase-section-description = Then use Erase all data below. Your original photographs are never touched, except the rejected ones in the quarantine if you choose it.
 erase-choice-settings = App settings
 erase-choice-project = Project data
-erase-choice-project-hint = The hidden “.timelapse” folder of { $folder } ({ $size }): decisions, selections, adjustment runs, thumbnails, temporary files and the undo history.
+erase-choice-project-hint = The hidden “.timelapse” folder of { $folder } ({ $size }): your decisions, selections, adjustments, previews, temporary files and the undo history.
 erase-choice-exports = Exports
 erase-choice-exports-hint = { $count ->
     [one] One file ({ $size }) in the “Timelapse exports” folder: videos, their records and contact sheets.
@@ -78,12 +78,12 @@ erase-choice-exports-hint = { $count ->
 }
 erase-choice-copies = Copied photographs
 erase-choice-copies-hint = { $count ->
-    [one] One copy ({ $size }) made by consolidation in { $folders }. A copy you changed is kept.
-   *[other] { $count } copies ({ $size }) made by consolidation in { $folders }. A copy you changed is kept.
+    [one] One copy ({ $size }) made by Organize in { $folders }. A copy you changed is kept.
+   *[other] { $count } copies ({ $size }) made by Organize in { $folders }. A copy you changed is kept.
 }
 erase-choice-copies-moved = { $count ->
-    [one] One photograph moved by consolidation is never erased: it is the only copy.
-   *[other] { $count } photographs moved by consolidation are never erased: they are the only copy.
+    [one] One photograph moved by Organize is never erased: it is the only copy.
+   *[other] { $count } photographs moved by Organize are never erased: they are the only copy.
 }
 erase-choice-quarantine = Quarantine
 erase-choice-quarantine-hint = { $count ->
@@ -91,7 +91,7 @@ erase-choice-quarantine-hint = { $count ->
    *[other] { $count } rejected original photographs ({ $size }) in the “Timelapse quarantine” folder. They are deleted permanently.
 }
 erase-choice-empty = Nothing to erase.
-erase-no-project = Open a source folder on Home to also erase its project data, exports, copies or quarantine.
+erase-no-project = Open a folder on the Import page to also erase its project data, exports, copies or quarantine.
 erase-nothing-chosen = Nothing: choose at least one item above.
 erase-item-project = The project data of { $folder } ({ $size })
 erase-item-exports = { $count ->
@@ -99,8 +99,8 @@ erase-item-exports = { $count ->
    *[other] The exports: { $count } files ({ $size })
 }
 erase-item-copies = { $count ->
-    [one] One photograph copied by consolidation ({ $size })
-   *[other] { $count } photographs copied by consolidation ({ $size })
+    [one] One photograph copied by Organize ({ $size })
+   *[other] { $count } photographs copied by Organize ({ $size })
 }
 erase-item-quarantine = { $count ->
     [one] One rejected original photograph in the quarantine ({ $size })
@@ -121,7 +121,7 @@ error-output = { $reason ->
     [missing] This file is no longer in the “Timelapse exports” folder. It may have been moved, renamed or deleted. Put it back there, or export the video again.
     [not-a-file] This is not a file the app can open.
     [outside-exports] For your safety, only files in this project’s “Timelapse exports” folder can be opened.
-    [open-failed] The file could not be opened. Check that an app on this Mac can play videos, or use “Show in Finder” and open it from there.
+    [open-failed] The file could not be opened. Check that an app on this computer can play videos, or show the file in its folder and open it from there.
    *[other] The file could not be opened.
 }
 
@@ -179,9 +179,8 @@ timeline-retry = Try again
 clean-title = Clean your photographs
 clean-intro = Timelapse Studio measures the brightness of each photograph and flags the ones that look too dark, or that Lightroom marked as rejected. Nothing is removed automatically: you decide, and a rejected photo only moves to the project's quarantine when you confirm.
 clean-no-project-title = No collection open
-clean-no-project-description = Import a folder first; its photographs can then be analysed and cleaned here.
+clean-no-project-description = Import a folder first; its photographs can then be analyzed and cleaned here.
 clean-go-import = Go to import
-clean-thresholds-title = Thresholds
 clean-threshold-min-mean = Minimum average brightness (0–255)
 clean-threshold-dark-level = Dark pixel level (0–255)
 clean-threshold-max-dark = Maximum share of dark pixels (%)
@@ -191,13 +190,13 @@ clean-thresholds-note = Changing a threshold re-evaluates the photos you have no
 clean-apply = Apply thresholds
 clean-applying = Applying…
 clean-analysis-title = Analysis
-clean-analyze = Analyse photographs
-clean-analyzing = Analysing…
+clean-analyze = Analyze photographs
+clean-analyzing = Analyzing…
 clean-stop = Stop
 clean-stopping = Stopping…
 clean-stopped = { $count ->
-    [one] Analysis stopped. What was analysed is kept; { $count } photograph is left. Analyse again to continue.
-   *[other] Analysis stopped. What was analysed is kept; { $count } photographs are left. Analyse again to continue.
+    [one] Analysis stopped. What was analyzed is kept; { $count } photograph is left. Analyze again to continue.
+   *[other] Analysis stopped. What was analyzed is kept; { $count } photographs are left. Analyze again to continue.
 }
 clean-progress = { $done } of { $total }
 clean-loading = Loading…
@@ -208,7 +207,7 @@ clean-status-eligible = Kept
 clean-status-flagged = To review
 clean-status-rejected = Rejected
 clean-status-quarantined = In quarantine
-clean-status-unanalyzed = Not analysed
+clean-status-unanalyzed = Not analyzed
 clean-filter-label = Show
 clean-filter-flagged = To review
 clean-filter-rejected = Rejected
@@ -222,8 +221,8 @@ clean-filter-empty-description = Other photographs are under the other tabs.
 clean-show-all = Show all
 clean-empty-title = No photographs in this collection
 clean-empty-description = Import a folder that contains JPG, PNG or TIFF files.
-clean-unanalyzed-title = Not analysed yet
-clean-unanalyzed-description = Analyse the collection to measure the brightness of each photograph.
+clean-unanalyzed-title = Not analyzed yet
+clean-unanalyzed-description = Analyze the collection to measure the brightness of each photograph.
 clean-inspect = Inspect { $path }
 clean-user-decision = Your decision
 clean-metrics = Average { $mean } · { $dark } dark
@@ -275,7 +274,6 @@ clean-photo-label = { $path }, { $status }
 clean-inspector-position = { $index } of { $total }
 clean-previous = Previous
 clean-next = Next
-clean-close = Close
 clean-inspector-keys = Left and right arrows: previous and next. A keeps, R rejects, U clears.
 clean-reject = Reject
 clean-clear = Undo decision
@@ -314,7 +312,6 @@ clean-restored-result = { $ok ->
     [one] ; one could not be restored:
    *[other] ; { $failed } could not be restored:
 }
-clean-detail-status = Status
 clean-detail-mean = Average brightness
 clean-detail-median = Median brightness
 clean-detail-dark = Dark pixels
@@ -324,7 +321,7 @@ clean-detail-histogram = Brightness histogram
 clean-reason-mean-below = Average brightness { $mean } is below { $min }
 clean-reason-too-many-dark-pixels = { $fraction } of the pixels are dark (limit { $max })
 clean-reason-xmp-rejected = Rejected in Lightroom
-clean-reason-analysis-failed = Could not be analysed: { $failure }
+clean-reason-analysis-failed = Could not be analyzed: { $failure }
 clean-failure-unreadable = the file could not be read
 clean-failure-undecodable = the file is not a readable image
 files-failure-unknown-image = this photograph is no longer in the project
@@ -351,8 +348,8 @@ files-failure-other = the operation failed
 
 ## Phase 4 — sampling
 sampling-title = Select the frames
-sampling-intro = Choose which photographs become frames of the timelapse. Sampling follows the capture times, never the file order; photographs that are not selected are simply left out, never deleted.
-sampling-no-project-description = Import a folder first; its photographs can then be sampled here.
+sampling-intro = Choose which photographs become the frames of the timelapse. Frames follow the capture times, never the file order; photographs you do not select are simply left out, never deleted.
+sampling-no-project-description = Import a folder first; you can then choose its frames here.
 sampling-method-title = Method
 sampling-method-fixed-interval = Fixed interval
 sampling-method-every-nth = Every Nth photo
@@ -400,7 +397,6 @@ sampling-fps = Frames per second
 sampling-fps-option = { $fps } fps
 sampling-multiplier = Playback speed
 sampling-multiplier-option = { $multiplier }×
-sampling-duration = Estimated video length: { $duration }
 sampling-excluded = Left out: { $rejected } rejected, { $quarantined } in quarantine, { $flagged } to review, { $undated } without a date, { $outside } outside the period.
 sampling-nothing-selected-title = No photograph selected
 sampling-nothing-selected-description = Widen the period, include the photographs still to review, or choose a smaller interval.
@@ -428,17 +424,17 @@ sampling-run-verify = Check
 sampling-verifying = Checking…
 sampling-verify-identical = Still identical
 sampling-verify-differs = Would now differ
-sampling-verify-inputs-changed = The photographs have changed since
+sampling-verify-inputs-changed = The photographs have changed since this was saved
 
 ## Phase 5 — export
 export-title = Export the video
-export-intro = Turn a saved selection into an MP4 video. Encoding runs on this device with the FFmpeg bundled in the app; the video is saved in the “Timelapse exports” folder of the source folder and nothing is overwritten.
-export-no-project-description = Import a folder first, then save a selection on the Sampling page.
-export-no-ffmpeg-title = Video encoding is not available in this build
-export-no-ffmpeg-description = The FFmpeg that ships with the app was not found. Install the app from an official package to export videos.
+export-intro = Turn a saved selection into an MP4 video. It is made on this device and saved in the “Timelapse exports” folder of your photo folder; nothing is overwritten.
+export-no-project-description = Import a folder first, then save a selection on the Select page.
+export-no-ffmpeg-title = This app cannot create videos
+export-no-ffmpeg-description = The video tool that comes with the app was not found. Install the app from an official package to create videos.
 export-no-runs-title = No saved selection
-export-no-runs-description = A video is made from a saved selection. Preview and save one on the Sampling page.
-export-go-sampling = Go to Sampling
+export-no-runs-description = A video is made from a saved selection. Preview and save one on the Select page.
+export-go-sampling = Go to Select
 export-settings-title = Video
 export-run = Selection
 export-codec = Format
@@ -447,8 +443,8 @@ export-codec-h264 = H.264 (most compatible)
 export-codec-hevc = HEVC / H.265
 export-codec-unavailable = { $codec } (not available on this Mac)
 export-codec-av1-help = AV1 gives the smallest files at a given quality and plays in recent browsers, VLC and macOS 14 or later.
-export-codec-h264-help = H.264 plays almost everywhere. It is encoded by your Mac's video hardware; there is no slower software fallback.
-export-codec-hevc-help = HEVC is smaller than H.264 and plays on Apple devices and most recent players. It is encoded by your Mac's video hardware.
+export-codec-h264-help = H.264 plays almost everywhere. Your Mac’s video hardware makes it.
+export-codec-hevc-help = HEVC is smaller than H.264 and plays on Apple devices and most recent players. Your Mac’s video hardware makes it.
 export-resolution = Size
 export-resolution-option = { $width } × { $height }
 export-quality = Quality
@@ -459,7 +455,7 @@ export-stat-photos = Photographs
 export-stat-frames = Video frames
 export-stat-duration = Video length
 export-start = Create the video
-export-exporting = Encoding…
+export-exporting = Creating the video…
 export-cancel = Cancel
 export-cancelling = Cancelling…
 export-done-title = Video created
@@ -468,7 +464,7 @@ export-technical-details = Technical details
 export-history-title = Videos made in this project
 export-history-empty-title = No video yet
 export-history-empty-description = Videos you create appear here with their settings and result.
-export-status-running = Encoding
+export-status-running = In progress
 export-status-completed = Done
 export-status-failed = Failed
 export-status-cancelled = Cancelled
@@ -478,8 +474,8 @@ about-ffmpeg-notice = Video encoding uses FFmpeg (LGPL 2.1 or later) and SVT-AV1
 ## Errors (rendered via i18n/errors.ts → t(`error-${kind}`, args)).
 error-import-root-unreadable = The folder “{ $path }” could not be read.
 error-image-unreadable = The photograph at “{ $path }” could not be read.
-error-database = The project database could not be opened or written at “{ $path }”.
-error-store-transaction = Saving to the project database failed.
+error-database = The project’s saved data could not be opened or saved at “{ $path }”.
+error-store-transaction = Your changes could not be saved to the project.
 error-image-undecodable = The photograph at “{ $path }” is not a readable image.
 error-unknown-image = This photograph is no longer in the project.
 error-invalid-sampling = { $reason ->
@@ -488,20 +484,20 @@ error-invalid-sampling = { $reason ->
 }
 error-unknown-run = This saved selection no longer exists.
 error-export = { $reason ->
-    [ffmpeg-missing] The FFmpeg bundled with the app was not found.
+    [ffmpeg-missing] The video tool that comes with the app was not found.
     [encoder-unavailable] This format cannot be encoded on this Mac; choose another one. Nothing is substituted silently.
     [invalid-settings] These video settings are not supported (frame rate 1 to 120, speed 0.1 to 100, even sizes).
     [empty-run] This selection contains no photograph.
     [busy] Another video is already being created.
     [cancelled] The video was cancelled; the partial file was removed.
-    [ffmpeg-failed] FFmpeg stopped with an error; the partial file was removed.
+    [ffmpeg-failed] The video tool stopped with an error; the partial file was removed.
     [invalid-output] The finished file did not pass the check (format, size or frame count) and was discarded.
     [output-exists] A file with this name already exists; nothing was overwritten.
     [image-unreadable] A photograph of the selection could not be read.
     [write-failed] The video could not be written to the project's exports folder (disk full or not writable).
     [interrupted] The app closed while this video was being created.
     [unknown-export] This video no longer exists.
-    [adjustment-stale] A photograph of this selection has changed since the chosen flicker or stabilization analysis. Analyse it again on the Adjust page.
+    [adjustment-stale] A photograph of this selection has changed since the chosen flicker or stabilization analysis. Analyze it again on the Adjust page.
     [adjustment-mismatch] A chosen flicker or stabilization analysis belongs to another selection, or does not cover every photograph of this one.
     [record-write-failed] The record could not be saved in the project’s exports folder (disk full or not writable).
    *[other] The video could not be created.
@@ -521,7 +517,7 @@ error-consolidation = { $reason ->
 
 organize-title = Organize your files
 organize-no-project-description = Import a folder of photographs first; you can then gather them into one working folder.
-organize-intro = Gather photographs from the collection's folders into one working folder, as copies or by moving the originals. A dry run shows exactly what will happen before anything is written, every file is checked, nothing is ever overwritten, and each run can be undone.
+organize-intro = Gather photographs from the collection’s folders into one working folder, as copies or by moving the originals. A dry run shows exactly what will happen before anything is written, every file is checked, nothing is ever overwritten, and each copy or move can be undone.
 organize-settings-title = Settings
 organize-destination = Working folder
 organize-destination-none = No folder chosen
@@ -585,7 +581,7 @@ organize-confirm-body-move = { $count ->
     [one] One original will be moved to { $path }. It will no longer be in the collection's folder.
    *[other] { $count } originals will be moved to { $path }. They will no longer be in the collection's folders.
 }
-organize-confirm-safety = Each file is checked before and after; nothing is ever overwritten, and the run can be undone from the history.
+organize-confirm-safety = Each file is checked before and after; nothing is ever overwritten, and this can be undone from the history.
 organize-confirm-move-understood = I understand the originals will leave the collection's folders
 organize-result-copy = { $failed ->
     [0] { $placed } photographs copied.
@@ -638,7 +634,7 @@ organize-undo-body-move = { $count ->
 }
 organize-undo-safety = Only files still exactly as they were made are taken back; anything changed since is left in place and listed. Nothing else in the folder is touched.
 organize-originals-title = Originals check
-organize-originals-help = Re-reads every original where the project says it is and compares it with its fingerprint from the import.
+organize-originals-help = Reads every original again, where the project says it is, and compares it with how it was when imported.
 organize-originals-check = Check the originals
 organize-originals-ok = Intact
 organize-originals-changed = Changed
@@ -658,7 +654,7 @@ organize-problem-changed = Changed since the import
 
 sheets-title = Contact sheets
 sheets-no-project-description = Import a folder of photographs first; you can then print them as contact sheets.
-sheets-intro = A contact sheet is a PDF of thumbnails with their file names and capture times, made from the project’s records. It goes into the “Timelapse exports/contact-sheets” folder of the source folder.
+sheets-intro = A contact sheet is a PDF of thumbnails with their file names and capture times, made from your project. It goes into the “Timelapse exports/contact-sheets” folder of your photo folder.
 sheets-source-title = What to show
 sheets-source = Photographs
 sheets-source-all = All photographs
@@ -675,7 +671,7 @@ sheets-period-to = Until, not included (UTC)
 sheets-period-help = Photographs taken from the first time up to, but not including, the second.
 sheets-period-invalid = Choose a start and an end; the end must come after the start.
 sheets-sampling-run = Selection
-sheets-no-runs = No selection saved yet. Save one on the Sampling page.
+sheets-no-runs = No selection saved yet. Save one on the Select page.
 sheets-export = Video
 sheets-export-option = Video #{ $id } ({ $selection }, { $count } photographs)
 sheets-no-exports = No video created yet.
@@ -777,7 +773,7 @@ export-record-show = Show record
 export-record-hide = Hide record
 export-record-save = Save record
 export-record-saved = Record saved:
-export-record-help = Made from the project’s records each time it is shown; the app never reads it back.
+export-record-help = Built from your project each time it is shown; the app does not read it back.
 export-record-label = Record of video #{ $id }
 
 error-timeout = The app took too long to answer. The work may still be running: wait a moment, then try again.
@@ -798,7 +794,7 @@ error-contact-sheet = { $reason ->
 
 adjust-title = Adjust
 adjust-no-project-description = Import a folder of photographs and save a selection first; you can then reduce flicker and shake.
-adjust-no-runs-description = Flicker reduction and stabilization work on a saved selection. Save one on the Sampling page.
+adjust-no-runs-description = Flicker reduction and stabilization work on a saved selection. Save one on the Select page.
 adjust-intro = Measure a saved selection, check the result here, then choose it when you export. Your photographs are never changed: the corrections are applied while the video is made.
 adjust-flicker-title = Flicker reduction
 adjust-flicker-help = Follows the slow changes of light (sunrise, sunset, clouds) and evens out the quick jumps in exposure between photographs. Corrections are limited to one stop of exposure and a third of a stop of colour.
@@ -809,10 +805,10 @@ adjust-frames-option = { $count ->
    *[other] { $count } frames
 }
 adjust-colour = Also even out colour (white balance)
-adjust-analyse = Analyse
-adjust-analysing = Analysing…
+adjust-analyse = Analyze
+adjust-analysing = Analyzing…
 adjust-stopped = The analysis was stopped; nothing was stored.
-adjust-other-running = Another project is being analysed; you can start here when it ends.
+adjust-other-running = Another project is being analyzed; you can start here when it ends.
 adjust-result = Result shown
 adjust-flicker-option = #{ $id } · { $date } · { $strength } · { $window } frames
 adjust-stab-option = #{ $id } · { $date } · crop { $crop }
@@ -822,9 +818,9 @@ adjust-stat-colour = Largest colour correction
 adjust-stat-measured = Measured
 adjust-measured-of = { $measured } of { $frames }
 adjust-stops = { $value } EV
-adjust-none-title = Nothing analysed yet
-adjust-flicker-none = Analyse this selection to see its brightness, before and after.
-adjust-stab-none = Analyse this selection to see the camera's movement, before and after.
+adjust-none-title = Nothing analyzed yet
+adjust-flicker-none = Analyze this selection to see its brightness, before and after.
+adjust-stab-none = Analyze this selection to see the camera's movement, before and after.
 adjust-chart-brightness = Brightness from frame to frame (stops from typical)
 adjust-chart-red = Red balance (stops from typical)
 adjust-chart-blue = Blue balance (stops from typical)
@@ -849,7 +845,7 @@ adjust-stat-shift = Largest shift
 adjust-stat-pairs = Movements measured
 adjust-stab-few = Few movements could be measured with confidence (featureless or very different photographs): stabilization will do little on this selection.
 adjust-compare-title = Before and after
-adjust-compare-none = Analyse flicker or stabilization to compare a photograph with its corrected version.
+adjust-compare-none = Analyze flicker or stabilization to compare a photograph with its corrected version.
 adjust-frame = { $count ->
     [one] Frame (of { $count })
    *[other] Frame (of { $count })
@@ -872,8 +868,8 @@ error-adjust = { $reason ->
     [busy] Another analysis is already running.
     [empty-run] This selection contains no photograph.
     [unknown-adjustment] This analysis no longer exists.
-    [adjustment-mismatch] This analysis belongs to another selection, or does not cover every photograph of this one. Analyse this selection again.
-    [adjustment-stale] A photograph of this selection has changed since it was analysed. Analyse the selection again.
+    [adjustment-mismatch] This analysis belongs to another selection, or does not cover every photograph of this one. Analyze this selection again.
+    [adjustment-stale] A photograph of this selection has changed since it was analyzed. Analyze the selection again.
     [unknown-frame] This frame is not part of the selection.
    *[other] The analysis could not be completed.
 }
@@ -946,7 +942,6 @@ clean-preset-custom = Custom settings
 clean-preset-lenient-help = Flags only the clearly dark photographs.
 clean-preset-balanced-help = A good starting point for most collections.
 clean-preset-strict-help = Flags anything that looks even a little dark.
-clean-preset-current = Current setting: { $preset }
 clean-advanced = Advanced settings
 export-preset-label = Purpose
 export-preset-share = Share
@@ -956,7 +951,6 @@ export-preset-share-help = Plays almost everywhere. Full HD, standard quality.
 export-preset-archive-help = The smallest file at full HD and standard quality.
 export-preset-master-help = The best quality, in 4K. A large file.
 export-preset-custom = Custom settings
-export-preset-current = Current setting: { $preset }
 export-preset-unavailable = { $preset } needs { $codec }, which is not available on this Mac.
 export-advanced = Advanced settings
 summary-line = { $photos ->

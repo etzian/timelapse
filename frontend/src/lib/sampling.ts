@@ -87,11 +87,6 @@ export function buildConfig(f: SamplingForm): SamplingConfig | null {
   };
 }
 
-/** Video length: one photograph per frame at `fps`, played `multiplier` times faster (PRD §5.7). */
-export function estimatedDurationSeconds(selected: number, fps: number, multiplier: number): number {
-  return fps > 0 && multiplier > 0 ? selected / fps / multiplier : 0;
-}
-
 /** The pieces of a saved selection's name; each maps to one Fluent message in the UI. */
 export type SelectionMethodPart =
   | { kind: 'interval'; unit: IntervalUnit; value: number }
