@@ -77,7 +77,7 @@ jobs:
         run: make check
 
       - name: Encode tests, verbose (real MP4s per tier, validated with ffprobe)
-        run: cargo test -p timelapse-core export:: -- --nocapture
+        run: "cargo test -p timelapse-core export:: -- --nocapture"
 
       - name: Frontend check (svelte-check --fail-on-warnings + vitest + vite build)
         run: make ui-check
