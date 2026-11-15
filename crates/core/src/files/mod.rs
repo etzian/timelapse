@@ -226,7 +226,11 @@ fn place_no_clobber(src: &Path, dst: &Path) -> std::result::Result<(), &'static 
 
 /// Create `dst` as an independent copy of `src`, failing if `dst` exists: an APFS clone
 /// (copy-on-write, instant, no space until edited) where the volume supports it, otherwise
-/// a `create_new` byte copy keeping the mtime. Never a link (ADR-023).
+/// a byte copy keeping the mtime. Never a link (ADR-023).
+///
+/// A clone appears whole or not at all. A byte copy is written under [`part_name`] and only
+/// then published at `dst` without replacing anything, so a copy cut short by a crash is
+/// only ever the temporary name, never a file at `dst` (reconcile removes only that name).
 pub(crate) fn clone_or_copy_no_clobber(
     src: &Path,
     dst: &Path,
@@ -237,7 +241,71 @@ pub(crate) fn clone_or_copy_no_clobber(
             return done;
         }
     }
-    copy_new(src, dst)
+    if fs::symlink_metadata(dst).is_ok() {
+        return Err("destination-exists");
+    }
+    let Some(part) = part_name(dst) else {
+        return copy_new(src, dst);
+    };
+    copy_new(src, &part)?;
+    match publish(&part, dst) {
+        Some(Ok(())) => Ok(()),
+        Some(Err(e)) => {
+            let _ = fs::remove_file(&part); // ours: created by `copy_new` just above
+            Err(e)
+        }
+        // A filesystem with neither links nor an exclusive rename (FAT/exFAT): copy in
+        // place with `create_new`. A crash can then leave a partial file at `dst`; reconcile
+        // reports it and leaves it (it never removes a file at a user's target).
+        None => {
+            let _ = fs::remove_file(&part);
+            copy_new(src, dst)
+        }
+    }
+}
+
+/// `.<name>.tl-part` next to `dst`: where a byte copy is written before it is published.
+pub(crate) fn part_name(dst: &Path) -> Option<PathBuf> {
+    let name = dst.file_name()?.to_str()?;
+    Some(dst.with_file_name(format!(".{name}.tl-part")))
+}
+
+/// Give the finished `part` the name `dst` without ever replacing `dst`. `None` when the
+/// filesystem offers no way to do that.
+fn publish(part: &Path, dst: &Path) -> Option<std::result::Result<(), &'static str>> {
+    #[cfg(target_os = "macos")]
+    {
+        if let Some(done) = rename_excl(part, dst) {
+            return Some(done);
+        }
+    }
+    match fs::hard_link(part, dst) {
+        Ok(()) => {
+            let _ = fs::remove_file(part);
+            Some(Ok(()))
+        }
+        Err(e) if e.kind() == ErrorKind::AlreadyExists => Some(Err("destination-exists")),
+        Err(_) => None,
+    }
+}
+
+/// `renamex_np(RENAME_EXCL)`: an atomic rename that fails if `dst` exists.
+#[cfg(target_os = "macos")]
+fn rename_excl(part: &Path, dst: &Path) -> Option<std::result::Result<(), &'static str>> {
+    use std::ffi::CString;
+    use std::os::unix::ffi::OsStrExt;
+    let s = CString::new(part.as_os_str().as_bytes()).ok()?;
+    let d = CString::new(dst.as_os_str().as_bytes()).ok()?;
+    // SAFETY: both pointers are valid NUL-terminated strings for the duration of the call,
+    // which only reads them. RENAME_EXCL makes it fail with EEXIST instead of replacing.
+    let rc = unsafe { libc::renamex_np(s.as_ptr(), d.as_ptr(), libc::RENAME_EXCL) };
+    if rc == 0 {
+        return Some(Ok(()));
+    }
+    match io::Error::last_os_error().raw_os_error() {
+        Some(libc::EEXIST) => Some(Err("destination-exists")),
+        _ => None,
+    }
 }
 
 /// `clonefile(2)`: `Some(result)` when it settled the matter, `None` to fall back to a copy
@@ -429,6 +497,11 @@ pub(crate) fn remove_copy(
     if fs::symlink_metadata(copy).is_err() {
         return journal_failed(conn, &step, None, "missing");
     }
+    // The same bytes at the same path may now be an original that a later run moved there:
+    // that file is never ours to remove.
+    if is_location_of_record(conn, copy)? {
+        return journal_failed(conn, &step, None, "now-an-original");
+    }
     match dedup_hash(copy) {
         Ok(h) if h == checksum => {}
         Ok(h) => return journal_failed(conn, &step, Some(&h), "modified"),
@@ -451,6 +524,51 @@ pub(crate) fn remove_copy(
         return Ok(fail(image_id, Some(op), "record-failed"));
     }
     Ok(OpOutcome { image_id, operation_id: Some(op), failure: None })
+}
+
+/// Whether `path` is where some image of this project is now (compared case-insensitively,
+/// as the default APFS volume would, and through the canonical form when it exists).
+fn is_location_of_record(conn: &Connection, path: &Path) -> Result<bool> {
+    let text = path.to_string_lossy();
+    let direct: bool = conn
+        .query_row(
+            "SELECT EXISTS (SELECT 1 FROM images
+                            WHERE COALESCE(current_path, original_path) = ?1 COLLATE NOCASE)",
+            [text.as_ref()],
+            |r| r.get(0),
+        )
+        .map_err(|_| Error::StoreTransaction)?;
+    if direct {
+        return Ok(true);
+    }
+    let Ok(canonical) = fs::canonicalize(path) else {
+        return Ok(false);
+    };
+    let name = path.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
+    // Only rows ending in the same file name can alias it; canonicalise just those.
+    let mut stmt = conn
+        .prepare(
+            "SELECT COALESCE(current_path, original_path) FROM images
+             WHERE filename = ?1 COLLATE NOCASE OR current_path LIKE ?2",
+        )
+        .map_err(|_| Error::StoreTransaction)?;
+    // `%` and `_` in the name only widen the match; every candidate is compared exactly.
+    let like = format!("%{name}");
+    let rows = stmt
+        .query_map(params![name, like], |r| r.get::<_, String>(0))
+        .map_err(|_| Error::StoreTransaction)?;
+    for row in rows {
+        let row = row.map_err(|_| Error::StoreTransaction)?;
+        if fs::canonicalize(&row).is_ok_and(|c| c == canonical) {
+            return Ok(true);
+        }
+    }
+    Ok(false)
+}
+
+/// Settle abandoned `pending` rows; the caller holds [`lock`], so none of them is live.
+pub(crate) fn settle_locked(conn: &Connection) -> Result<usize> {
+    settle(conn)
 }
 
 /// Record a step that was refused before anything was touched (the caller holds [`lock`]).
@@ -547,6 +665,11 @@ fn same_entry(a: &Path, b: &Path) -> bool {
     }
 }
 
+/// The folder that should hold `p` cannot be seen (an unmounted volume, a removed folder).
+fn unreachable(p: &Path) -> bool {
+    p.parent().is_none_or(|d| !d.is_dir())
+}
+
 fn is_partial_copy(src: &Path, dst: &Path) -> bool {
     match (fs::metadata(src), fs::metadata(dst)) {
         (Ok(s), Ok(d)) => d.is_file() && d.len() < s.len() && !same_entry(src, dst),
@@ -570,15 +693,23 @@ pub fn reconcile_if_idle(conn: &Connection) -> Result<usize> {
 /// Settle every `pending` row left by an interrupted process, from the state on disk.
 /// Waits for any running operation of this process first. Returns how many were settled.
 ///
+/// In every case a leftover temporary copy (`.<name>.tl-part`, only ever written by us) is
+/// removed first. Then:
+///
 /// Relocations (quarantine, restore, move, move-back):
 /// - target has the journaled hash, source gone → the move finished: complete it;
 /// - source and target both have the journaled hash → interrupted between placing and
-///   removing the source: remove the target (an identical duplicate we created) and mark
-///   it `interrupted`, leaving the original where it was;
-/// - source present, target absent → it never happened: `interrupted`.
+///   removing the source: `interrupted`, the original stays where it was. Inside the
+///   project (quarantine / restore) the target is our duplicate and is removed; in a
+///   working folder or the collection (move / move-back) it is **left**, because another
+///   project or person could have put identical bytes there;
+/// - source present, target absent → it never happened: `interrupted`;
+/// - neither present and a folder of either side unreachable (a volume not mounted) →
+///   left `pending` for a later open.
 ///
-/// Copy: target has the journaled hash → completed; a shorter target → removed,
-/// `interrupted`; no target → `interrupted`.
+/// Copy: target absent → `interrupted`; target present → `unrecorded-copy` and left
+/// alone (it may be ours, finished just before the crash, but nothing proves it, so an
+/// undo will never remove it).
 ///
 /// Remove-copy: the copy is gone → completed; still there with its hash → `interrupted`.
 ///
@@ -603,7 +734,9 @@ fn settle(conn: &Connection) -> Result<usize> {
             .map_err(|_| Error::StoreTransaction)?;
         rows.collect::<std::result::Result<_, _>>().map_err(|_| Error::StoreTransaction)?
     };
+    let mut settled = 0;
     for (op, image, kind, source, dest, checksum) in &pending {
+        settled += 1;
         let (src, dst) = (Path::new(source), Path::new(dest));
         let matches = |p: &Path| {
             p.exists()
@@ -616,17 +749,18 @@ fn settle(conn: &Connection) -> Result<usize> {
             mark_failed(conn, *image, *op, "interrupted").map(|_| ())
         };
         let inconsistent = || mark_failed(conn, *image, *op, "inconsistent").map(|_| ());
-        match Kind::parse(kind) {
+        let parsed = Kind::parse(kind);
+        if parsed.is_some_and(|k| !k.may_link())
+            && let Some(part) = part_name(dst)
+        {
+            let _ = fs::remove_file(part);
+        }
+        match parsed {
             Some(Kind::Copy) => {
-                let src_ok = matches(src);
-                if matches(dst) {
-                    complete(conn, *op, *image, Kind::Copy, dst)?;
-                } else if src_ok && is_partial_copy(src, dst) {
-                    interrupted(Some(dst))?;
-                } else if src_ok && !dst.exists() {
+                if fs::symlink_metadata(dst).is_err() {
                     interrupted(None)?;
                 } else {
-                    inconsistent()?;
+                    mark_failed(conn, *image, *op, "unrecorded-copy")?;
                 }
             }
             Some(Kind::RemoveCopy) => {
@@ -640,16 +774,21 @@ fn settle(conn: &Connection) -> Result<usize> {
             }
             Some(k) => {
                 let (src_ok, dst_ok) = (matches(src), matches(dst));
+                let ours = k.may_link(); // the target is inside the project
                 if dst_ok && !src.exists() {
                     complete(conn, *op, *image, k, dst)?;
                 } else if src_ok && dst_ok && !same_entry(src, dst) {
-                    interrupted(Some(dst))?;
-                } else if src_ok && is_partial_copy(src, dst) {
+                    interrupted(ours.then_some(dst))?;
+                } else if ours && src_ok && is_partial_copy(src, dst) {
                     // A copy cut short by the crash: smaller than the verified source, and
-                    // created by this operation (the target was free when journaled).
+                    // created by this operation inside the project.
                     interrupted(Some(dst))?;
                 } else if src_ok && !dst.exists() {
                     interrupted(None)?;
+                } else if !src.exists() && !dst.exists() && (unreachable(src) || unreachable(dst)) {
+                    // A volume is not mounted: decide when both sides can be seen.
+                    settled -= 1;
+                    continue;
                 } else {
                     inconsistent()?;
                 }
@@ -657,7 +796,7 @@ fn settle(conn: &Connection) -> Result<usize> {
             None => inconsistent()?,
         }
     }
-    Ok(pending.len())
+    Ok(settled)
 }
 
 /// One journal entry, for the UI's operation history.

@@ -312,13 +312,33 @@ struct Interrupted<'a> {
     conn: &'a Connection,
     id: i64,
     armed: bool,
+    /// Folders this run created, so an undo removes those and nothing else.
+    created: BTreeSet<PathBuf>,
 }
 
 impl Drop for Interrupted<'_> {
     fn drop(&mut self) {
         if self.armed {
+            let _ = store::set_created_dirs(self.conn, self.id, &self.created);
             let _ = store::finish(self.conn, self.id, "interrupted");
         }
+    }
+}
+
+/// Record the folders that do not exist yet and that placing `path` will create: its
+/// parents up to `base` (exclusive), or `path` itself and its missing parents when `base`
+/// is `None` (the destination folder).
+fn note_missing_dirs(path: &Path, base: Option<&Path>, out: &mut BTreeSet<PathBuf>) {
+    let mut d = match base {
+        Some(_) => path.parent(),
+        None => Some(path),
+    };
+    while let Some(dir) = d {
+        if base.is_some_and(|b| dir == b || !dir.starts_with(b)) || dir.exists() {
+            break;
+        }
+        out.insert(dir.to_path_buf());
+        d = dir.parent();
     }
 }
 
@@ -334,7 +354,9 @@ pub fn execute(
     let _run = try_run_lock().ok_or_else(|| fail("busy"))?;
     let conn = open_root(root)?;
     let _ops = files::lock();
-    // Nothing else runs now, so a `running` row is a crash's leftover.
+    // Nothing else runs now: `pending` journal rows and `running` runs are a crash's
+    // leftovers (the open may have skipped them while another project held the lock).
+    files::settle_locked(&conn)?;
     store::mark_interrupted(&conn)?;
     let c = compute(&conn, root, cfg)?;
     if c.fingerprint != fingerprint {
@@ -346,10 +368,12 @@ pub fn execute(
     if !c.enough_space() {
         return Err(fail("insufficient-space"));
     }
+    let mut created = BTreeSet::new();
+    note_missing_dirs(&c.cfg.destination, None, &mut created);
     fs::create_dir_all(&c.cfg.destination).map_err(|_| fail("destination-unwritable"))?;
 
     let id = store::create(&conn, &c.cfg, &c.fingerprint, c.counts)?;
-    let mut guard = Interrupted { conn: &conn, id, armed: true };
+    let mut guard = Interrupted { conn: &conn, id, armed: true, created };
     let kind = match c.cfg.operation {
         Operation::Copy => Kind::Copy,
         Operation::Move => Kind::Move,
@@ -367,6 +391,7 @@ pub fn execute(
             failed += 1;
             continue;
         };
+        note_missing_dirs(&dest, Some(&c.cfg.destination), &mut guard.created);
         let step = Step {
             image_id: p.image_id,
             kind,
@@ -388,6 +413,7 @@ pub fn execute(
     } else {
         "completed"
     };
+    store::set_created_dirs(&conn, id, &guard.created)?;
     store::finish(&conn, id, status)?;
     guard.armed = false;
     store::get(&conn, id)?.ok_or(Error::StoreTransaction)
@@ -405,6 +431,7 @@ pub fn undo(
     let _run = try_run_lock().ok_or_else(|| fail("busy"))?;
     let conn = open_root(root)?;
     let _ops = files::lock();
+    files::settle_locked(&conn)?;
     store::mark_interrupted(&conn)?;
     let rec = store::get(&conn, run)?.ok_or_else(|| fail("unknown-consolidation"))?;
     if rec.undo_status.as_deref() == Some("undone") {
@@ -418,7 +445,6 @@ pub fn undo(
         .collect();
     let total = todo.len();
     let (mut done, mut failed, mut stopped) = (0, 0, false);
-    let mut dirs = BTreeSet::new();
     on_progress(Progress { done, total, failed });
     for (op, checksum) in &todo {
         if cancelled(token) {
@@ -445,34 +471,25 @@ pub fn undo(
                 files::run(&conn, &step)?
             }
         };
-        if outcome.ok() {
-            dirs.extend(placed.parent().map(Path::to_path_buf));
-        } else {
+        if !outcome.ok() {
             failed += 1;
         }
         done += 1;
         on_progress(Progress { done, total, failed });
     }
-    remove_empty_dirs(&rec.config.destination, dirs);
+    remove_empty_dirs(store::created_dirs(&conn, run)?);
     let complete = !stopped && failed == 0;
     store::set_undo(&conn, run, if complete { "undone" } else { "partially-undone" })?;
     store::get(&conn, run)?.ok_or(Error::StoreTransaction)
 }
 
-/// Remove each folder in `dirs`, and then its parents, while empty, up to (not including)
-/// `base`. `remove_dir` refuses a folder that is not empty, so nothing else can go.
-fn remove_empty_dirs(base: &Path, dirs: BTreeSet<PathBuf>) {
-    for dir in dirs.into_iter().rev() {
-        let mut d = dir.as_path();
-        while d != base && d.starts_with(base) {
-            if fs::remove_dir(d).is_err() {
-                break;
-            }
-            match d.parent() {
-                Some(p) => d = p,
-                None => break,
-            }
-        }
+/// Remove the folders a run created, deepest first, each only if it is empty now
+/// (`remove_dir` refuses a folder that is not), so a folder the user made or filled stays.
+fn remove_empty_dirs(dirs: Vec<PathBuf>) {
+    let mut dirs = dirs;
+    dirs.sort_by_key(|d| std::cmp::Reverse(d.components().count()));
+    for d in dirs {
+        let _ = fs::remove_dir(d);
     }
 }
 

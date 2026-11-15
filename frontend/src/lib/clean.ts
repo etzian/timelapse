@@ -38,7 +38,9 @@ export const FILE_FAILURES = [
   'missing',
   'modified',
   'moved-since',
-  'remove-failed'
+  'remove-failed',
+  'now-an-original',
+  'unrecorded-copy'
 ] as const;
 
 export function fileFailureText(kind: string): string {

@@ -194,6 +194,8 @@ files-failure-missing = la copie n’est plus là
 files-failure-modified = la copie a été modifiée depuis sa création; elle a donc été conservée
 files-failure-moved-since = la photographie a été déplacée de nouveau depuis (par exemple en quarantaine); elle a été laissée où elle est
 files-failure-remove-failed = la copie n’a pas pu être supprimée; elle est toujours là
+files-failure-now-an-original = un original a été déplacé à cet endroit depuis; il a donc été laissé là
+files-failure-unrecorded-copy = l’application s’est fermée pendant le placement de ce fichier; ce qui se trouve à la destination a été laissé tel quel
 files-failure-other = l’opération a échoué
 
 ## Phase 4 — échantillonnage

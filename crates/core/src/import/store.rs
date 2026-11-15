@@ -188,6 +188,7 @@ const MIGRATION_V6: &str = r#"
         status TEXT NOT NULL
             CHECK (status IN ('running', 'completed', 'partial', 'cancelled', 'interrupted')),
         undo_status TEXT CHECK (undo_status IN ('undone', 'partially-undone')),
+        created_dirs_json TEXT,
         created_at INTEGER NOT NULL,
         completed_at INTEGER,
         undone_at INTEGER

@@ -284,7 +284,7 @@ Settings → About names FFmpeg (LGPL-2.1-or-later) and SVT-AV1 (BSD-3-Clause-Cl
 - **Copy** (default). The originals stay where they are.
 - **Move** (after a second confirmation). `images.current_path` records the new place. `original_path` stays the path of record and is never rewritten, and every reader already uses `COALESCE(current_path, original_path)`.
 
-**Link policy.** A copy is made by **APFS `clonefile`** when the volume supports it: copy-on-write, so it is an independent file that only takes space once edited. Otherwise it is a **`create_new` byte copy** that keeps the modification time. Both fail when the target exists, so there is no check-then-act window. Moves into the working folder are placed the same way, before the old name is removed.
+**Link policy.** A copy is made by **APFS `clonefile`** when the volume supports it: copy-on-write, so it is an independent file that only takes space once edited. Otherwise it is a **byte copy** that keeps the modification time. The copy is written with `create_new` under a temporary name (`.<name>.tl-part`) and then published at the target without replacing anything: `renamex_np(RENAME_EXCL)` on macOS, otherwise a hard link followed by removing the temporary name. A copy cut short is therefore only ever the temporary name. On a filesystem with neither (FAT/exFAT), the copy is written in place with `create_new`. Every placement fails when the target exists, so there is no check-then-act window. Moves into the working folder are placed the same way, before the old name is removed.
 - **Hard links** are **never** used for the working collection: the "copy" would be the same file, so an edit in another app would change the original (ADR-006). Only the quarantine move (ADR-020) still uses one, inside the project folder, and only for the instant before the old name goes.
 - **Symlinks** are never created: they dangle when the original moves, and editors write through them.
 
@@ -316,26 +316,27 @@ Every target is a relative path of normal components joined under the destinatio
 Cancellation and progress happen between photos. A run ends `completed`, `partial` (some photos failed), `cancelled` or `failed`.
 
 **Undo.** A run can be undone once.
-- **Copy:** a copy we made is removed only while it still has the hash we wrote. `modified` and `missing` copies are left and reported.
+- **Copy:** a copy we made is removed only while it still has the hash we wrote, and **never when that path is now the location of record of any photograph**: a later run may have moved an original there with the same bytes (`now-an-original`, compared case-insensitively and through the canonical path). `modified` and `missing` copies are left and reported.
 - **Move:** a moved photo goes back only while `current_path` is still the run's target (`moved-since` otherwise), never overwriting.
 
-Each removal or move-back is journaled (`remove-copy`, `move-back`). Afterwards, the directories left empty under the destination are removed; `remove_dir` cannot remove a non-empty one. The run's undo state is `undone` or `partially-undone`.
+Each removal or move-back is journaled (`remove-copy`, `move-back`). Afterwards, only the folders **this run created** (recorded in `consolidation_runs.created_dirs_json`) are removed, deepest first, and only if empty (`remove_dir` cannot remove a non-empty one). A folder the user made stays. The run's undo state is `undone` or `partially-undone`.
 
 **Quarantine of a moved photo.** Quarantine now starts from the current location, and restore returns to where that quarantine started. `current_path` becomes `NULL` only when that place is `original_path`.
 
-**Recovery** (Pipeline §12). Reconciliation, when a project opens while no operation runs, settles `pending` rows from the disk state:
+**Recovery** (Pipeline §12). Reconciliation settles `pending` rows from the disk state. It runs when a project opens while no operation runs, and again at the start of every run and undo, under the lock, so no row it sees is live. A leftover temporary copy (`.<name>.tl-part`, a name only this app writes) is removed first. **Nothing at a target in a working folder or in the collection is ever removed or claimed by reconciliation**: another project, or the user, could have put identical bytes there after the crash.
 
 | Operation | Disk state | Outcome |
 | --- | --- | --- |
-| `copy` | target has the journaled hash | completed |
-| `copy` | target shorter than the source | removed, `interrupted` |
 | `copy` | target absent | `interrupted` |
-| `move` / `move-back` | as for quarantine (ADR-020) | as for quarantine (ADR-020) |
+| `copy` | target present | `unrecorded-copy`; left as it is and never claimed, so no undo removes it |
+| `move` / `move-back` | target has the hash, source gone | completed |
+| `move` / `move-back` | both have the hash | `interrupted`; the original stays, the identical target is left |
+| `move` / `move-back` | source present, target absent | `interrupted` |
+| `move` / `move-back` / quarantine / restore | both absent, a folder of either side unreachable (volume not mounted) | stays `pending` for a later open |
+| quarantine / restore | as in ADR-020 (inside the project: our duplicate or partial copy is removed) | as in ADR-020 |
 | `remove-copy` | target gone | completed |
 | `remove-copy` | target still has the hash | `interrupted` |
 | any | anything else | `inconsistent`; no file is touched |
-
-Execution checks that the target is absent just before journaling, so a pending row whose target has the hash is ours. Only a file dropped in that exact place within that instant, followed by a crash, could defeat this, and that file's bytes would equal the original's.
 
 **Checks.** "Originals immutable" end to end:
 - `verify_originals` re-hashes every photograph at its location of record and reports it as `ok`, `changed`, `missing` or `unhashed`;

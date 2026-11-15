@@ -88,6 +88,36 @@ pub fn set_undo(conn: &Connection, id: i64, undo_status: &str) -> Result<()> {
     .map(|_| ())
 }
 
+/// Record the folders run `id` created (JSON list of paths).
+pub fn set_created_dirs(
+    conn: &Connection,
+    id: i64,
+    dirs: &std::collections::BTreeSet<std::path::PathBuf>,
+) -> Result<()> {
+    let list: Vec<String> = dirs.iter().map(|d| d.to_string_lossy().into_owned()).collect();
+    let json = serde_json::to_string(&list).map_err(|_| Error::StoreTransaction)?;
+    db(conn.execute(
+        "UPDATE consolidation_runs SET created_dirs_json = ?2 WHERE id = ?1",
+        params![id, json],
+    ))
+    .map(|_| ())
+}
+
+/// The folders run `id` created.
+pub fn created_dirs(conn: &Connection, id: i64) -> Result<Vec<std::path::PathBuf>> {
+    let json: Option<String> = db(conn
+        .query_row("SELECT created_dirs_json FROM consolidation_runs WHERE id = ?1", [id], |r| {
+            r.get(0)
+        })
+        .optional())?
+    .flatten();
+    let list: Vec<String> = match json {
+        Some(j) => serde_json::from_str(&j).map_err(|_| Error::StoreTransaction)?,
+        None => Vec::new(),
+    };
+    Ok(list.into_iter().map(std::path::PathBuf::from).collect())
+}
+
 /// Runs left `running` by a crashed process (call only while none runs here).
 pub fn mark_interrupted(conn: &Connection) -> Result<()> {
     db(conn.execute(

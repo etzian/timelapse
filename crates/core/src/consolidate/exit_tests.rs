@@ -396,13 +396,19 @@ fn every_interruption_state_is_reconciled() {
         })
         .unwrap()
     };
+    // A copy finished just before the crash: kept, but never claimed (nothing proves it is
+    // ours, so no undo will ever remove it).
     let done_copy = f.dest().join("done.JPG");
     fs::write(&done_copy, b"photo one").unwrap();
     let a = pending("copy", &src, &done_copy);
-    let partial = f.dest().join("partial.JPG");
-    fs::write(&partial, b"photo").unwrap();
-    let b = pending("copy", &src, &partial);
+    // A byte copy cut short: only its temporary name exists, and that name goes.
+    let target = f.dest().join("partial.JPG");
+    let part = crate::files::part_name(&target).unwrap();
+    fs::write(&part, b"photo").unwrap();
+    let b = pending("copy", &src, &target);
     let c = pending("copy", &src, &f.dest().join("never.JPG"));
+    // A move placed but not finished: the original stays; the identical file in the
+    // working folder is left (it could be another project's).
     let half_moved = f.dest().join("half-moved.JPG");
     fs::write(&half_moved, b"photo one").unwrap();
     let d = pending("move", &src, &half_moved);
@@ -410,26 +416,80 @@ fn every_interruption_state_is_reconciled() {
     let kept = f.dest().join("kept.JPG");
     fs::write(&kept, b"photo one").unwrap();
     let g = pending("remove-copy", &kept, Path::new(""));
+    // Something unexpected at a copy target is never touched.
     let odd = f.dest().join("odd.JPG");
     fs::write(&odd, b"something else entirely").unwrap();
     let h = pending("copy", &f.dest().join("no-source.JPG"), &odd);
+    // A move whose two sides are both out of sight (a volume not mounted): left pending.
+    let gone = f.work.path().join("unmounted");
+    let i = pending("move", &gone.join("a.JPG"), &gone.join("b.JPG"));
 
     assert_eq!(crate::files::reconcile(&conn).unwrap(), 7);
     let ok = |s: &str| (s.to_owned(), None);
     let failed = |s: &str| ("failed".to_owned(), Some(s.to_owned()));
-    assert_eq!(outcome(a), ok("completed"));
+    assert_eq!(outcome(a), failed("unrecorded-copy"));
     assert!(done_copy.exists(), "a finished copy is kept");
     assert_eq!(outcome(b), failed("interrupted"));
-    assert!(!partial.exists(), "a partial copy is removed");
+    assert!(!part.exists() && !target.exists(), "the temporary copy is removed");
     assert_eq!(outcome(c), failed("interrupted"));
     assert_eq!(outcome(d), failed("interrupted"));
-    assert!(!half_moved.exists() && src.exists(), "a half move goes back to the original");
+    assert!(half_moved.exists() && src.exists(), "nothing is removed from a working folder");
     assert_eq!(outcome(e), ok("completed"));
     assert_eq!(outcome(g), failed("interrupted"));
     assert!(kept.exists());
-    assert_eq!(outcome(h), failed("inconsistent"));
+    assert_eq!(outcome(h), failed("unrecorded-copy"));
     assert_eq!(fs::read(&odd).unwrap(), b"something else entirely", "nothing is touched");
+    assert_eq!(outcome(i), ("pending".to_owned(), None));
     f.originals_ok();
+}
+
+/// Review finding (Phase 6): an older copy run's undo must never remove an original that a
+/// later move put at the same path with the same bytes.
+#[test]
+fn undoing_an_old_copy_never_removes_an_original_moved_there_since() {
+    let _s = serial();
+    let f = Fixture::new("old-undo");
+    let copy = f.run(&f.cfg(Operation::Copy, Naming::Original));
+    assert_eq!(copy.placed, 3);
+    for name in files_under(&f.dest()) {
+        fs::remove_file(f.dest().join(name)).unwrap(); // the user empties the folder by hand
+    }
+    let moved = f.run(&f.cfg(Operation::Move, Naming::Original));
+    assert_eq!(moved.placed, 3);
+    let undone = undo(f.root(), copy.id, 0, |_| {}).unwrap();
+    assert_eq!((undone.undone, undone.undo_failed), (0, 3));
+    assert_eq!(files_under(&f.dest()), ["G001.JPG", "G001_2.JPG", "G002.JPG"]);
+    f.originals_ok();
+    let conn = open_root(f.root()).unwrap();
+    let failures: Vec<Option<String>> = {
+        let mut stmt = conn
+            .prepare("SELECT failure FROM file_operations WHERE job_id = ?1 AND operation_type = 'remove-copy'")
+            .unwrap();
+        stmt.query_map([copy.id], |r| r.get(0)).unwrap().map(|x| x.unwrap()).collect()
+    };
+    assert!(failures.iter().all(|x| x.as_deref() == Some("now-an-original")), "{failures:?}");
+    // The move itself still undoes normally.
+    assert_eq!(undo(f.root(), moved.id, 0, |_| {}).unwrap().undo_status.as_deref(), Some("undone"));
+    f.originals_ok();
+}
+
+/// An undo removes the folders the run created, never one the user made.
+#[test]
+fn undo_removes_only_the_folders_the_run_created() {
+    let _s = serial();
+    let f = Fixture::new("dirs");
+    fs::create_dir_all(f.dest().join("157gopro")).unwrap(); // the user's own, empty
+    let rec = f.run(&f.cfg(Operation::Copy, Naming::Preserve));
+    assert_eq!(rec.placed, 3);
+    undo(f.root(), rec.id, 0, |_| {}).unwrap();
+    assert!(f.dest().join("157gopro").is_dir(), "the user's folder stays");
+    assert!(!f.dest().join("158gopro").exists(), "the run's folder goes");
+    // A destination the run itself created goes too once empty.
+    let fresh = f.work.path().join("fresh").join("nested");
+    let cfg = Config { destination: fresh.clone(), ..f.cfg(Operation::Copy, Naming::Preserve) };
+    let rec = f.run(&cfg);
+    undo(f.root(), rec.id, 0, |_| {}).unwrap();
+    assert!(!f.work.path().join("fresh").exists());
 }
 
 #[test]
