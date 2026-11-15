@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { advance, clampIndex, frameIntervalMs, planLoad, windowIndexes, wrapIndex } from './flipbook';
+import { advance, clampIndex, frameIntervalMs, loopWindow, planLoad, windowIndexes, wrapIndex } from './flipbook';
 import type { FrameState } from './flipbook';
 
 describe('flipbook timing', () => {
@@ -62,5 +62,19 @@ describe('flipbook playback', () => {
   });
   it('handles an empty sequence', () => {
     expect(advance(0, 0, states({}))).toEqual({ index: 0, waiting: false });
+  });
+});
+
+describe('loop window', () => {
+  it('keeps at most 60 frames, centred when possible', () => {
+    expect(loopWindow(500, 1000)).toEqual({ start: 470, length: 60 });
+  });
+  it('sticks to the edges', () => {
+    expect(loopWindow(3, 1000)).toEqual({ start: 0, length: 60 });
+    expect(loopWindow(999, 1000)).toEqual({ start: 940, length: 60 });
+  });
+  it('uses a short sequence whole and handles an empty one', () => {
+    expect(loopWindow(4, 10)).toEqual({ start: 0, length: 10 });
+    expect(loopWindow(0, 0)).toEqual({ start: 0, length: 0 });
   });
 });

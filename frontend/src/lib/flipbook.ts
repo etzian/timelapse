@@ -84,3 +84,17 @@ export function advance(index: number, length: number, stateOf: (i: number) => F
   if (s === 'ready' || s === 'failed') return { index: next, waiting: false };
   return { index, waiting: true };
 }
+
+export const LOOP_MAX = 60;
+
+/**
+ * The loop played around frame `index` of a sequence of `total`: at most `max` frames, centred on the
+ * frame where the sequence allows it. Returns the first frame and how many.
+ */
+export function loopWindow(index: number, total: number, max = LOOP_MAX): { start: number; length: number } {
+  if (total <= 0 || max <= 0) return { start: 0, length: 0 };
+  const length = Math.min(total, max);
+  const at = clampIndex(index, total);
+  const start = Math.min(Math.max(0, at - Math.floor(length / 2)), total - length);
+  return { start, length };
+}

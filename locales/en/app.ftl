@@ -917,3 +917,12 @@ flipbook-failed = This photograph could not be shown. Playback goes on.
 flipbook-empty-title = Nothing to play
 flipbook-empty-description = Choose photographs first; the flipbook plays them in order.
 flipbook-partial = Playing the first { $shown } of { $total } photographs.
+
+wipe-label = Before and after divider
+wipe-value = Before { $before }, after { $after }
+wipe-hint = Drag the divider or use the arrow keys. Shift or Page Up and Page Down move it by larger steps.
+adjust-loop-title = Play the loop
+adjust-loop-help = Plays up to { $count } photographs around the chosen frame, so you can see the flicker and the shake as they would move.
+adjust-loop-adjusted = Play with the corrections applied
+export-preview-title = Preview
+export-preview-help = The selection at the frame rate and speed above, as shot. Corrections are applied only in the exported video.

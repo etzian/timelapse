@@ -915,3 +915,12 @@ flipbook-failed = Cette photographie n’a pas pu être affichée. La lecture se
 flipbook-empty-title = Rien à lire
 flipbook-empty-description = Choisissez d’abord des photographies; l’aperçu les lit dans l’ordre.
 flipbook-partial = Lecture des { $shown } premières photographies sur { $total }.
+
+wipe-label = Séparateur avant et après
+wipe-value = Avant { $before }, après { $after }
+wipe-hint = Glissez le séparateur ou utilisez les flèches du clavier. Maj ou Page précédente et Page suivante le déplacent par plus grands pas.
+adjust-loop-title = Lire la boucle
+adjust-loop-help = Lit jusqu’à { $count } photographies autour de l’image choisie, pour voir le scintillement et les secousses comme ils bougeraient.
+adjust-loop-adjusted = Lire avec les corrections appliquées
+export-preview-title = Aperçu
+export-preview-help = La sélection à la cadence et à la vitesse ci-dessus, telle que prise. Les corrections s’appliquent seulement dans la vidéo exportée.

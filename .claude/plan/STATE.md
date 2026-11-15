@@ -47,7 +47,7 @@ STATUS: RUNNING
 | P4 | Pipeline navigation | sonnet | GATE-UI | done |
 | P5 | Next step and named selections | sonnet | GATE-UI | done |
 | P6 | Flipbook | sonnet | GATE-UI | done |
-| P7 | Flipbook in Adjust and Export, wipe | sonnet | GATE-UI | pending |
+| P7 | Flipbook in Adjust and Export, wipe | sonnet | GATE-UI | done |
 | P8 | Fast triage | sonnet | GATE-UI | pending |
 | P9 | Presets and summaries | sonnet | GATE-UI | pending |
 | P10 | Open and reveal commands | opus | full | pending |
@@ -99,6 +99,12 @@ STATUS: RUNNING
 - CHANGED: pure `flipbook.ts` (frameIntervalMs, wrapIndex, clampIndex, windowIndexes, planLoad, advance) with 12 vitest cases; `Flipbook.svelte` (screen, range scrubber, frame number and capture time, first/prev/play/next/last, Space/arrows/Home/End; empty, buffering, failed, partial states); placed above the strip in Sampling; 15 flipbook-* keys in en and fr-CA.
 - DECISIONS: No batched IPC and no Rust change: frames load in batches of 8 with 4 concurrent `getThumbnail` calls. P7 reuses `<Flipbook root frames={{image_id, epoch_ms}[]} fps speed total resetKey/>`; `resetKey` must change for a different sequence. Never autostarts (covers reduced motion). Arrow/Home/End skipped on the range input, Space skipped on buttons. A saved selection plays the pages already loaded. Orchestrator added a svelte-ignore on the section keydown (svelte-check warning the runner missed; keys bubble from child controls).
 - DEFERRED: Rendered checks (WebView, VoiceOver, fr-CA button widths, dark mode) go to P14/P15. No 300 ms loading-indicator rule yet.
+- MANUAL: none
+
+### P7 — pass
+- CHANGED: new `Wipe.svelte` (role=slider divider with pointer and keyboard, As shot / Corrected tags in text); pure `wipe.ts` and bounded `frameCache.ts` with tests; `loopWindow` (max 60) in flipbook.ts; Flipbook gained an optional `loadFrame(i)` prop (default getThumbnail, Sampling unchanged); `cachedAdjustedFrame` in adjust store; Adjust compare uses Wipe and gains a "Play the loop" card (as shot / corrected); Export gains a Preview flipbook as shot; wipe-*, adjust-loop-*, export-preview-* keys in en and fr-CA.
+- DECISIONS: `loadFrame` is the way to play non-thumbnail frames. The Adjust loop's resetKey includes root, run, window start, adjusted flag and applied run ids. Wipe and loop share one adjusted-frame cache (bounded 240). Export preview is capped at 1000 frames (partial note shows the total). No Rust, capability, dependency or data-map change.
+- DEFERRED: Rendered checks (wipe drag in the WebView, VoiceOver on the slider, fr-CA length, dark mode) go to P14/P15. Switching as shot / corrected resets to the loop start.
 - MANUAL: none
 
 ## Open user items

@@ -3,7 +3,8 @@
  * and coming back does not lose it (progress, Stop, result). One at a time, as in the
  * core. Held in memory only.
  */
-import { cancelAdjustment, startDeflicker, startStabilization } from '../ipc/app';
+import { createFrameCache } from '../frameCache';
+import { adjustedFrame, cancelAdjustment, startDeflicker, startStabilization } from '../ipc/app';
 import type { AdjustProgress, DeflickerConfig, FlickerRun, StabilizationRun, StabilizeConfig } from '../ipc/app';
 import type { IpcError } from '../ipc/invoke';
 
@@ -81,4 +82,23 @@ export async function stopAdjustment(): Promise<void> {
   } catch {
     state.cancelling = false;
   }
+}
+
+const frameCache = createFrameCache<string>();
+
+/**
+ * Frame `index` of selection `run`, as shot or with the runs applied. Fetched once and kept for the
+ * selection shown (asking for another selection drops the old frames); the playing loop and the
+ * wipe share it.
+ */
+export function cachedAdjustedFrame(
+  root: string,
+  run: number,
+  index: number,
+  flickerRun: number | null,
+  stabilizationRun: number | null,
+  after: boolean
+): Promise<string> {
+  const key = `${index}|${after ? `${flickerRun ?? ''}|${stabilizationRun ?? ''}` : 'shot'}`;
+  return frameCache.get(`${root}|${run}`, key, () => adjustedFrame(root, run, index, flickerRun, stabilizationRun, after));
 }

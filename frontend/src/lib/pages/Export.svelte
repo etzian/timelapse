@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Flipbook from '../components/Flipbook.svelte';
   import NextStep from '../components/NextStep.svelte';
   import { runLabel, runLabelWithId } from '../selectionLabel';
   import { Badge, Banner, Button, Card, EmptyState, PageHeader, SectionLabel, Select, Skeleton, Stat, StatGrid } from '@etzianco/ui';
@@ -7,8 +8,8 @@
   import type { ResolutionKey } from '../export';
   import { formatDate, formatNumber, t } from '../i18n';
   import { errorText } from '../i18n/errors';
-  import { exportRecord, ffmpegInfo, listAdjustments, listExports, listSamplingRuns, writeExportRecord } from '../ipc/app';
-  import type { Adjustments, Codec, ExportRecord, FfmpegInfo, Quality, RunSummary } from '../ipc/app';
+  import { exportRecord, ffmpegInfo, getSamplingItems, listAdjustments, listExports, listSamplingRuns, writeExportRecord } from '../ipc/app';
+  import type { Adjustments, Codec, ExportRecord, FfmpegInfo, Quality, RunSummary, SampledItem } from '../ipc/app';
   import type { IpcError } from '../ipc/invoke';
   import { FPS_OPTIONS, MULTIPLIERS } from '../sampling';
   import { openContactSheet } from '../stores/contactSheet.svelte';
@@ -118,6 +119,40 @@
     runs = null;
     runId = '';
     void load();
+  });
+
+  // The preview: the chosen selection as shot, loaded 200 photographs at a time (at most PREVIEW_MAX).
+  const PREVIEW_MAX = 1000;
+  const PREVIEW_PAGE = 200;
+  let previewItems = $state<SampledItem[] | null>(null);
+  let previewError = $state('');
+  let previewTry = $state(0);
+  let previewSeq = 0;
+  $effect(() => {
+    const forRoot = root;
+    const id = run?.id;
+    void previewTry;
+    if (!forRoot || id === undefined) return;
+    const seq = ++previewSeq;
+    previewItems = null;
+    previewError = '';
+    (async () => {
+      try {
+        const first = await getSamplingItems(forRoot, id, 0, PREVIEW_PAGE);
+        if (seq !== previewSeq) return;
+        let items = first.items;
+        previewItems = items;
+        while (items.length < Math.min(first.total, PREVIEW_MAX)) {
+          const page = await getSamplingItems(forRoot, id, items.length, PREVIEW_PAGE);
+          if (seq !== previewSeq) return;
+          if (page.items.length === 0) break;
+          items = [...items, ...page.items];
+          previewItems = items;
+        }
+      } catch (err) {
+        if (seq === previewSeq) previewError = errorText(err as IpcError);
+      }
+    })();
   });
 
   function start(): void {
@@ -242,6 +277,23 @@
             <progress max={Math.max(progress.total, 1)} value={progress.done} aria-label={t('export-exporting')}></progress>
             <span aria-live="polite">{t('clean-progress', { done: formatNumber(progress.done), total: formatNumber(progress.total) })}</span>
           </div>
+        {/if}
+      </Card>
+    {/if}
+
+    {#if runs.length > 0 && run}
+      <Card>
+        <SectionLabel text={t('export-preview-title')} />
+        <p class="app-export__note">{t('export-preview-help')}</p>
+        {#if previewError}
+          <div role="alert" class="app-export__error">
+            <p>{previewError}</p>
+            <Button onclick={() => previewTry++}>{t('clean-retry')}</Button>
+          </div>
+        {:else if previewItems === null}
+          <Skeleton lines={5} label={t('clean-loading')} />
+        {:else}
+          <Flipbook {root} frames={previewItems} fps={Number(fps)} speed={Number(speed)} total={run.selected_count} resetKey={`${root}|${run.id}`} />
         {/if}
       </Card>
     {/if}

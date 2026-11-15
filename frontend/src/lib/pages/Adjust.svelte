@@ -1,8 +1,11 @@
 <script lang="ts">
+  import Flipbook from '../components/Flipbook.svelte';
   import NextStep from '../components/NextStep.svelte';
+  import Wipe from '../components/Wipe.svelte';
+  import { LOOP_MAX, loopWindow } from '../flipbook';
   import { runLabelWithId } from '../selectionLabel';
   import { untrack } from 'svelte';
-  import { Badge, Banner, Button, Card, EmptyState, Input, PageHeader, SectionLabel, Select, Skeleton, Stat, StatGrid, Toggle } from '@etzianco/ui';
+  import { Banner, Button, Card, EmptyState, Input, PageHeader, SectionLabel, Select, Skeleton, Stat, StatGrid, Toggle } from '@etzianco/ui';
 
   import {
     CROPS,
@@ -21,10 +24,10 @@
   import LineChart from '../components/LineChart.svelte';
   import { formatDate, formatNumber, t } from '../i18n';
   import { errorText } from '../i18n/errors';
-  import { adjustedFrame, flickerSeries, listAdjustments, listSamplingRuns, stabilizationSeries } from '../ipc/app';
-  import type { Adjustments, FlickerPoint, FlickerRun, RunSummary, StabilizationRun, StabilizationSeries } from '../ipc/app';
+  import { flickerSeries, getSamplingItems, listAdjustments, listSamplingRuns, stabilizationSeries } from '../ipc/app';
+  import type { Adjustments, FlickerPoint, FlickerRun, RunSummary, SampledItem, StabilizationRun, StabilizationSeries } from '../ipc/app';
   import type { IpcError } from '../ipc/invoke';
-  import { adjustJob, runAdjustment, stopAdjustment } from '../stores/adjust.svelte';
+  import { adjustJob, cachedAdjustedFrame, runAdjustment, stopAdjustment } from '../stores/adjust.svelte';
   import type { AdjustKind } from '../stores/adjust.svelte';
   import { nav } from '../stores/nav.svelte';
   import { project } from '../stores/project.svelte';
@@ -57,6 +60,11 @@
   let before = $state('');
   let after = $state('');
   let frameError = $state('');
+  /** The loop around the chosen frame: as shot, or with the applied runs. */
+  let playAdjusted = $state(true);
+  let loopItems = $state<SampledItem[] | null>(null);
+  let loopError = $state('');
+  const LOOP_FPS = 12;
 
   const job = $derived(adjustJob.state);
   const mine = $derived(job.root === root);
@@ -178,7 +186,7 @@
     })();
   });
 
-  // The before/after stills follow the frame and the runs applied.
+  // The before/after stills follow the frame and the runs applied (cached for the selection shown).
   let frameSeq = 0;
   $effect(() => {
     const forRoot = root;
@@ -191,7 +199,10 @@
     frameError = '';
     const timer = setTimeout(async () => {
       try {
-        const [b, a] = await Promise.all([adjustedFrame(forRoot, r.id, index, null, null, false), adjustedFrame(forRoot, r.id, index, fl, st, true)]);
+        const [b, a] = await Promise.all([
+          cachedAdjustedFrame(forRoot, r.id, index, null, null, false),
+          cachedAdjustedFrame(forRoot, r.id, index, fl, st, true)
+        ]);
         if (seq !== frameSeq) return;
         before = b;
         after = a;
@@ -201,6 +212,44 @@
     }, 150);
     return () => clearTimeout(timer);
   });
+
+  // The loop: at most 60 frames around the chosen frame; their times come once per window.
+  const loopStart = $derived(loopWindow(frameIndex, frames, LOOP_MAX).start);
+  const loopLength = $derived(loopWindow(frameIndex, frames, LOOP_MAX).length);
+  let loopTry = $state(0);
+  const loopFl = $derived(playAdjusted && applyFlicker && flicker ? flicker.id : null);
+  const loopSt = $derived(playAdjusted && applyStab && stab ? stab.id : null);
+  const loopAdjusted = $derived(playAdjusted && (loopFl !== null || loopSt !== null));
+  let loopSeq = 0;
+  $effect(() => {
+    const forRoot = root;
+    const r = run;
+    const start = loopStart;
+    const length = loopLength;
+    void loopTry;
+    if (!forRoot || !r || length === 0) {
+      loopItems = [];
+      return;
+    }
+    const seq = ++loopSeq;
+    loopError = '';
+    loopItems = null;
+    const timer = setTimeout(async () => {
+      try {
+        const page = await getSamplingItems(forRoot, r.id, start, length);
+        if (seq === loopSeq) loopItems = page.items;
+      } catch (err) {
+        if (seq === loopSeq) loopError = errorText(err as IpcError);
+      }
+    }, 250);
+    return () => clearTimeout(timer);
+  });
+
+  function loopFrame(i: number): Promise<string> {
+    const item = loopItems?.[i];
+    if (!item || !run) return Promise.reject(new Error('no frame'));
+    return cachedAdjustedFrame(root, run.id, item.sequence_index, loopFl, loopSt, loopAdjusted);
+  }
 
   function analyseFlicker(): void {
     if (!run || busy) return;
@@ -375,16 +424,32 @@
       {#if frameError}
         <Banner tone="error" text={frameError} />
       {:else}
-        <div class="app-adjust__compare">
-          <figure>
-            {#if before}<img src={before} alt={t('adjust-as-shot', { frame: frameIndex + 1 })} />{:else}<Skeleton variant="rect" size="12rem" label={t('clean-loading')} />{/if}
-            <figcaption><Badge>{t('adjust-label-before')}</Badge></figcaption>
-          </figure>
-          <figure>
-            {#if after}<img src={after} alt={t('adjust-adjusted', { frame: frameIndex + 1 })} />{:else}<Skeleton variant="rect" size="12rem" label={t('clean-loading')} />{/if}
-            <figcaption><Badge variant="info">{t('adjust-label-after')}</Badge></figcaption>
-          </figure>
+        <Wipe {before} {after} beforeAlt={t('adjust-as-shot', { frame: frameIndex + 1 })} afterAlt={t('adjust-adjusted', { frame: frameIndex + 1 })} />
+      {/if}
+    </Card>
+
+    <Card>
+      <SectionLabel text={t('adjust-loop-title')} />
+      <p class="app-adjust__note">{t('adjust-loop-help', { count: formatNumber(loopLength) })}</p>
+      {#if flicker || stab}
+        <Toggle label={t('adjust-loop-adjusted')} bind:checked={playAdjusted} />
+      {/if}
+      {#if loopError}
+        <div role="alert" class="app-adjust__error">
+          <p>{loopError}</p>
+          <Button onclick={() => loopTry++}>{t('clean-retry')}</Button>
         </div>
+      {:else if loopItems === null}
+        <Skeleton variant="rect" size="12rem" label={t('clean-loading')} />
+      {:else}
+        <Flipbook
+          {root}
+          frames={loopItems}
+          fps={LOOP_FPS}
+          total={loopLength}
+          loadFrame={loopFrame}
+          resetKey={`${root}|${run?.id}|${loopStart}|${loopAdjusted}|${loopFl}|${loopSt}`}
+        />
       {/if}
     </Card>
   {/if}
@@ -423,23 +488,5 @@
   }
   .app-adjust__progress progress {
     flex: 1 1 12rem;
-  }
-  .app-adjust__compare {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
-    gap: var(--ez-space-sm);
-    margin-top: var(--ez-space-sm);
-  }
-  .app-adjust__compare figure {
-    margin: 0;
-    display: flex;
-    flex-direction: column;
-    gap: var(--ez-space-2xs);
-  }
-  .app-adjust__compare img {
-    width: 100%;
-    height: auto;
-    border-radius: var(--ez-radius-sm);
-    background: var(--ez-color-border-soft);
   }
 </style>

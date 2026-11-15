@@ -25,8 +25,18 @@
     fps,
     speed = 1,
     total = frames.length,
-    resetKey = ''
-  }: { root: string; frames: Frame[]; fps: number; speed?: number; total?: number; resetKey?: string } = $props();
+    resetKey = '',
+    loadFrame
+  }: {
+    root: string;
+    frames: Frame[];
+    fps: number;
+    speed?: number;
+    total?: number;
+    resetKey?: string;
+    /** Makes frame `i` of `frames` as an image URL; the default is the cached thumbnail. */
+    loadFrame?: (i: number) => Promise<string>;
+  } = $props();
 
   type Cached = { state: FrameState; url?: string };
   const CONCURRENCY = 4;
@@ -73,7 +83,7 @@
       plan.load.map((i) => async () => {
         let result: Cached;
         try {
-          result = { state: 'ready', url: await getThumbnail(root, frames[i].image_id, 256) };
+          result = { state: 'ready', url: await (loadFrame ? loadFrame(i) : getThumbnail(root, frames[i].image_id, 256)) };
         } catch {
           result = { state: 'failed' };
         }
