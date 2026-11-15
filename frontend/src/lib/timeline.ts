@@ -3,7 +3,7 @@
  * (`timestamp_source`, `timestamp_confidence`, bucket keys) map to Fluent ids
  * and `Intl` formats here; nothing in this file is user-visible text.
  */
-import { formatDate, formatNumber } from './i18n';
+import { formatDate, formatNumber, t } from './i18n';
 import type { Confidence, Granularity, TimestampSource } from './ipc/app';
 
 export const SOURCE_KEYS: Record<TimestampSource, string> = {
@@ -35,6 +35,7 @@ export const CONFIDENCE_VARIANT: Record<Confidence, 'success' | 'info' | 'warnin
 export const GRANULARITY_KEYS: Record<Granularity, string> = {
   hour: 'timeline-granularity-hour',
   day: 'timeline-granularity-day',
+  week: 'timeline-granularity-week',
   month: 'timeline-granularity-month'
 };
 
@@ -48,10 +49,13 @@ export function formatInstant(epochMs: number): string {
   return formatDate(epochMs, { ...UTC, dateStyle: 'medium', timeStyle: 'medium' });
 }
 
-/** A distribution bucket key (`YYYY-MM-DDTHH`, `YYYY-MM-DD`, `YYYY-MM`) as a label. */
+/** A distribution bucket key (`YYYY-MM-DDTHH`, `YYYY-MM-DD`, `YYYY-MM`; a week's Monday) as a label. */
 export function formatBucket(key: string, granularity: Granularity): string {
-  const at = Date.parse(granularity === 'month' ? `${key}-01T00:00:00Z` : granularity === 'day' ? `${key}T00:00:00Z` : `${key}:00:00Z`);
+  const at = Date.parse(
+    granularity === 'month' ? `${key}-01T00:00:00Z` : granularity === 'day' || granularity === 'week' ? `${key}T00:00:00Z` : `${key}:00:00Z`
+  );
   if (Number.isNaN(at)) return key;
+  if (granularity === 'week') return t('timeline-week-of', { date: formatDate(at, { ...UTC, dateStyle: 'medium' }) });
   if (granularity === 'month') return formatDate(at, { ...UTC, year: 'numeric', month: 'long' });
   if (granularity === 'day') return formatDate(at, { ...UTC, dateStyle: 'medium' });
   return formatDate(at, { ...UTC, dateStyle: 'medium', timeStyle: 'short' });

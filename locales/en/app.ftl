@@ -65,7 +65,10 @@ timeline-empty-description = Once an imported photograph has a capture date (cam
 timeline-distribution = Distribution over the period
 timeline-granularity-hour = By hour
 timeline-granularity-day = By day
+timeline-granularity-week = By week
 timeline-granularity-month = By month
+# A week bucket's label; $date is the Monday that starts it.
+timeline-week-of = Week of { $date }
 timeline-gaps-title = { $count ->
     [one] One unusually long gap
    *[other] { $count } unusually long gaps

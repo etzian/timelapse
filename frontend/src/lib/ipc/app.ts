@@ -55,7 +55,7 @@ export const integrityCheck = (root: string) => invoke<IntegrityResult>('integri
 /** Stable data values from `images.timestamp_source` (mapped to Fluent keys in the UI). */
 export type TimestampSource = 'exif_datetime_original' | 'exif_datetime_digitized' | 'filename' | 'filesystem';
 export type Confidence = 'high' | 'medium' | 'low';
-export type Granularity = 'hour' | 'day' | 'month';
+export type Granularity = 'hour' | 'day' | 'week' | 'month';
 
 export interface SourceCounts {
   exif_datetime_original: number;
@@ -93,7 +93,7 @@ export interface TimelineEntry {
 }
 
 export interface DistributionBucket {
-  /** UTC key: `YYYY-MM-DDTHH`, `YYYY-MM-DD` or `YYYY-MM` (a prefix of the instants it counts). */
+  /** UTC key: `YYYY-MM-DDTHH`, `YYYY-MM-DD` or `YYYY-MM` (a prefix of the instants it counts); a week's key is its Monday. */
   bucket: string;
   count: number;
 }
@@ -564,3 +564,147 @@ export const verifyConsolidation = (root: string, run: number) =>
   invoke<RunCheck>('verify_consolidation', { root, run }, CONSOLIDATE_TIMEOUT_MS);
 export const verifyOriginals = (root: string, onProgress: (p: ConsolidationProgress) => void) =>
   invoke<OriginalsCheck>('verify_originals', { root, onProgress: progressChannel(onProgress) }, CONSOLIDATE_TIMEOUT_MS);
+
+// ---- Phase 7 — contact sheets, export record, timeline ------------------------------------
+
+/** What a sheet shows (PRD §5.11). */
+export type SheetSource =
+  | { kind: 'all' }
+  | { kind: 'period'; from: string; to: string }
+  | { kind: 'flagged' }
+  | { kind: 'quarantined' }
+  | { kind: 'sampling'; run: number }
+  | { kind: 'export'; export: number };
+
+export type PageSize = 'a4' | 'letter';
+export type Orientation = 'portrait' | 'landscape';
+
+export interface SheetLayout {
+  page_size: PageSize;
+  orientation: Orientation;
+  /** 1–12 each. */
+  columns: number;
+  rows: number;
+  show_filename: boolean;
+  show_timestamp: boolean;
+}
+
+/** Texts printed on every page, already translated. `page` has `{page}` and `{pages}`. */
+export interface SheetLabels {
+  title: string;
+  source: string;
+  page: string;
+  note: string;
+  unreadable: string;
+}
+
+/** PDF points (1/72 inch), origin at the page's lower-left corner. */
+export interface SheetRect {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+export interface SheetGeometry {
+  page_w: number;
+  page_h: number;
+  columns: number;
+  rows: number;
+  cell_w: number;
+  cell_h: number;
+  image_h: number;
+  caption_size: number;
+  caption_lines: number;
+  title_y: number;
+  source_y: number;
+  footer_y: number;
+}
+
+export interface SheetPreviewCell {
+  image_id: number;
+  image_box: SheetRect;
+  filename: string | null;
+  timestamp: string | null;
+}
+
+export interface SheetPreview {
+  photos: number;
+  pages: number;
+  geometry: SheetGeometry;
+  first_page: SheetPreviewCell[];
+  too_many: boolean;
+}
+
+export interface SheetProgress {
+  done: number;
+  total: number;
+}
+
+export interface SheetRecord {
+  id: number;
+  source: SheetSource;
+  layout: SheetLayout;
+  output_path: string;
+  photos: number;
+  unreadable: number;
+  pages: number;
+  file_size: number | null;
+  status: 'running' | 'completed' | 'failed' | 'cancelled' | 'interrupted';
+  /** Stable kind, shown via `error-contact-sheet` with this reason. */
+  failure: string | null;
+  created_at: number;
+  completed_at: number | null;
+}
+
+/** A large sheet makes thousands of thumbnails; progress arrives on the channel meanwhile. */
+const SHEET_TIMEOUT_MS = 6 * 60 * 60_000;
+
+export const previewContactSheet = (root: string, source: SheetSource, layout: SheetLayout) =>
+  invoke<SheetPreview>('preview_contact_sheet', { root, source, layout }, 120_000);
+
+/** `token` identifies this sheet for `cancelContactSheet` (any non-zero safe integer). */
+export function startContactSheet(
+  root: string,
+  source: SheetSource,
+  layout: SheetLayout,
+  labels: SheetLabels,
+  token: number,
+  onProgress: (p: SheetProgress) => void
+): Promise<SheetRecord> {
+  const channel = new Channel<SheetProgress>();
+  channel.onmessage = onProgress;
+  return invoke<SheetRecord>('start_contact_sheet', { root, source, layout, labels, token, onProgress: channel }, SHEET_TIMEOUT_MS);
+}
+
+export const cancelContactSheet = (token: number) => invoke<void>('cancel_contact_sheet', { token });
+export const listContactSheets = (root: string) => invoke<SheetRecord[]>('list_contact_sheets', { root });
+
+/** The derived export record (ADR-015), pretty JSON. */
+export const exportRecord = (root: string, exportId: number) => invoke<string>('export_record', { root, export: exportId });
+/** Saves the record as `.timelapse/exports/<id>.record.json`; resolves to its path. */
+export const writeExportRecord = (root: string, exportId: number) => invoke<string>('write_export_record', { root, export: exportId });
+
+export interface TimelinePage {
+  total: number;
+  entries: TimelineEntry[];
+}
+
+export const timelinePeriod = (root: string, from: string, to: string, offset: number, limit: number) =>
+  invoke<TimelinePage>('timeline_period', { root, from, to, offset, limit });
+
+export interface IdenticalGroup {
+  normalized_datetime: string;
+  epoch_ms: number;
+  count: number;
+  /** The first few photographs of the group. */
+  sample: TimelineEntry[];
+}
+
+export interface IdenticalReport {
+  groups: number;
+  photos: number;
+  largest: IdenticalGroup[];
+}
+
+export const identicalTimestamps = (root: string, limit: number) => invoke<IdenticalReport>('identical_timestamps', { root, limit });

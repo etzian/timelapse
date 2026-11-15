@@ -66,7 +66,9 @@ timeline-empty-description = Dès qu’une photographie importée a une date de 
 timeline-distribution = Répartition sur la période
 timeline-granularity-hour = Par heure
 timeline-granularity-day = Par jour
+timeline-granularity-week = Par semaine
 timeline-granularity-month = Par mois
+timeline-week-of = Semaine du { $date }
 timeline-gaps-title = { $count ->
     [one] { $count } intervalle anormalement long
    *[other] { $count } intervalles anormalement longs

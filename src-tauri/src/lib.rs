@@ -76,7 +76,7 @@ fn get_timeline(
     Ok(timelapse_core::import::timeline_for_root(&root)?)
 }
 
-/// Phase 2: image counts per hour / day / month over an optional `[from, to)` period.
+/// Phase 2 (weeks: Phase 7): image counts per hour / day / week / month over an optional `[from, to)` period.
 #[tauri::command]
 fn timeline_distribution(
     root: PathBuf,
@@ -395,6 +395,85 @@ async fn verify_originals(
     .await
 }
 
+// ---- Phase 7: contact sheets, export record, timeline (ADR-024) ------------------------
+
+use timelapse_core::contact_sheet;
+
+/// Counts and the first page's cells for a source and layout. Writes nothing.
+#[tauri::command]
+async fn preview_contact_sheet(
+    root: PathBuf,
+    source: contact_sheet::Source,
+    layout: contact_sheet::Layout,
+) -> std::result::Result<contact_sheet::SheetPreview, IpcError> {
+    blocking(move || contact_sheet::preview(&root, &source, &layout)).await
+}
+
+/// Generate a sheet into `<root>/.timelapse/contact-sheets/`; `labels` are translated by
+/// the UI.
+#[tauri::command]
+async fn start_contact_sheet(
+    root: PathBuf,
+    source: contact_sheet::Source,
+    layout: contact_sheet::Layout,
+    labels: contact_sheet::Labels,
+    token: u64,
+    on_progress: tauri::ipc::Channel<contact_sheet::SheetProgress>,
+) -> std::result::Result<contact_sheet::SheetRecord, IpcError> {
+    blocking(move || {
+        contact_sheet::generate(&root, &source, &layout, &labels, token, |p| {
+            let _ = on_progress.send(p);
+        })
+    })
+    .await
+}
+
+/// Stop the sheet started with `token` before its next page.
+#[tauri::command]
+fn cancel_contact_sheet(token: u64) {
+    contact_sheet::cancel(token);
+}
+
+#[tauri::command]
+fn list_contact_sheets(
+    root: PathBuf,
+) -> std::result::Result<Vec<contact_sheet::SheetRecord>, IpcError> {
+    Ok(contact_sheet::sheets_for_root(&root)?)
+}
+
+/// The derived export record (ADR-015) as pretty JSON.
+#[tauri::command]
+fn export_record(root: PathBuf, export: i64) -> std::result::Result<String, IpcError> {
+    Ok(export::record::record_json(&root, export)?)
+}
+
+/// Save the export record next to the exports; returns its path.
+#[tauri::command]
+fn write_export_record(root: PathBuf, export: i64) -> std::result::Result<PathBuf, IpcError> {
+    Ok(export::record::write_record(&root, export)?)
+}
+
+/// One page of the photographs of `[from, to)` on the timeline.
+#[tauri::command]
+fn timeline_period(
+    root: PathBuf,
+    from: String,
+    to: String,
+    offset: usize,
+    limit: usize,
+) -> std::result::Result<timelapse_core::import::store::TimelinePage, IpcError> {
+    Ok(timelapse_core::import::timeline_period_for_root(&root, &from, &to, offset, limit)?)
+}
+
+/// Groups of photographs that share one capture time, the largest `limit` listed.
+#[tauri::command]
+fn identical_timestamps(
+    root: PathBuf,
+    limit: usize,
+) -> std::result::Result<timelapse_core::import::store::IdenticalReport, IpcError> {
+    Ok(timelapse_core::import::identical_timestamps_for_root(&root, limit)?)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     // Dialog is used by the frontend for folder picking on every platform; the
@@ -445,7 +524,15 @@ pub fn run() {
             undo_consolidation,
             list_consolidations,
             verify_consolidation,
-            verify_originals
+            verify_originals,
+            preview_contact_sheet,
+            start_contact_sheet,
+            cancel_contact_sheet,
+            list_contact_sheets,
+            export_record,
+            write_export_record,
+            timeline_period,
+            identical_timestamps
         ])
         .run(tauri::generate_context!())
         .expect("error while running Timelapse Studio");
