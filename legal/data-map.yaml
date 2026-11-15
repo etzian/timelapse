@@ -24,7 +24,7 @@ features:
   cloud_sync: false
 data:
   - id: app-settings
-    label: { fr-CA: "Vos choix de langue, de thème et de densité", en: "Your language, theme and density choices" }
+    label: { fr-CA: "Vos choix de langue, de thème et de densité, et les groupes repliés du menu latéral", en: "Your language, theme and density choices, and which sidebar groups are folded" }
     category: other
     purpose: { fr-CA: "Afficher l'application comme vous l'avez choisi", en: "Show the app the way you chose" }
     basis: necessary-for-service

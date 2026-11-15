@@ -22,7 +22,7 @@ Here is what the app keeps on your device:
 
 | Information | Category | Why we use it | Basis | Where it is kept | How long we keep it |
 | --- | --- | --- | --- | --- | --- |
-| Your language, theme and density choices | Other | Show the app the way you chose | Necessary to provide the service you asked for | On your device | Until you erase the app's data |
+| Your language, theme and density choices, and which sidebar groups are folded | Other | Show the app the way you chose | Necessary to provide the service you asked for | On your device | Until you erase the app's data |
 | Your list of recent projects (the path of each source folder and when it was last opened, eight at most) | Other | Reopen your last project at launch, without a rescan, and let you pick a recent project | Necessary to provide the service you asked for | On your device | Until you remove the project from the list or erase the app settings (Settings, Erase all data) |
 | Your photograph inventory (paths, sizes, SHA-256 hash and import status) | Other | Index, deduplicate and find your photographs across working sessions | Necessary to provide the service you asked for | On your device | Until you erase the project data (Settings, Erase all data, or by deleting the hidden .timelapse/ folder yourself) |
 | Your photographs' capture dates (EXIF dates, date read from the file name, file date, recorded time zone) | Other | Put your photographs in chronological order and find gaps in the shooting | Necessary to provide the service you asked for | On your device | Until you erase the project data (Settings, Erase all data, or by deleting the hidden .timelapse/ folder yourself) |

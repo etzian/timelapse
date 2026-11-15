@@ -8,7 +8,7 @@ Law 25: personal information is destroyed or anonymized once the purpose is achi
 
 | Item | Category | Kept where | Retention (as published) | Deletion mechanism | Verified |
 | --- | --- | --- | --- | --- | --- |
-| Your language, theme and density choices | Other | On your device | Until you erase the app's data | _to complete_ | _date_ |
+| Your language, theme and density choices, and which sidebar groups are folded | Other | On your device | Until you erase the app's data | _to complete_ | _date_ |
 | Your list of recent projects (the path of each source folder and when it was last opened, eight at most) | Other | On your device | Until you remove the project from the list or erase the app settings (Settings, Erase all data) | _to complete_ | _date_ |
 | Your photograph inventory (paths, sizes, SHA-256 hash and import status) | Other | On your device | Until you erase the project data (Settings, Erase all data, or by deleting the hidden .timelapse/ folder yourself) | _to complete_ | _date_ |
 | Your photographs' capture dates (EXIF dates, date read from the file name, file date, recorded time zone) | Other | On your device | Until you erase the project data (Settings, Erase all data, or by deleting the hidden .timelapse/ folder yourself) | _to complete_ | _date_ |
