@@ -3,8 +3,8 @@
 ## Current Development Status
 
 **Version:** 0.1  
-**Last updated:** 2026-11-14  
-**Development status:** Phases 0–8 complete (Phase 8 — Flicker reduction & stabilization, 2026-11-15; the real-GoPro visual check is the user's open item); all roadmap phases delivered
+**Last updated:** 2026-11-15  
+**Development status:** Phases 0–8 complete; the UX milestone (P1–P15) is built on branch `ux-milestone`, not merged, not released. The user items in §7 are open.
 
 ---
 
@@ -15,6 +15,20 @@ The product concept and initial architecture are defined, and implementation has
 **Phase 0 — Baseline is complete (2026-11-10).** The generated application builds and its verification gate passes: `make gate` is green locally and CI (`ci.yml`) is green on main. See `.claude/plan/STATE.md` for the authoritative record.
 
 **Phase 1 — Import & inventory is complete (2026-11-12)** and **Phase 2 — EXIF & timeline is complete (2026-11-14)**: capture times resolved per image (EXIF → filename → filesystem, with source, confidence and time-zone basis), schema v2, timeline / distribution / gap queries, and the timeline view in both locales. **Phase 3 — Brightness analysis & cleaning is complete (2026-11-14)**: luma analysis, Lightroom XMP reject flags, reproducible classification, user decisions, a journaled no-overwrite quarantine with restore (the minimal Phase 6 primitive, ADR-020), and the Cleaning page in both locales. **Phase 4 — Temporal sampling is complete (2026-11-14)**: fixed-interval / every-Nth / uniform selection, deterministic and stored with its configuration and input fingerprint, with a reproducibility check and the Sampling page in both locales. **Phase 5 — FFmpeg video generation is complete (2026-11-15)**: the LGPL FFmpeg 9.0.2 + SVT-AV1 4.2.0 build is made and licence-checked in CI; sampled selections are exported to MP4 in AV1 (default) or VideoToolbox H.264/HEVC, each verified with ffprobe; ADR-021/022. The FFmpeg and SVT-AV1 licence exceptions are approved (2026-11-14). **Phase 6 — Consolidation & file management is complete (2026-11-15)**: photographs are copied (APFS clones) or moved into a working folder outside the collection after a dry run, with no overwrite, verification, undo and an originals check; schema v6; ADR-023. **Phase 7 — Advanced UI & contact sheets is complete (2026-11-15)**: PDF contact sheets of all photographs, a period, flagged, quarantined, a selection or a video's sequence, generated from SQLite state only (streamed, reproducible, built-in Helvetica), with a Contact sheets page; timeline week buckets, zoom, a period's photographs and identical capture times; the derived export record (ADR-015) shown and saved on demand; schema v7; ADR-024. **Phase 8 — Flicker reduction & stabilization is complete (2026-11-15)**: luminance and colour deflicker against a slow trend, translation-only stabilization with a fixed crop, both measured on a saved selection and stored in SQLite (schema v8), applied by the export at encode time (no manifest); the Adjust page with charts and before/after stills; ADR-025. Open user item: a visual check on a real GoPro sequence.
+
+**UX milestone (2026-11-15, branch `ux-milestone`, P1–P15).** Built on the finished engine, with no schema change and no change to the algorithms or the encode:
+
+- **Project continuity.** A project store holds the root, report, integrity, backfill and a recent list (at most 8, `localStorage`, erased with "app settings"; in the data map). The last project reopens on launch without a rescan, through the read-only core command `project_summary`; an unreachable folder shows a card with Retry and Remove. Home is the project overview (steps, short summary, details, timeline, recent projects, drop a folder anywhere in the window). All `localStorage` keys are named in `storageKeys.ts`, and a test checks that Erase leaves no `timelapse*` key.
+- **Pipeline navigation.** The sidebar has Workflow, Tools and App groups with a state per step (not started, in progress, done), and the tab bar follows the same order. A live region announces when jobs start and end. `NextStep` closes Home, Cleaning, Sampling, Adjust and Export with the next action and, when disabled, the reason.
+- **Selections** keep their numeric id; the label shown is derived from method, count and date.
+- **Flipbook and Wipe.** The Flipbook plays cached thumbnails (no video is decoded in the webview) in Sampling, plays the adjusted loop in Adjust and previews the sequence in Export. Wipe compares as shot and corrected frames.
+- **Fast triage.** Cleaning is a keyboard-driven grid with an Inspector, immediate Keep/Reject decisions and an Undo toast (also ⌘Z).
+- **Presets and summaries.** Clean presets (Lenient, Balanced, Strict) and export presets (Share, Archive, Master); the thresholds and the other selects sit under "Advanced settings"; a one-sentence summary of the resulting video.
+- **Open and reveal.** `open_output` and `reveal_output` resolve an id to a stored path in `video_exports` or `contact_sheets`, open the database read-only, and accept only a regular file inside `<root>/Timelapse exports/` with an allow-listed extension (mp4, pdf, json), through `tauri-plugin-opener` 2.7.3 used from Rust only. The webview has no opener permission (ADR-027; a shell test checks it). Core: `outputs.rs`, `open_read_only`.
+- **Progress and the export finish.** One `Progress` component (smoothed rate, time remaining) replaces every bare progress bar; Export shows a thumbnail while encoding and a finish card with poster, duration, size, codec, copyable path, Play, Show in Finder and Contact sheet; history rows offer the same actions.
+- **Native menu and view transitions.** The menu is built in JS (⌘1–⌘5, ⌘, Settings, ⌘O Open folder) and rebuilt on locale change; page swaps cross-fade except under reduced motion.
+- **Copy.** English reworded in plain words; fr-CA translated and reviewed.
+- **Review.** P14 reviewed the source (UI, Rust, legal) and applied the findings; the reviewers did not re-review the fixes, so there is no reviewer sign-off. See `docs/design-review.md`.
 
 ## 2. Confirmed technology direction
 
@@ -96,7 +110,18 @@ The Phase 0 documentation review is complete; its findings are recorded in `docs
 
 ## 7. Current milestone
 
-**Milestone:** the roadmap's phases are delivered. Next: the **UX milestone** (planned and approved 2026-11-15, 15 slices on branch `ux-milestone`, not started; see `docs/UX_MILESTONE.md` and `.claude/plan/PHASES.md`), the user's real-GoPro check of Phase 8, and the release gate (`.claude/rules/release.md`).
+**Milestone:** the roadmap's phases are delivered and the **UX milestone** (15 slices on branch `ux-milestone`; see `docs/UX_MILESTONE.md` and `.claude/plan/PHASES.md`) is built. `make gate` is green. The version bump and changelog are left to `etzian:release` on the user's word; nothing is pushed or tagged.
+
+**Open user items:**
+
+1. **Rendered pass on the Mac** (keyboard only, VoiceOver, light and dark, compact density, reduced motion, fr-CA and en, 375 / 768 / 1440 widths). Record the result in the table in `docs/design-review.md` ("Rendered pass"). Points to settle there: sidebar icons and accent bar, the viewer footer in fr-CA at 520 px, sidebar labels and the menu in French, VoiceOver on triage tiles and the wipe slider, ⌘Z against the native Edit menu, muted text contrast in dark mode.
+2. **Play and Show in Finder on a real export**, and the missing-file error in en and fr-CA; the thumbnail beside the progress bar moving during an export.
+3. **Native menu** in the running app: shortcuts, labels switching with the language, no cross-fade under reduced motion.
+4. **Real-GoPro visual check** of deflicker and stabilization (carried over from Phase 8).
+5. **Legal questions for the lawyer** (design-review.md, "Open, not done here"): whether launch-time reopening needs a setting or a notice; whether a folder path is personal information for local-only data; the window-state file (not erased, not in the data map; predates the milestone); the privacy policy does not mention handing exports to the default player; the three legal templates are unreviewed.
+6. **Release checks** (`.claude/rules/release.md`): the hardware VideoToolbox test on Apple Silicon and the exFAT consolidation check (copy, check, undo, then move and undo).
+
+**Known gaps (not done):** sidebar state glyphs are read aloud and the tab bar shows no state (needs a design-system slot); native Edit > Undo is not wired to the app's undo; field-linked errors in Advanced; per-frame flipbook retry; localized predefined menu items; a few fr-CA wording nice-to-haves (see STATE.md, P13).
 
 Phase 0 — Baseline was completed on 2026-11-10: the generated application builds and `make gate` passes locally and in CI (see `.claude/plan/STATE.md`). The Phase 0 documentation review required by this file's former §7 produced the reports in `docs/audit/` and is considered satisfied.
 

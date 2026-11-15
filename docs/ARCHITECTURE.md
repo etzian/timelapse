@@ -189,6 +189,18 @@ Independent modules for:
 
 These modules should operate on derived processing data and must not modify source photographs.
 
+### Output access
+
+`crates/core/src/outputs.rs` resolves an export or contact-sheet id to its stored path and refuses anything that is not a regular file inside `<root>/Timelapse exports/` with an allow-listed extension (mp4, pdf, json). It reads the project database through `open_read_only` (no migration, reconcile or move). The Tauri commands `open_output` and `reveal_output` call `tauri-plugin-opener` from Rust only; the webview has no opener permission (ADR-027). `project_summary` also reads read-only, so reopening a project does not touch it.
+
+### Frontend structure
+
+- `frontend/src/lib/pages/`: one page per workflow step and tool; `frontend/src/lib/components/`: shared pieces (`Flipbook`, `Wipe`, `Inspector`, `NextStep`, `Progress`, `ProjectSteps`, `ExportActions`).
+- `frontend/src/lib/stores/`: Svelte 5 stores for the project (root, recent list, status), the pipeline (step states, job announcements), navigation, settings, adjust and export.
+- Decision logic stays in pure, tested modules next to the pages (`pipeline.ts`, `flipbook.ts`, `wipe.ts`, `clean.ts`, `export.ts`, `progress.ts`, `project.ts`, `menu.ts`, `storageKeys.ts`); the stores and components only bind them.
+- The native menu is built in JS (`menuNative.ts`); page changes use a feature-detected View Transition that is skipped under reduced motion.
+- The only client-side persistence is `localStorage` under the keys in `storageKeys.ts`, all erased by "Erase all data" and listed in `legal/data-map.yaml`.
+
 ## 4. Project directory
 
 ```
@@ -200,6 +212,8 @@ TimelapseProject/
 ├── exports/          ← generated export record lands here, on demand
 └── logs/
 ```
+
+Finished videos and contact sheets are written outside `.timelapse/`, to `<root>/Timelapse exports/` (quarantine goes to `<root>/Timelapse quarantine/`; ADR-026), so `.timelapse/` holds only erasable project data.
 
 The project directory contains generated and administrative data. It does not need to contain the original photographs. Per ADR-015 there is no stored `manifest.json`: `project.db` (SQLite) is the sole source of truth, and the human-readable export record is a derived artifact written to `exports/` only when requested.
 

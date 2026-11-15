@@ -1,6 +1,6 @@
 # STATE
 
-STATUS: RUNNING
+STATUS: DONE
 <!-- PENDING | RUNNING | DONE | BLOCKED -->
 
 ## Preconditions
@@ -55,7 +55,7 @@ STATUS: RUNNING
 | P12 | Motion, menu and shortcuts | sonnet | GATE-UI | done |
 | P13 | Copy pass, en and fr-CA | sonnet | GATE-UI | done |
 | P14 | Review slice | opus | full + sign-off | done |
-| P15 | Polish | sonnet | full | pending |
+| P15 | Polish | sonnet | full | done |
 
 ## Handoff log
 
@@ -149,7 +149,18 @@ STATUS: RUNNING
 - DEFERRED: Sidebar state glyphs read aloud and no state in the tab bar (needs a design-system slot); native Edit > Undo wiring; field-linked errors in Advanced; flipbook retry; raw px/rem to tokens and other nice-to-haves (items 15, 18, 20 to 26 in the review). 
 - MANUAL (user, lawyer): launch-time reopen needs a setting or notice? are folder paths personal information for local-only data? window-state file (position and size) not erased and not in the data map (predates the milestone); the privacy policy says nothing about handing exports to the default player; three legal templates unreviewed. Rendered pass on the Mac (P15 user item), including ⌘Z against the native Edit menu, the viewer in fr-CA at 520 px, sidebar icons and accent bar light and dark, VoiceOver on tiles and the wipe slider.
 
+### P15 — pass (milestone closed)
+- CHANGED: docs/CURRENT_STATUS.md (status, UX milestone paragraph, §7 numbered user items and known gaps); docs/ARCHITECTURE.md ("Output access", "Frontend structure", exports and quarantine folders per ADR-026). CLAUDE.md unchanged (key paths did not change). No version bump, no tag, nothing pushed. Orchestrator re-ran `make gate`: exit 0.
+- DEFERRED: CURRENT_STATUS.md §6 and §8 still carry stale Phase-0 text (pre-existing).
+- MANUAL: see "Open user items" below and docs/CURRENT_STATUS.md §7.
+
 ## Open user items
+
+- The rendered pass on the Mac (keyboard only, VoiceOver, light/dark, compact, reduced motion, fr-CA and en); its result goes into the table in `docs/design-review.md`.
+- Play and Show in Finder on a real export; the missing-file error in en and fr-CA; the native menu and ⌘Z against Edit > Undo.
+- Lawyer and product questions from P14: launch-time reopen (setting or notice), folder paths as personal information, the window-state file, the privacy policy and the default player, the three unreviewed templates.
+- Release checks from `.claude/rules/release.md`: hardware VideoToolbox on Apple Silicon, exFAT consolidation.
+- `etzian:release` for the version bump and changelog, on your word.
 
 - Real-GoPro visual check of deflicker and stabilization (from Phase 8).
 - The rendered pass of this milestone on the Mac (P15).
@@ -159,4 +170,4 @@ STATUS: RUNNING
 | Milestone | Status |
 | --- | --- |
 | Phases 0–8 (`docs/DEVELOPMENT_ROADMAP.md`) | done (2026-11-15) |
-| UX milestone | **current** |
+| UX milestone | done (2026-11-15), not released |
