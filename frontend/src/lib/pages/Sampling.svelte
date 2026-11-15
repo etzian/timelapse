@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Flipbook from '../components/Flipbook.svelte';
   import NextStep from '../components/NextStep.svelte';
   import { runLabel } from '../selectionLabel';
   import { Badge, Banner, Button, Card, EmptyState, Input, PageHeader, SectionLabel, Select, Skeleton, Stat, StatGrid, Tabs, Toggle } from '@etzianco/ui';
@@ -350,6 +351,14 @@
             ? t('sampling-sequence-preview', { count: shownTotal })
             : t('sampling-sequence-run', { id: shownRun, count: shownTotal })}
         </h3>
+        <Flipbook
+          root={root}
+          frames={shownItems}
+          fps={Number(fps)}
+          speed={Number(multiplier)}
+          total={shownTotal}
+          resetKey={shownRun === null ? `preview-${preview?.config ? JSON.stringify(preview.config) : ''}` : `run-${shownRun}`}
+        />
         <ol class="app-sampling__bars">
           {#each shownDays as d (d.day)}
             <li>

@@ -900,3 +900,20 @@ next-reason-no-photos = Import photographs first.
 next-reason-analysing = Wait for the analysis to finish.
 next-reason-no-selection = Save a selection first.
 next-reason-adjusting = Wait for the adjustment to finish.
+
+# Flipbook (P6)
+flipbook-title = Flipbook preview
+flipbook-play = Play (Space)
+flipbook-pause = Pause (Space)
+flipbook-prev = Previous frame (Left arrow)
+flipbook-next = Next frame (Right arrow)
+flipbook-first = First frame (Home)
+flipbook-last = Last frame (End)
+flipbook-scrub = Frame position
+flipbook-frame = Frame { $n } of { $total }
+flipbook-rate = { $fps } frames per second
+flipbook-buffering = Loading frames…
+flipbook-failed = This photograph could not be shown. Playback goes on.
+flipbook-empty-title = Nothing to play
+flipbook-empty-description = Choose photographs first; the flipbook plays them in order.
+flipbook-partial = Playing the first { $shown } of { $total } photographs.

@@ -46,7 +46,7 @@ STATUS: RUNNING
 | P3 | Home as the project overview | sonnet | GATE-UI | done |
 | P4 | Pipeline navigation | sonnet | GATE-UI | done |
 | P5 | Next step and named selections | sonnet | GATE-UI | done |
-| P6 | Flipbook | sonnet | GATE-UI | pending |
+| P6 | Flipbook | sonnet | GATE-UI | done |
 | P7 | Flipbook in Adjust and Export, wipe | sonnet | GATE-UI | pending |
 | P8 | Fast triage | sonnet | GATE-UI | pending |
 | P9 | Presets and summaries | sonnet | GATE-UI | pending |
@@ -93,6 +93,12 @@ STATUS: RUNNING
 - CHANGED: pure `selectionLabel` in sampling.ts and `selectionLabel.ts` binding (t, formatNumber, formatDate); pure `nextStep` in pipeline.ts; new `NextStep.svelte` placed at the end of Home, Cleaning, Sampling, Adjust, Export; labels used in Sampling, Adjust, Export, Organize, Contact sheets selects and lists; selection-*, next-* keys in en and fr-CA.
 - DECISIONS: Chain is home→cleaning→sampling→adjust→export→organize. Readiness: Home needs photos; Clean needs photos and no analysis running; Select and Adjust need a saved selection; Adjust also waits while an adjustment runs. The id stays secondary ("(#id)" in selects). Label dates are day plus short month, year only if it differs from now. The Button component has no aria-describedby passthrough, so the reason is plain adjacent text.
 - DEFERRED: Home's Selections line still shows a run count. Two selections can share a label (same method, count, day); only "#id" tells them apart. Rendered pass (fr-CA label length in selects, disabled Next look) goes to P14/P15.
+- MANUAL: none
+
+### P6 — pass
+- CHANGED: pure `flipbook.ts` (frameIntervalMs, wrapIndex, clampIndex, windowIndexes, planLoad, advance) with 12 vitest cases; `Flipbook.svelte` (screen, range scrubber, frame number and capture time, first/prev/play/next/last, Space/arrows/Home/End; empty, buffering, failed, partial states); placed above the strip in Sampling; 15 flipbook-* keys in en and fr-CA.
+- DECISIONS: No batched IPC and no Rust change: frames load in batches of 8 with 4 concurrent `getThumbnail` calls. P7 reuses `<Flipbook root frames={{image_id, epoch_ms}[]} fps speed total resetKey/>`; `resetKey` must change for a different sequence. Never autostarts (covers reduced motion). Arrow/Home/End skipped on the range input, Space skipped on buttons. A saved selection plays the pages already loaded. Orchestrator added a svelte-ignore on the section keydown (svelte-check warning the runner missed; keys bubble from child controls).
+- DEFERRED: Rendered checks (WebView, VoiceOver, fr-CA button widths, dark mode) go to P14/P15. No 300 ms loading-indicator rule yet.
 - MANUAL: none
 
 ## Open user items

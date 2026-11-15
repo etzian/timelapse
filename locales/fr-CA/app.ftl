@@ -898,3 +898,20 @@ next-reason-no-photos = Importez d’abord des photographies.
 next-reason-analysing = Attendez la fin de l’analyse.
 next-reason-no-selection = Enregistrez d’abord une sélection.
 next-reason-adjusting = Attendez la fin de l’ajustement.
+
+# Aperçu en défilement (P6)
+flipbook-title = Aperçu en défilement
+flipbook-play = Lecture (Espace)
+flipbook-pause = Pause (Espace)
+flipbook-prev = Image précédente (flèche gauche)
+flipbook-next = Image suivante (flèche droite)
+flipbook-first = Première image (Début)
+flipbook-last = Dernière image (Fin)
+flipbook-scrub = Position dans la séquence
+flipbook-frame = Image { $n } sur { $total }
+flipbook-rate = { $fps } images par seconde
+flipbook-buffering = Chargement des images…
+flipbook-failed = Cette photographie n’a pas pu être affichée. La lecture se poursuit.
+flipbook-empty-title = Rien à lire
+flipbook-empty-description = Choisissez d’abord des photographies; l’aperçu les lit dans l’ordre.
+flipbook-partial = Lecture des { $shown } premières photographies sur { $total }.
