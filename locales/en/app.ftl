@@ -7,14 +7,27 @@ app-tagline = Turn large photo collections into high-quality timelapse videos, l
 app-endorsement = by Etzian
 company-name = Etzian inc.
 
-nav-home = Home
-nav-cleaning = Cleaning
+nav-home = Import
+nav-cleaning = Clean
 nav-organize = Organize
-nav-sampling = Sampling
+nav-sampling = Select
 nav-adjust = Adjust
 nav-export = Export
 nav-sheets = Contact sheets
 nav-settings = Settings
+nav-group-workflow = Workflow
+nav-group-tools = Tools
+nav-group-app = App
+pipeline-state-not-started = not started
+pipeline-state-in-progress = in progress
+pipeline-state-done = done
+pipeline-state-running = running
+pipeline-job-analysis = The analysis
+pipeline-job-adjust = The adjustment
+pipeline-job-export = The export
+pipeline-job-consolidation = The file move
+pipeline-job-sheet = The contact sheet
+pipeline-job-ended = { $job } has finished.
 
 home-import-action = Choose a folder to import
 home-importing = Importing…
@@ -150,7 +163,7 @@ timeline-loading = Building the timeline…
 timeline-retry = Try again
 
 ## Phase 3 — cleaning
-clean-title = Cleaning
+clean-title = Clean your photographs
 clean-intro = Timelapse Studio measures the brightness of each photograph and flags the ones that look too dark, or that Lightroom marked as rejected. Nothing is removed automatically: you decide, and a rejected photo only moves to the project's quarantine when you confirm.
 clean-no-project-title = No collection open
 clean-no-project-description = Import a folder first; its photographs can then be analysed and cleaned here.
@@ -327,7 +340,7 @@ files-failure-replaced = the file there is no longer the copy this app made, so 
 files-failure-other = the operation failed
 
 ## Phase 4 — sampling
-sampling-title = Sampling
+sampling-title = Select the frames
 sampling-intro = Choose which photographs become frames of the timelapse. Sampling follows the capture times, never the file order; photographs that are not selected are simply left out, never deleted.
 sampling-no-project-description = Import a folder first; its photographs can then be sampled here.
 sampling-method-title = Method
@@ -412,7 +425,7 @@ sampling-verify-differs = Would now differ
 sampling-verify-inputs-changed = The photographs have changed since
 
 ## Phase 5 — export
-export-title = Export
+export-title = Export the video
 export-intro = Turn a saved selection into an MP4 video. Encoding runs on this device with the FFmpeg bundled in the app; the video is saved in the “Timelapse exports” folder of the source folder and nothing is overwritten.
 export-no-project-description = Import a folder first, then save a selection on the Sampling page.
 export-no-ffmpeg-title = Video encoding is not available in this build
@@ -504,7 +517,7 @@ error-consolidation = { $reason ->
    *[other] The photographs could not be organized.
 }
 
-organize-title = Organize
+organize-title = Organize your files
 organize-no-project-description = Import a folder of photographs first; you can then gather them into one working folder.
 organize-intro = Gather photographs from the collection's folders into one working folder, as copies or by moving the originals. A dry run shows exactly what will happen before anything is written, every file is checked, nothing is ever overwritten, and each run can be undone.
 organize-settings-title = Settings

@@ -1,6 +1,6 @@
 # STATE
 
-STATUS: BLOCKED
+STATUS: RUNNING
 <!-- PENDING | RUNNING | DONE | BLOCKED -->
 
 ## Preconditions
@@ -44,7 +44,7 @@ STATUS: BLOCKED
 | P1 | ADR-027 and baseline debts | sonnet | GATE-UI | done |
 | P2 | Project store and continuity | sonnet | GATE-UI + GATE-FAST + legal | done |
 | P3 | Home as the project overview | sonnet | GATE-UI | done |
-| P4 | Pipeline navigation | sonnet | GATE-UI | blocked |
+| P4 | Pipeline navigation | sonnet | GATE-UI | done |
 | P5 | Next step and named selections | sonnet | GATE-UI | pending |
 | P6 | Flipbook | sonnet | GATE-UI | pending |
 | P7 | Flipbook in Adjust and Export, wipe | sonnet | GATE-UI | pending |
@@ -78,10 +78,16 @@ STATUS: BLOCKED
 - DEFERRED: Selections shows a run count, named labels come in P5. Photographs line has no link. Rendered pass (drop highlight, skeleton, fr-CA length) goes to P14/P15.
 - MANUAL: none
 
-### P4 — blocked
+### P4 — blocked, then unblocked (lockfile bumped to @etzianco/ui 2.6.1, commit separate)
 - BLOCKER (verbatim from runner): The P4 spec needs Sidebar `groups`. The installed @etzianco/ui is 2.5.3, and its Sidebar.svelte takes only flat `items` `{label, icon?, href?, onclick?}` with no `groups`, no badge and no per-item state slot. `groups` exists only in ../_uidesign v2.6.0/2.6.1 (read-only). `npm view @etzianco/ui versions` lists up to 2.5.3 only, so 2.6.x is not published and the dependency cannot be bumped.
 - Options for the user: (a) publish @etzianco/ui 2.6.x, bump the pin in frontend/package.json and the lockfile, then re-run P4; (b) run P4 against 2.5.3 with flat items in the order Import, Clean, Select, Adjust, Export, Organize, Contact sheets, Settings, no group headings, step state as glyph in `icon` and a word in `label`, with an icon rule per page in app.css.
 - No files changed by the runner.
+
+### P4 — pass
+- CHANGED: pure `pipeline.ts` (stepStates, endedJobs, JOB_PAGE) with 6 vitest cases; `pipeline.svelte.ts` store; Sidebar `groups` (Workflow, Tools, App) and TabBar in the same order; state suffix on labels; sr-only live region announcing job ends; Cleaning reports analysis start/end; verb nav labels and page titles in en and fr-CA.
+- DECISIONS: 2.6.1 Sidebar still renders `icon` as escaped text, so the CSS icon rules in app.css stay and `icon` is not passed. Sidebar renders `items` before `groups`, so Settings sits in its own "App" group to stay last. Import is done when photos exist; Clean is in progress if some photos are unmeasured or flagged; Select, Adjust, Export are done when a selection, adjustment or completed export exists. Sidebar state is text in the label (e.g. "Clean · ◐ in progress"); TabBar has no state suffix. Nav figures refresh on root, page or running-job change; a failed refresh keeps the previous figures.
+- DEFERRED: The state glyph is read literally by VoiceOver; a proper icon or aria slot needs a design-system change. Rendered pass (sidebar width with long fr-CA labels) goes to P14/P15.
+- MANUAL: none
 
 ## Open user items
 

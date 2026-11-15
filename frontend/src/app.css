@@ -102,3 +102,12 @@ body {
 }
 .app-sidebar-footer__sun { fill: var(--ez-color-sun-primary); }
 .app-sidebar-footer__stripe { fill: var(--ez-color-sun-stripe); opacity: 0.55; }
+
+.app-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

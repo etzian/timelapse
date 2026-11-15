@@ -29,6 +29,7 @@
   import type { AnalyzeProgress, Decision, ImageStatus, OpOutcome, ReviewItem, StatusCounts } from '../ipc/app';
   import { openContactSheet } from '../stores/contactSheet.svelte';
   import type { IpcError } from '../ipc/invoke';
+  import { pipeline } from '../stores/pipeline.svelte';
   import { project } from '../stores/project.svelte';
 
   let { ongohome }: { ongohome: () => void } = $props();
@@ -159,6 +160,7 @@
   async function analyze(): Promise<void> {
     if (analyzing) return;
     analyzing = true;
+    pipeline.setAnalyzing(true);
     stopping = false;
     stoppedRemaining = null;
     actionError = '';
@@ -173,6 +175,7 @@
       actionError = errorText(err as IpcError);
     } finally {
       analyzing = false;
+      pipeline.setAnalyzing(false);
       stopping = false;
     }
   }

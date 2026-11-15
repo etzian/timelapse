@@ -8,14 +8,27 @@ app-tagline = Transformez d’importants fichiers de photos en vidéos timelapse
 app-endorsement = par Etzian
 company-name = Etzian inc.
 
-nav-home = Accueil
-nav-cleaning = Nettoyage
-nav-organize = Organisation
-nav-sampling = Échantillonnage
+nav-home = Importer
+nav-cleaning = Nettoyer
+nav-organize = Organiser
+nav-sampling = Sélectionner
 nav-adjust = Ajuster
-nav-export = Exportation
+nav-export = Exporter
 nav-sheets = Planches contact
 nav-settings = Réglages
+nav-group-workflow = Marche à suivre
+nav-group-tools = Outils
+nav-group-app = Application
+pipeline-state-not-started = pas commencé
+pipeline-state-in-progress = en cours
+pipeline-state-done = terminé
+pipeline-state-running = en exécution
+pipeline-job-analysis = L’analyse
+pipeline-job-adjust = L’ajustement
+pipeline-job-export = L’exportation
+pipeline-job-consolidation = Le déplacement des fichiers
+pipeline-job-sheet = La planche contact
+pipeline-job-ended = { $job } a terminé.
 
 home-import-action = Choisir un dossier à importer
 home-importing = Importation…
@@ -150,7 +163,7 @@ timeline-loading = Construction de la chronologie…
 timeline-retry = Réessayer
 
 ## Phase 3 — nettoyage
-clean-title = Nettoyage
+clean-title = Nettoyer vos photos
 clean-intro = Timelapse Studio mesure la luminosité de chaque photographie et signale celles qui semblent trop sombres ou que Lightroom a marquées comme rejetées. Rien n’est retiré automatiquement : vous décidez, et une photo rejetée ne va dans la quarantaine du projet que lorsque vous le confirmez.
 clean-no-project-title = Aucune collection ouverte
 clean-no-project-description = Importez d’abord un dossier; ses photographies pourront ensuite être analysées et nettoyées ici.
@@ -327,7 +340,7 @@ files-failure-replaced = le fichier à cet endroit n’est plus la copie faite p
 files-failure-other = l’opération a échoué
 
 ## Phase 4 — échantillonnage
-sampling-title = Échantillonnage
+sampling-title = Sélectionner les images
 sampling-intro = Choisissez les photographies qui deviendront les images du timelapse. L’échantillonnage suit les dates de prise de vue, jamais l’ordre des fichiers; les photographies non retenues sont simplement laissées de côté, jamais supprimées.
 sampling-no-project-description = Importez d’abord un dossier; ses photographies pourront ensuite être échantillonnées ici.
 sampling-method-title = Méthode
@@ -412,7 +425,7 @@ sampling-verify-differs = Différerait maintenant
 sampling-verify-inputs-changed = Les photographies ont changé depuis
 
 ## Phase 5 — exportation
-export-title = Exportation
+export-title = Exporter la vidéo
 export-intro = Transformez une sélection enregistrée en vidéo MP4. L’encodage se fait sur cet appareil avec le FFmpeg fourni avec l’application; la vidéo est enregistrée dans le dossier « Timelapse exports » du dossier source et rien n’est écrasé.
 export-no-project-description = Importez d’abord un dossier, puis enregistrez une sélection dans la page Échantillonnage.
 export-no-ffmpeg-title = L’encodage vidéo n’est pas offert dans cette version
@@ -504,7 +517,7 @@ error-consolidation = { $reason ->
    *[other] Les photographies n’ont pas pu être organisées.
 }
 
-organize-title = Organisation
+organize-title = Organiser vos fichiers
 organize-no-project-description = Importez d’abord un dossier de photographies; vous pourrez ensuite les regrouper dans un dossier de travail.
 organize-intro = Regroupez les photographies des dossiers de la collection dans un seul dossier de travail, en copies ou en déplaçant les originaux. Une simulation montre exactement ce qui se passera avant toute écriture, chaque fichier est vérifié, rien n’est jamais écrasé et chaque opération peut être annulée.
 organize-settings-title = Réglages
