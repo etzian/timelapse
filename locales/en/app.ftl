@@ -37,7 +37,7 @@ home-root = Source folder: { $path }
 
 settings-section-privacy = Privacy
 settings-privacy-description = Everything stays on this device. Nothing is sent anywhere.
-erase-item-settings = Your language, theme and density choices
+erase-item-settings = Your language, theme and density choices, and your list of recent projects
 erase-section = Choose what to erase
 erase-section-description = Then use Erase all data below. Your original photographs are never touched, except the rejected ones in the quarantine if you choose it.
 erase-choice-settings = App settings
@@ -852,3 +852,12 @@ error-adjust = { $reason ->
     [unknown-frame] This frame is not part of the selection.
    *[other] The analysis could not be completed.
 }
+
+project-recent = Recent projects
+project-open = Open
+project-retry = Try again
+project-remove = Remove from the list
+project-opening = Opening your project…
+project-unreachable = This folder cannot be reached.
+project-unreachable-hint = It may have been moved or renamed, or its drive may not be connected. Connect it and try again, or remove it from the list. Your photographs are not touched.
+project-last-opened = Last opened { $date }

@@ -1,23 +1,26 @@
 <script lang="ts">
   import { Button, Card, PageHeader } from '@etzianco/ui';
 
-  import { formatNumber, t } from '../i18n';
+  import { folderName } from '../erase';
+  import { formatDate, formatNumber, t } from '../i18n';
   import { errorText } from '../i18n/errors';
   import { backfillMetadata, pickFolder, importRoot, integrityCheck } from '../ipc/app';
   import type { IpcError } from '../ipc/invoke';
-  import type { BackfillReport, ImportReport, IntegrityResult } from '../ipc/app';
-  import { project } from '../stores/project.svelte';
+  import { forgetProject, openProject, project, rememberProject, resetProjectState } from '../stores/project.svelte';
   import TimelineSection from './TimelineSection.svelte';
 
-  // The folder picked here is the project Cleaning works on too.
-  let root = $state(project.root);
+  // The folder, the import report, the integrity result and the backfill live in the
+  // project store, so they survive leaving Home and are restored on launch.
+  const root = $derived(project.root);
+  const report = $derived(project.report);
+  const integrity = $derived(project.integrity);
+  const backfill = $derived(project.backfill);
   let busy = $state(false);
   let error = $state('');
-  let report = $state<ImportReport | null>(null);
-  let integrity = $state<IntegrityResult | null>(null);
-  let backfill = $state<BackfillReport | null>(null);
   let backfillError = $state('');
   let dating = $state(false);
+  const opening = $derived(project.status === 'opening');
+  const others = $derived(project.recent.filter((r) => r.path !== root));
 
   /** Phase 2: resolve capture times once the import is in. Its failure never hides the import report. */
   async function doBackfill(): Promise<void> {
@@ -27,36 +30,41 @@
     backfillError = '';
     try {
       const result = await backfillMetadata(forRoot);
-      if (forRoot === root) backfill = result; // never show one folder's dates under another
+      if (forRoot === project.root) project.backfill = result; // never show one folder's dates under another
     } catch (err) {
-      if (forRoot === root) backfillError = errorText(err as IpcError);
+      if (forRoot === project.root) backfillError = errorText(err as IpcError);
     } finally {
       dating = false;
     }
   }
 
   async function doImport(): Promise<void> {
-    if (busy || dating) return;
+    if (busy || dating || opening) return;
     const picked = await pickFolder();
     if (!picked) return; // cancelled — a no-op, not an error
-    root = picked;
     project.root = picked;
+    rememberProject(picked);
     busy = true;
     error = '';
-    report = null;
-    integrity = null;
-    backfill = null;
+    resetProjectState();
     backfillError = '';
     try {
-      report = await importRoot(root);
-      integrity = await integrityCheck(root);
+      project.report = await importRoot(picked);
+      project.integrity = await integrityCheck(picked);
     } catch (err) {
-      report = null;
+      project.report = null;
       error = errorText(err as IpcError);
     } finally {
       busy = false;
     }
-    if (report) await doBackfill();
+    if (project.report) await doBackfill();
+  }
+
+  async function reopen(path: string): Promise<void> {
+    if (busy || dating || opening) return;
+    error = '';
+    backfillError = '';
+    await openProject(path);
   }
 </script>
 
@@ -66,8 +74,48 @@
 
   <Card>
     <p class="app-home__intro">{t('home-intro')}</p>
-    <Button onclick={doImport} disabled={busy || dating}>{busy ? t('home-importing') : t('home-import-action')}</Button>
+    <Button onclick={doImport} disabled={busy || dating || opening}>{busy ? t('home-importing') : t('home-import-action')}</Button>
   </Card>
+
+  {#if project.status === 'unreachable'}
+    <Card class="app-home__unreachable">
+      <div role="alert">
+        <p class="app-home__error"><strong>{folderName(project.unreachable)}</strong> · {t('project-unreachable')}</p>
+        <p class="app-home__path" title={project.unreachable}>{project.unreachable}</p>
+        <p>{t('project-unreachable-hint')}</p>
+      </div>
+      <div class="app-home__actions">
+        <Button onclick={() => reopen(project.unreachable)}>{t('project-retry')}</Button>
+        <Button variant="ghost" onclick={() => forgetProject(project.unreachable)}>{t('project-remove')}</Button>
+      </div>
+    </Card>
+  {:else if opening}
+    <p class="app-home__progress" aria-live="polite">{t('project-opening')}</p>
+  {/if}
+
+  {#if others.length > 0}
+    <Card>
+      <h2 class="app-home__recent-title">{t('project-recent')}</h2>
+      <ul class="app-home__recent">
+        {#each others as r (r.path)}
+          <li>
+            <div class="app-home__recent-text">
+              <span class="app-home__recent-name">{folderName(r.path)}</span>
+              <span class="app-home__path" title={r.path}>{r.path}</span>
+              <span class="app-home__path">{t('project-last-opened', { date: formatDate(r.openedAt, { dateStyle: 'medium', timeStyle: 'short' }) })}</span>
+              {#if project.status === 'unreachable' && project.unreachable === r.path}
+                <span class="app-home__error">{t('project-unreachable')}</span>
+              {/if}
+            </div>
+            <div class="app-home__actions">
+              <Button size="sm" variant="secondary" onclick={() => reopen(r.path)} disabled={busy || dating || opening}>{project.unreachable === r.path ? t('project-retry') : t('project-open')}</Button>
+              <Button size="sm" variant="ghost" onclick={() => forgetProject(r.path)}>{t('project-remove')}</Button>
+            </div>
+          </li>
+        {/each}
+      </ul>
+    </Card>
+  {/if}
 
   {#if report}
     <Card class="app-home__report">
@@ -129,9 +177,11 @@
       <Button onclick={doBackfill}>{t('timeline-retry')}</Button>
     </div>
   {:else if backfill}
-    <p class="app-home__intro">
-      {t('timeline-backfill-result', { resolved: backfill.newly_resolved, unresolved: backfill.unresolved_this_run })}
-    </p>
+    {#if backfill.newly_resolved + backfill.unresolved_this_run > 0}
+      <p class="app-home__intro">
+        {t('timeline-backfill-result', { resolved: backfill.newly_resolved, unresolved: backfill.unresolved_this_run })}
+      </p>
+    {/if}
     <TimelineSection {root} {backfill} />
   {/if}
 
@@ -159,6 +209,13 @@
   .app-home__note { font-size: var(--ez-fs-sm); color: var(--ez-color-warning); }
   .app-home__integrity h3 { font-size: var(--ez-fs-md); margin: var(--ez-space-sm) 0 var(--ez-space-2xs); }
   .app-home__error { color: var(--ez-color-error); }
+  .app-home__path { display: block; font-size: var(--ez-fs-sm); color: var(--ez-color-text-muted); word-break: break-all; }
+  .app-home__actions { display: flex; flex-wrap: wrap; gap: var(--ez-space-sm); }
+  .app-home__recent-title { font-size: var(--ez-fs-md); margin: 0 0 var(--ez-space-sm); }
+  .app-home__recent { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--ez-space-md); }
+  .app-home__recent li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--ez-space-sm); }
+  .app-home__recent-text { min-width: 0; flex: 1 1 16rem; }
+  .app-home__recent-name { font-weight: 600; }
   .app-home__progress { color: var(--ez-color-text-muted); }
   .app-home__root { font-size: var(--ez-fs-sm); color: var(--ez-color-text-muted); word-break: break-all; }
 </style>

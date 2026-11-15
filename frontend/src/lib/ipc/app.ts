@@ -49,6 +49,16 @@ export function pickFolder(): Promise<string | null> {
 /** Import `root` (scan → SHA-256 → dedup → upsert into SQLite). Long timeout for large trees. */
 export const importRoot = (root: string) => invoke<ImportReport>('import_folder', { root }, IMPORT_TIMEOUT_MS);
 
+export interface ProjectSummary {
+  /** False when the folder has never been imported. */
+  imported: boolean;
+  total_images: number;
+  timeline: TimelineSummary;
+}
+
+/** Read-only: what an already imported folder holds, without a rescan. Refuses an unreachable folder. */
+export const projectSummary = (root: string) => invoke<ProjectSummary>('project_summary', { root });
+
 export const listImages = (root: string) => invoke<ImageRow[]>('list_images', { root });
 /** Checks that every recorded file still exists: one filesystem call per photograph. */
 export const integrityCheck = (root: string) => invoke<IntegrityResult>('integrity_check', { root }, 10 * 60_000);

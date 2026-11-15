@@ -30,6 +30,13 @@ data:
     basis: necessary-for-service
     storage: { location: device }
     retention: { fr-CA: "Jusqu'à ce que vous effaciez les données de l'application", en: "Until you erase the app's data" }
+  - id: recent-projects
+    label: { fr-CA: "La liste de vos projets récents (chemin de chaque dossier source et date de dernière ouverture, huit au plus)", en: "Your list of recent projects (the path of each source folder and when it was last opened, eight at most)" }
+    category: other
+    purpose: { fr-CA: "Rouvrir votre dernier projet au lancement, sans nouvelle analyse, et vous laisser choisir un projet récent", en: "Reopen your last project at launch, without a rescan, and let you pick a recent project" }
+    basis: necessary-for-service
+    storage: { location: device }
+    retention: { fr-CA: "Jusqu'à ce que vous retiriez le projet de la liste ou effaciez les réglages de l'application (Réglages, Effacer toutes les données)", en: "Until you remove the project from the list or erase the app settings (Settings, Erase all data)" }
   - id: images-inventory
     label: { fr-CA: "L'inventaire de vos photographies (chemins, tailles, hachage SHA-256 et statut d'import)", en: "Your photograph inventory (paths, sizes, SHA-256 hash and import status)" }
     category: other

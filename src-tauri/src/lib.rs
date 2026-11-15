@@ -69,6 +69,14 @@ async fn backfill_metadata(
     blocking(move || timelapse_core::import::backfill_for_root(&root)).await
 }
 
+/// UX: what an already imported folder holds (inventory size and timeline counts), read-only.
+#[tauri::command]
+async fn project_summary(
+    root: PathBuf,
+) -> std::result::Result<timelapse_core::import::ProjectSummary, IpcError> {
+    blocking(move || timelapse_core::import::project_summary(&root)).await
+}
+
 /// Phase 2: the chronological timeline of `root` (unresolved images last).
 #[tauri::command]
 fn get_timeline(
@@ -612,6 +620,7 @@ pub fn run() {
             list_images,
             integrity_check,
             backfill_metadata,
+            project_summary,
             get_timeline,
             timeline_distribution,
             detect_timeline_gaps,

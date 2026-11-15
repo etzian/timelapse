@@ -38,7 +38,7 @@ home-root = Dossier source : { $path }
 
 settings-section-privacy = Confidentialité
 settings-privacy-description = Tout reste sur cet appareil. Rien n’est transmis.
-erase-item-settings = Vos choix de langue, de thème et de densité
+erase-item-settings = Vos choix de langue, de thème et de densité, et votre liste de projets récents
 erase-section = Choisir ce qu'il faut effacer
 erase-section-description = Utilisez ensuite Effacer toutes les données ci-dessous. Vos photographies originales ne sont jamais touchées, sauf celles rejetées qui sont en quarantaine si vous la choisissez.
 erase-choice-settings = Réglages de l'application
@@ -850,3 +850,12 @@ error-adjust = { $reason ->
     [unknown-frame] Cette image ne fait pas partie de la sélection.
    *[other] L’analyse n’a pas pu être effectuée.
 }
+
+project-recent = Projets récents
+project-open = Ouvrir
+project-retry = Réessayer
+project-remove = Retirer de la liste
+project-opening = Ouverture de votre projet…
+project-unreachable = Ce dossier est inaccessible.
+project-unreachable-hint = Il a peut-être été déplacé ou renommé, ou son disque n’est pas branché. Branchez-le et réessayez, ou retirez-le de la liste. Vos photographies ne sont pas touchées.
+project-last-opened = Dernière ouverture : { $date }

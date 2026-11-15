@@ -358,6 +358,11 @@ fn db_path(db_dir: &Path) -> std::path::PathBuf {
     db_dir.join("timelapse.db")
 }
 
+/// Whether a project database already exists in `db_dir` (creates nothing).
+pub fn db_exists(db_dir: &Path) -> bool {
+    db_path(db_dir).is_file()
+}
+
 /// Open (creating if needed) the project database at `db_dir/timelapse.db` and run
 /// any outstanding migrations. `name`, `source_root` and `project_path` describe
 /// the project row — they are upserted on every open so a rename of the source

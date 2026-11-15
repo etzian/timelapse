@@ -1,11 +1,12 @@
 /**
  * User settings kept on the device (`localStorage`), applied before first paint
- * where it matters. These are the only things the app stores; they are listed in
+ * where it matters (the recent-projects list is kept by the project store). These are the only things the app stores; they are listed in
  * `legal/data-map.yaml` and erased by "Erase all data" in Settings.
  */
 import { configureTheme, getPreference, setPreference } from '@etzianco/ui';
 
 import { resolveSystemLocale, setLocale, SUPPORTED_LOCALES, type Locale } from '../i18n';
+import { clearRecent } from './project.svelte';
 
 const KEY_LANGUAGE = 'timelapse.language';
 const KEY_DENSITY = 'timelapse.density';
@@ -82,5 +83,6 @@ export function eraseLocalData(): void {
       /* nothing to erase */
     }
   }
+  clearRecent();
   loadSettings();
 }

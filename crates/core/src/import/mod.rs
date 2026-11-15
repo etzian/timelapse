@@ -131,6 +131,36 @@ pub fn integrity_for_root(root: &Path) -> Result<store::IntegrityResult> {
     store::integrity_check(&conn)
 }
 
+/// What a project already holds, for reopening it without a rescan.
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct ProjectSummary {
+    /// False when the folder exists but has never been imported (nothing is created).
+    pub imported: bool,
+    pub total_images: usize,
+    pub timeline: store::TimelineSummary,
+}
+
+/// Read-only summary of an already imported folder: the inventory size and the timeline
+/// counts. Reads nothing from the photographs. A folder that cannot be reached is
+/// `ImportRootUnreadable`; a folder never imported is `imported: false` and is left untouched.
+pub fn project_summary(root: &Path) -> Result<ProjectSummary> {
+    if !root.is_dir() {
+        return Err(crate::Error::ImportRootUnreadable {
+            path: root.to_string_lossy().into_owned(),
+        });
+    }
+    if !store::db_exists(default_db_dir(root).as_path()) {
+        return Ok(ProjectSummary {
+            imported: false,
+            total_images: 0,
+            timeline: Default::default(),
+        });
+    }
+    let conn = open_root(root)?;
+    let timeline = store::timeline_summary(&conn)?;
+    Ok(ProjectSummary { imported: true, total_images: timeline.total, timeline })
+}
+
 /// Opens (and migrates) the project database. A project made before ADR-026 first has its
 /// exports, contact sheets and quarantine moved out of `.timelapse/` ([`crate::layout`]).
 pub(crate) fn open_root(root: &Path) -> Result<rusqlite::Connection> {
@@ -216,6 +246,25 @@ mod tests {
         let _ = std::fs::remove_dir_all(&d);
         let _ = std::fs::create_dir_all(&d);
         d
+    }
+
+    #[test]
+    fn project_summary_is_read_only_and_refuses_unreachable_folders() {
+        let root = tmp("summary");
+        // Never imported: reported as such, and nothing is created in the folder.
+        let s = project_summary(&root).unwrap();
+        assert!(!s.imported && s.total_images == 0);
+        assert!(!project_dir(&root).exists(), "a summary must not create .timelapse/");
+        // Missing folder: refused with the unreachable error.
+        let err = project_summary(&root.join("gone")).unwrap_err();
+        assert_eq!(err.kind(), "import-root-unreadable");
+        // Imported: the inventory is counted without a rescan.
+        std::fs::write(root.join("G001.JPG"), b"photo").unwrap();
+        import_folder(&root).unwrap();
+        let s = project_summary(&root).unwrap();
+        assert!(s.imported);
+        assert_eq!(s.total_images, 1);
+        assert_eq!(s.timeline.unresolved, 1);
     }
 
     #[test]

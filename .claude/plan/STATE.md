@@ -42,7 +42,7 @@ STATUS: RUNNING
 | # | Slice | Model | Gate | Status |
 | --- | --- | --- | --- | --- |
 | P1 | ADR-027 and baseline debts | sonnet | GATE-UI | done |
-| P2 | Project store and continuity | sonnet | GATE-UI + GATE-FAST + legal | pending |
+| P2 | Project store and continuity | sonnet | GATE-UI + GATE-FAST + legal | done |
 | P3 | Home as the project overview | sonnet | GATE-UI | pending |
 | P4 | Pipeline navigation | sonnet | GATE-UI | pending |
 | P5 | Next step and named selections | sonnet | GATE-UI | pending |
@@ -65,6 +65,12 @@ STATUS: RUNNING
 - DEFERRED: Home copy about hashing and a database goes to P3. Moving icons to the `icon` field is noted in design-review.md for the design system.
 - MANUAL: none (sidebar icons and footer not rendered; covered by the P14/P15 rendered pass)
 
+
+### P2 — pass
+- CHANGED: core `project_summary` (read-only) + Tauri command; pure recent-list helpers `project.ts` with vitest; project store holds root, report, integrity, backfill, recent, status; restore on launch without rescan; unreachable-folder card (Retry, Remove); erase clears recent; data-map `recent-projects` entry, legal docs regenerated.
+- DECISIONS: Reopen fills `project.backfill` with `{0, 0, summary}`; Home hides the resolved/unresolved line when both are 0. Reopen runs `integrityCheck` in the background, failure ignored. `project.report` is null after reopen (not persisted). Erase does not close the open project. localStorage key `timelapse.recent-projects`.
+- DEFERRED: P3 redesigns Home (overview, copy, recent list placement).
+- MANUAL: none (unreachable state and launch restore not rendered; P14/P15 pass)
 
 ## Open user items
 
