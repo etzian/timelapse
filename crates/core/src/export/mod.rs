@@ -151,6 +151,11 @@ pub fn export_run(
     let args = ffmpeg::encode_args(&settings, &part);
     let id =
         store::begin(&conn, run, &settings, &probe, &args, &output, sources.len(), plan.len())?;
+    // A `.part` already there is someone else's file: refuse before arming the cleanup.
+    if part.exists() {
+        store::failed(&conn, id, "output-exists", "")?;
+        return store::get(&conn, id)?.ok_or(Error::StoreTransaction);
+    }
     let mut cleanup = Cleanup { conn: &conn, id, part: part.clone(), armed: true };
 
     let result = encode(paths, &args, &sources, &plan, &settings, &part, token, &mut on_progress);
@@ -165,7 +170,10 @@ pub fn export_run(
             store::complete(&conn, id, &probed, size)?;
         }
         Err((reason, tail)) => {
-            let _ = fs::remove_file(&part);
+            // `output-exists` means the file was there before us: it is not ours to remove.
+            if reason != "output-exists" {
+                let _ = fs::remove_file(&part);
+            }
             store::failed(&conn, id, reason, &tail)?;
         }
     }

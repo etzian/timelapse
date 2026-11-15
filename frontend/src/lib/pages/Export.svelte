@@ -69,6 +69,8 @@
       info = i;
       runs = r;
       if (exportJob.state.root === forRoot || !exportJob.state.exporting) {
+        // Another project's finished result is not shown under this one.
+        if (exportJob.state.root !== forRoot) exportJob.dismiss();
         exportJob.state.root = forRoot;
         exportJob.history = h;
       }
