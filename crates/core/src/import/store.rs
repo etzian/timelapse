@@ -781,7 +781,10 @@ mod tests {
     use super::*;
 
     fn tmp_dir(tag: &str) -> std::path::PathBuf {
+        // Always a fresh folder: the process id can repeat between test runs (Windows reuses
+        // them), and a leftover database from an earlier run would break the assertions.
         let d = std::env::temp_dir().join(format!("ts-store-{tag}-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&d);
         let _ = fs::create_dir_all(&d);
         d
     }

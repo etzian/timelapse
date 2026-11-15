@@ -185,7 +185,9 @@ mod tests {
     use super::*;
 
     fn tmp(tag: &str) -> PathBuf {
+        // Always a fresh folder (process ids repeat between test runs).
         let d = std::env::temp_dir().join(format!("ts-{tag}-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&d);
         let _ = std::fs::create_dir_all(&d);
         d
     }
