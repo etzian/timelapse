@@ -3,6 +3,8 @@
    values live in one block, layered on --ez-*, named --app-*. Classes are .app-*. */
 :root {
   --app-page-gap: var(--ez-space-lg);
+  --app-progress-thumb: 6rem;
+  --app-poster-width: 14rem;
   --app-doc-max-height: 60vh;
   --app-nav-icon-size: var(--ez-fs-md);
   --app-sun-size: var(--ez-space-lg);

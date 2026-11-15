@@ -51,7 +51,7 @@ STATUS: RUNNING
 | P8 | Fast triage | sonnet | GATE-UI | done |
 | P9 | Presets and summaries | sonnet | GATE-UI | done |
 | P10 | Open and reveal commands | opus | full | done |
-| P11 | Progress and the export finish | sonnet | GATE-UI | pending |
+| P11 | Progress and the export finish | sonnet | GATE-UI | done |
 | P12 | Motion, menu and shortcuts | sonnet | GATE-UI | pending |
 | P13 | Copy pass, en and fr-CA | sonnet | GATE-UI | pending |
 | P14 | Review slice | opus | full + sign-off | pending |
@@ -124,6 +124,12 @@ STATUS: RUNNING
 - DECISIONS: Refusal reasons are `unknown`, `missing`, `not-a-file`, `outside-exports`, `open-failed`. P11 calls `openOutput(root, 'export' | 'contact-sheet' | 'export-record', id)` and shows errors through `t('error-output', args)`. An export-record is opened by the export's id; if no record file exists the reason is `missing`, so P11 calls `writeExportRecord` first. Export status is not checked; the file checks guard. Non-UTF-8 paths are refused as `not-a-file`. No opener permission in capabilities (grep and test). No data-map change. Orchestrator re-ran `make gate`: exit 0.
 - DEFERRED: fr-CA wording of `error-output` is a draft for P13. A real Open / Show in Finder click is checked in P14/P15.
 - MANUAL: none
+
+### P11 — pass
+- CHANGED: pure `progress.ts` (smoothed rate, remainingSeconds, fraction; no estimate before 4 samples and 3 s) with 7 tests; `Progress.svelte` replacing all 7 bare `<progress>` blocks in Export, Cleaning, Adjust, Organize, Contact sheets; `ExportActions.svelte` (Play, Show in Finder / Show in folder, Contact sheet; inline role=alert on failure); Export completion card (poster, duration, size, codec, copyable path, Dismiss) and history rows with the same actions; export store `thumb` (one request per 800 ms) and `posterFor`; tokens --app-progress-thumb and --app-poster-width; progress-*, output-* keys, error-output reasons reworded to say what to do.
+- DECISIONS: ExportProgress carries only {done,total}, so the in-export thumbnail is the selection item at the same fraction and the poster is the middle item; both approximate. Open/reveal failures are inline alerts (the runner found no toast store; P8 mounted `<Toast />` so P12/P13 may switch if wanted). The export-record kind is not offered, so writeExportRecord is not called. Platform label uses navigator.userAgent. Only Export shows a thumbnail. Progress is not a live region (P4 announcements reused). Failed/cancelled results still use the Banner.
+- DEFERRED: The open-failed hint mentions Finder on every OS (macOS-first). P13 reviews the new strings.
+- MANUAL: In the real app with a finished export: Play opens the default player, Show in Finder selects the file, the poster shows, the thumbnail beside the bar moves during an export. Check a missing-file error in en and fr-CA.
 
 ## Open user items
 

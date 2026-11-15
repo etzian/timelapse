@@ -1,6 +1,8 @@
 <script lang="ts">
+  import ExportActions from '../components/ExportActions.svelte';
   import Flipbook from '../components/Flipbook.svelte';
   import NextStep from '../components/NextStep.svelte';
+  import Progress from '../components/Progress.svelte';
   import { runLabel, runLabelWithId } from '../selectionLabel';
   import { Badge, Banner, Button, Card, EmptyState, PageHeader, SectionLabel, Select, Skeleton, Stat, StatGrid } from '@etzianco/ui';
 
@@ -13,7 +15,7 @@
   import type { IpcError } from '../ipc/invoke';
   import { FPS_OPTIONS, MULTIPLIERS } from '../sampling';
   import { openContactSheet } from '../stores/contactSheet.svelte';
-  import { exportJob, runExport, stopExport } from '../stores/export.svelte';
+  import { exportJob, posterFor, runExport, stopExport } from '../stores/export.svelte';
   import { project } from '../stores/project.svelte';
   import { formatDuration } from '../timeline';
 
@@ -212,6 +214,18 @@
     }
   }
 
+  // The finished video's poster: its selection's middle frame.
+  let poster = $state<string | null>(null);
+  $effect(() => {
+    const r = result;
+    const forRoot = root;
+    poster = null;
+    if (!r || r.status !== 'completed') return;
+    void posterFor(forRoot, r.sampling_run_id).then((url) => {
+      if (result === r && forRoot === root) poster = url;
+    });
+  });
+
   const statusVariant = (s: ExportRecord['status']) =>
     s === 'completed' ? 'success' : s === 'running' ? 'info' : s === 'cancelled' ? 'default' : 'error';
 </script>
@@ -314,8 +328,7 @@
         </div>
         {#if exporting && progress}
           <div class="app-export__progress">
-            <progress max={Math.max(progress.total, 1)} value={progress.done} aria-label={t('export-exporting')}></progress>
-            <span aria-live="polite">{t('clean-progress', { done: formatNumber(progress.done), total: formatNumber(progress.total) })}</span>
+            <Progress done={progress.done} total={progress.total} label={t('export-exporting')} thumb={mine ? job.thumb : null} />
           </div>
         {/if}
       </Card>
@@ -342,19 +355,26 @@
 
     {#if result}
       {#if result.status === 'completed'}
-        <Banner
-          tone="success"
-          title={t('export-done-title')}
-          text={t('export-done', {
-            duration: formatDuration(result.duration_seconds),
-            size: formatBytes(result.file_size ?? 0),
-            codec: t(`export-codec-${result.settings.codec}`)
-          })}
-          ondismiss={() => exportJob.dismiss()}
-          dismissLabel={t('clean-dismiss')}
-        >
-          <p class="app-export__path">{result.output_path}</p>
-        </Banner>
+        <Card>
+          <div class="app-export__done">
+            {#if poster}<img class="app-export__poster" src={poster} alt="" />{/if}
+            <div class="app-export__done-body">
+              <h2 class="app-export__done-title">{t('export-done-title')}</h2>
+              <p>
+                {t('export-done', {
+                  duration: formatDuration(result.duration_seconds),
+                  size: formatBytes(result.file_size ?? 0),
+                  codec: t(`export-codec-${result.settings.codec}`)
+                })}
+              </p>
+              <p class="app-export__path">{result.output_path}</p>
+              <ExportActions {root} exportId={result.id} size="md" />
+              <div>
+                <Button size="sm" variant="ghost" onclick={() => exportJob.dismiss()}>{t('clean-dismiss')}</Button>
+              </div>
+            </div>
+          </div>
+        </Card>
       {:else}
         <Banner tone={result.status === 'cancelled' ? 'neutral' : 'error'} text={exportFailureText(result.failure)}>
           {#if result.stderr_tail}
@@ -396,6 +416,7 @@
                   {records[h.id]?.json !== undefined ? t('export-record-hide') : t('export-record-show')}
                 </Button>
                 <Button size="sm" variant="ghost" onclick={() => saveRecord(h.id)} disabled={records[h.id]?.busy}>{t('export-record-save')}</Button>
+                {#if h.status === 'completed'}<ExportActions {root} exportId={h.id} sheet={false} />{/if}
                 <Button size="sm" variant="ghost" onclick={() => openContactSheet({ kind: 'export', export: h.id })}>{t('export-sheet')}</Button>
               </div>
               {#if records[h.id]?.error}<p role="alert" class="app-export__error">{records[h.id].error}</p>{/if}
@@ -454,13 +475,28 @@
   }
   .app-export__progress {
     display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: var(--ez-space-sm);
     margin-top: var(--ez-space-sm);
   }
-  .app-export__progress progress {
-    flex: 1 1 12rem;
+  .app-export__done {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--ez-space-md);
+    align-items: flex-start;
+  }
+  .app-export__poster {
+    width: var(--app-poster-width);
+    aspect-ratio: 3 / 2;
+    object-fit: cover;
+    border-radius: var(--ez-radius-sm);
+    background: var(--ez-color-border-soft);
+    flex: none;
+  }
+  .app-export__done-body {
+    flex: 1 1 16rem;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--ez-space-xs);
   }
   .app-export__path {
     font-size: var(--ez-fs-sm);
@@ -485,7 +521,8 @@
   .app-export__history-actions {
     display: flex;
     flex-wrap: wrap;
-    gap: var(--ez-space-2xs);
+    align-items: center;
+    gap: var(--ez-space-xs);
     margin-top: var(--ez-space-2xs);
   }
   .app-export__record {

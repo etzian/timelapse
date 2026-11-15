@@ -113,10 +113,10 @@ error-erase = { $reason ->
 }
 error-output = { $reason ->
     [unknown] This file is no longer listed in the project.
-    [missing] This file is no longer in the “Timelapse exports” folder. It may have been moved, renamed or deleted.
+    [missing] This file is no longer in the “Timelapse exports” folder. It may have been moved, renamed or deleted. Put it back there, or export the video again.
     [not-a-file] This is not a file the app can open.
     [outside-exports] For your safety, only files in this project’s “Timelapse exports” folder can be opened.
-    [open-failed] The file could not be opened. Check that an app on this Mac can open it.
+    [open-failed] The file could not be opened. Check that an app on this Mac can play videos, or use “Show in Finder” and open it from there.
    *[other] The file could not be opened.
 }
 
@@ -962,3 +962,9 @@ summary-line = { $photos ->
    *[other] { $frames } frames
 }, which play for { $duration } at { $fps } frames per second.
 summary-empty = No photographs are selected, so there is nothing to play yet.
+
+## UX — progress and output
+progress-remaining = About { $time } left
+output-play = Play
+output-reveal-mac = Show in Finder
+output-reveal = Show in folder

@@ -1,6 +1,7 @@
 <script lang="ts">
   import Flipbook from '../components/Flipbook.svelte';
   import NextStep from '../components/NextStep.svelte';
+  import Progress from '../components/Progress.svelte';
   import Wipe from '../components/Wipe.svelte';
   import { LOOP_MAX, loopWindow } from '../flipbook';
   import { runLabelWithId } from '../selectionLabel';
@@ -324,8 +325,7 @@
       </div>
       {#if runningKind === 'deflicker' && progress}
         <div class="app-adjust__progress">
-          <progress max={Math.max(progress.total, 1)} value={progress.done} aria-label={t('adjust-analysing')}></progress>
-          <span aria-live="polite">{t('clean-progress', { done: formatNumber(progress.done), total: formatNumber(progress.total) })}</span>
+          <Progress done={progress.done} total={progress.total} label={t('adjust-analysing')} />
         </div>
       {/if}
 
@@ -375,8 +375,7 @@
       </div>
       {#if runningKind === 'stabilize' && progress}
         <div class="app-adjust__progress">
-          <progress max={Math.max(progress.total, 1)} value={progress.done} aria-label={t('adjust-analysing')}></progress>
-          <span aria-live="polite">{t('clean-progress', { done: formatNumber(progress.done), total: formatNumber(progress.total) })}</span>
+          <Progress done={progress.done} total={progress.total} label={t('adjust-analysing')} />
         </div>
       {/if}
 
@@ -485,8 +484,5 @@
     align-items: center;
     gap: var(--ez-space-sm);
     margin-top: var(--ez-space-sm);
-  }
-  .app-adjust__progress progress {
-    flex: 1 1 12rem;
   }
 </style>

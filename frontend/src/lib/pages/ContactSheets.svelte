@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Progress from '../components/Progress.svelte';
   import { runLabel, runLabelWithId } from '../selectionLabel';
   import { untrack } from 'svelte';
   import { Badge, Banner, Button, Card, EmptyState, Input, PageHeader, SectionLabel, Select, Skeleton, Stat, StatGrid, Toggle } from '@etzianco/ui';
@@ -355,8 +356,7 @@
       {/if}
       {#if running && progress}
         <div class="app-sheets__progress">
-          <progress max={Math.max(progress.total, 1)} value={progress.done} aria-label={t('sheets-generating')}></progress>
-          <span aria-live="polite">{t('clean-progress', { done: formatNumber(progress.done), total: formatNumber(progress.total) })}</span>
+          <Progress done={progress.done} total={progress.total} label={t('sheets-generating')} />
         </div>
       {/if}
     </Card>
@@ -466,9 +466,6 @@
     align-items: center;
     gap: var(--ez-space-sm);
     margin-top: var(--ez-space-sm);
-  }
-  .app-sheets__progress progress {
-    flex: 1 1 12rem;
   }
   .app-sheets__path {
     font-size: var(--ez-fs-sm);

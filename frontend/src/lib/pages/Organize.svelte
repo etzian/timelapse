@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Progress from '../components/Progress.svelte';
   import { runLabelWithId } from '../selectionLabel';
   import { Badge, Banner, Button, Card, EmptyState, Modal, PageHeader, SectionLabel, Select, Skeleton, Stat, StatGrid, Toggle } from '@etzianco/ui';
 
@@ -312,10 +313,9 @@
       <Card>
         <div class="app-organize__progress">
           {#if progress}
-            <progress max={Math.max(progress.total, 1)} value={progress.done} aria-label={t(`organize-busy-${job.kind ?? 'run'}`)}></progress>
-            <span aria-live="polite">{t('clean-progress', { done: formatNumber(progress.done), total: formatNumber(progress.total) })}</span>
+            <Progress done={progress.done} total={progress.total} label={t(`organize-busy-${job.kind ?? 'run'}`)} />
           {:else}
-            <span aria-live="polite">{t(`organize-busy-${job.kind ?? 'run'}`)}</span>
+            <span>{t(`organize-busy-${job.kind ?? 'run'}`)}</span>
           {/if}
           <Button variant="secondary" onclick={() => void stopConsolidation()} disabled={job.cancelling}>
             {job.cancelling ? t('export-cancelling') : t('export-cancel')}
@@ -394,8 +394,7 @@
       </div>
       {#if originalsBusy && originalsProgress}
         <div class="app-organize__progress">
-          <progress max={Math.max(originalsProgress.total, 1)} value={originalsProgress.done} aria-label={t('organize-checking')}></progress>
-          <span aria-live="polite">{t('clean-progress', { done: formatNumber(originalsProgress.done), total: formatNumber(originalsProgress.total) })}</span>
+          <Progress done={originalsProgress.done} total={originalsProgress.total} label={t('organize-checking')} />
         </div>
       {/if}
       {#if originalsError}<p role="alert" class="app-organize__error">{originalsError}</p>{/if}
@@ -499,9 +498,6 @@
     flex-wrap: wrap;
     align-items: center;
     gap: var(--ez-space-sm);
-  }
-  .app-organize__progress progress {
-    flex: 1 1 12rem;
   }
   .app-organize__path {
     font-size: var(--ez-fs-sm);

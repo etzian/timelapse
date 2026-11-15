@@ -1,6 +1,7 @@
 <script lang="ts">
   import Inspector from '../components/Inspector.svelte';
   import NextStep from '../components/NextStep.svelte';
+  import Progress from '../components/Progress.svelte';
   import { Badge, Banner, Button, Card, EmptyState, Input, Modal, PageHeader, SectionLabel, Skeleton, Stat, StatGrid, Tabs, Toggle, toast } from '@etzianco/ui';
   import { tick } from 'svelte';
 
@@ -467,8 +468,7 @@
           <Button variant="secondary" onclick={() => openContactSheet({ kind: 'quarantined' })}>{t('clean-sheet-quarantined')}</Button>
         {/if}
         {#if analyzing && progress}
-          <progress max={Math.max(progress.total, 1)} value={progress.done} aria-label={t('clean-analyzing')}></progress>
-          <span aria-live="polite">{t('clean-progress', { done: formatNumber(progress.done), total: formatNumber(progress.total) })}</span>
+          <Progress done={progress.done} total={progress.total} label={t('clean-analyzing')} />
         {/if}
       </div>
     </Card>
@@ -694,9 +694,6 @@
     align-items: center;
     gap: var(--ez-space-sm);
     margin: var(--ez-space-sm) 0;
-  }
-  .app-clean__actions progress {
-    flex: 1 1 12rem;
   }
   .app-clean__failures {
     margin: var(--ez-space-xs) 0 0;
