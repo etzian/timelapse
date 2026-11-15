@@ -24,7 +24,17 @@ export const DEFAULT_LAYOUT: SheetLayout = {
 };
 
 /** Reasons of the core's `Error::ContactSheet { reason }` and of a failed sheet. */
-export const SHEET_FAILURES = ['busy', 'empty', 'too-many', 'invalid-period', 'unknown-export', 'write-failed', 'output-exists', 'interrupted'] as const;
+export const SHEET_FAILURES = [
+  'busy',
+  'empty',
+  'too-many',
+  'invalid-period',
+  'unknown-export',
+  'source-changed',
+  'write-failed',
+  'output-exists',
+  'interrupted'
+] as const;
 
 export function sheetFailureText(reason: string | null): string {
   const known = reason !== null && (SHEET_FAILURES as readonly string[]).includes(reason);

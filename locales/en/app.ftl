@@ -361,6 +361,7 @@ error-export = { $reason ->
     [write-failed] The video could not be written to the project's exports folder (disk full or not writable).
     [interrupted] The app closed while this video was being created.
     [unknown-export] This video no longer exists.
+    [record-write-failed] The record could not be saved in the project’s exports folder (disk full or not writable).
    *[other] The video could not be created.
 }
 error-consolidation = { $reason ->
@@ -565,20 +566,27 @@ sheets-generate = Create the contact sheet
 sheets-generating = Creating…
 sheets-done-title = Contact sheet created
 sheets-done = { $pages ->
-    [one] { $pages } page, { $photos } photographs, { $size }.
-   *[other] { $pages } pages, { $photos } photographs, { $size }.
-}
+    [one] { $pages } page
+   *[other] { $pages } pages
+}, { $count ->
+    [one] { $photos } photograph
+   *[other] { $photos } photographs
+}, { $size }.
 sheets-unreadable = { $count ->
     [one] { $count } photograph could not be read; its place is marked on the sheet.
    *[other] { $count } photographs could not be read; their places are marked on the sheet.
 }
+sheets-other-running = Another project’s contact sheet is being created; you can create this one when it ends.
 sheets-cancelled = The contact sheet was cancelled; the partial file was removed.
 sheets-history-title = Contact sheets created
 sheets-history-empty-title = No contact sheet yet
 sheets-history-empty-description = The sheets you create are listed here, with their file.
 sheets-history-line = { $pages ->
-    [one] { $pages } page, { $photos } photographs
-   *[other] { $pages } pages, { $photos } photographs
+    [one] { $pages } page
+   *[other] { $pages } pages
+}, { $count ->
+    [one] { $photos } photograph
+   *[other] { $photos } photographs
 }
 sheets-status-running = Running
 sheets-status-completed = Created
@@ -636,6 +644,7 @@ error-contact-sheet = { $reason ->
     [too-many] A contact sheet can show at most 100,000 photographs; choose fewer.
     [invalid-period] Choose a start and an end; the end must come after the start.
     [unknown-export] This video no longer exists.
+    [source-changed] The photographs changed since the preview (for example a status changed). Check the preview, then create the sheet again.
     [write-failed] The contact sheet could not be written to the project’s folder (disk full or not writable).
     [output-exists] A file with this name already exists; nothing was overwritten.
     [interrupted] The app closed while this contact sheet was being created.

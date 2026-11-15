@@ -48,9 +48,13 @@ pub fn jpeg_info(bytes: &[u8]) -> Option<(u32, u32, u8)> {
             continue;
         }
         let len = usize::from(u16::from_be_bytes([bytes[i + 2], bytes[i + 3]]));
-        // SOF0–SOF15 except DHT (C4), JPG (C8) and DAC (CC).
+        // SOF0–SOF15 except DHT (C4), JPG (C8) and DAC (CC). Only 8-bit baseline,
+        // extended and progressive Huffman frames (C0–C2) are what PDF readers decode.
         if (0xc0..=0xcf).contains(&marker) && !matches!(marker, 0xc4 | 0xc8 | 0xcc) {
             let s = bytes.get(i + 4..i + 10)?;
+            if marker > 0xc2 || s[0] != 8 {
+                return None;
+            }
             let h = u32::from(u16::from_be_bytes([s[1], s[2]]));
             let w = u32::from(u16::from_be_bytes([s[3], s[4]]));
             return (w > 0 && h > 0).then_some((w, h, s[5]));
@@ -216,7 +220,7 @@ impl<W: Write> SheetWriter<W> {
             .page
             .replace("{page}", &page_no.to_string())
             .replace("{pages}", &self.total_pages.to_string());
-        let page = text::encode(&page);
+        let page = text::fit(&text::encode(&page), max / 2.0, SMALL_SIZE, false);
         let page_w = text::width(&page, SMALL_SIZE);
         let note =
             text::fit(&text::encode(&self.labels.note), max - page_w - 12.0, SMALL_SIZE, false);

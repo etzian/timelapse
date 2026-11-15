@@ -417,11 +417,12 @@ async fn start_contact_sheet(
     source: contact_sheet::Source,
     layout: contact_sheet::Layout,
     labels: contact_sheet::Labels,
+    expected: Option<usize>,
     token: u64,
     on_progress: tauri::ipc::Channel<contact_sheet::SheetProgress>,
 ) -> std::result::Result<contact_sheet::SheetRecord, IpcError> {
     blocking(move || {
-        contact_sheet::generate(&root, &source, &layout, &labels, token, |p| {
+        contact_sheet::generate(&root, &source, &layout, &labels, expected, token, |p| {
             let _ = on_progress.send(p);
         })
     })
@@ -435,43 +436,46 @@ fn cancel_contact_sheet(token: u64) {
 }
 
 #[tauri::command]
-fn list_contact_sheets(
+async fn list_contact_sheets(
     root: PathBuf,
 ) -> std::result::Result<Vec<contact_sheet::SheetRecord>, IpcError> {
-    Ok(contact_sheet::sheets_for_root(&root)?)
+    blocking(move || contact_sheet::sheets_for_root(&root)).await
 }
 
 /// The derived export record (ADR-015) as pretty JSON.
 #[tauri::command]
-fn export_record(root: PathBuf, export: i64) -> std::result::Result<String, IpcError> {
-    Ok(export::record::record_json(&root, export)?)
+async fn export_record(root: PathBuf, export: i64) -> std::result::Result<String, IpcError> {
+    blocking(move || export::record::record_json(&root, export)).await
 }
 
 /// Save the export record next to the exports; returns its path.
 #[tauri::command]
-fn write_export_record(root: PathBuf, export: i64) -> std::result::Result<PathBuf, IpcError> {
-    Ok(export::record::write_record(&root, export)?)
+async fn write_export_record(root: PathBuf, export: i64) -> std::result::Result<PathBuf, IpcError> {
+    blocking(move || export::record::write_record(&root, export)).await
 }
 
 /// One page of the photographs of `[from, to)` on the timeline.
 #[tauri::command]
-fn timeline_period(
+async fn timeline_period(
     root: PathBuf,
     from: String,
     to: String,
     offset: usize,
     limit: usize,
 ) -> std::result::Result<timelapse_core::import::store::TimelinePage, IpcError> {
-    Ok(timelapse_core::import::timeline_period_for_root(&root, &from, &to, offset, limit)?)
+    blocking(move || {
+        timelapse_core::import::timeline_period_for_root(&root, &from, &to, offset, limit)
+    })
+    .await
 }
 
 /// Groups of photographs that share one capture time, the largest `limit` listed.
 #[tauri::command]
-fn identical_timestamps(
+async fn identical_timestamps(
     root: PathBuf,
     limit: usize,
 ) -> std::result::Result<timelapse_core::import::store::IdenticalReport, IpcError> {
-    Ok(timelapse_core::import::identical_timestamps_for_root(&root, limit)?)
+    blocking(move || timelapse_core::import::identical_timestamps_for_root(&root, limit)).await
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]

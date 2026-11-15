@@ -130,15 +130,12 @@ pub fn record_path(root: &Path, id: i64) -> PathBuf {
 pub fn write_record(root: &Path, id: i64) -> Result<PathBuf> {
     let json = record_json(root, id)?;
     let dir = super::exports_dir(root);
-    let write_failed = || Error::Export { reason: "write-failed" };
+    let write_failed = || Error::Export { reason: "record-write-failed" };
     fs::create_dir_all(&dir).map_err(|_| write_failed())?;
     let path = record_path(root, id);
     let part = dir.join(format!("{id}.record.json.part"));
     fs::write(&part, json.as_bytes()).map_err(|_| write_failed())?;
-    // Windows cannot rename over an existing file.
-    if path.exists() {
-        let _ = fs::remove_file(&path);
-    }
+    // `rename` replaces an earlier record on every platform (MoveFileEx on Windows).
     fs::rename(&part, &path).map_err(|_| {
         let _ = fs::remove_file(&part);
         write_failed()

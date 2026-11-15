@@ -79,16 +79,22 @@
     }
   }
 
+  // Only the latest request may land: an older answer would label bars with the wrong
+  // granularity, and a click on them would pick the wrong period.
+  let distSeq = 0;
   async function loadDistribution(g: Granularity): Promise<void> {
     // Refresh keeps the previous bars visible until the new ones arrive (GUIDELINES §4).
+    const seq = ++distSeq;
+    const forRoot = root;
     distLoading = true;
     distError = '';
     try {
-      buckets = await timelineDistribution(root, g, range?.from, range?.to);
+      const b = await timelineDistribution(forRoot, g, range?.from, range?.to);
+      if (seq === distSeq && forRoot === root) buckets = b;
     } catch (err) {
-      distError = errorText(err as IpcError);
+      if (seq === distSeq && forRoot === root) distError = errorText(err as IpcError);
     } finally {
-      distLoading = false;
+      if (seq === distSeq) distLoading = false;
     }
   }
 
@@ -120,18 +126,29 @@
     void loadDistribution(granularity);
   }
 
+  // One request at a time per period; a newer period (or a reload) supersedes the rest.
+  let periodSeq = 0;
+  let periodLoading = $state(false);
   async function loadPeriod(offset: number): Promise<void> {
     const p = selected;
     if (!p) return;
+    if (offset > 0 && periodLoading) return;
+    const seq = ++periodSeq;
+    const forRoot = root;
     periodError = '';
+    periodLoading = true;
     if (offset === 0) periodPage = null;
     try {
-      const page = await timelinePeriod(root, p.from, p.to, offset, PERIOD_PAGE);
-      if (selected !== p) return;
-      periodPage = offset === 0 || !periodPage ? page : { total: page.total, entries: [...periodPage.entries, ...page.entries] };
+      const page = await timelinePeriod(forRoot, p.from, p.to, offset, PERIOD_PAGE);
+      if (seq !== periodSeq || selected !== p || forRoot !== root) return;
+      const before = periodPage?.entries ?? [];
+      // Append only what follows what is shown, so an entry never appears twice.
+      periodPage = offset === 0 ? page : offset === before.length ? { total: page.total, entries: [...before, ...page.entries] } : periodPage;
       void loadPeriodThumbs(page.entries, p);
     } catch (err) {
-      if (selected === p) periodError = errorText(err as IpcError);
+      if (seq === periodSeq && selected === p) periodError = errorText(err as IpcError);
+    } finally {
+      if (seq === periodSeq) periodLoading = false;
     }
   }
 
@@ -225,6 +242,7 @@
               type="button"
               class="app-timeline__bar-button"
               class:app-timeline__bar-button--selected={selected?.label === formatBucket(b.bucket, granularity)}
+              aria-pressed={selected?.label === formatBucket(b.bucket, granularity)}
               onclick={() => pickBucket(b)}
             >
               <span class="app-timeline__bar-label">{formatBucket(b.bucket, granularity)}</span>
@@ -269,7 +287,7 @@
             {/each}
           </ul>
           {#if periodPage.entries.length < periodPage.total}
-            <Button onclick={() => loadPeriod(periodPage?.entries.length ?? 0)}>{t('timeline-show-more')}</Button>
+            <Button onclick={() => loadPeriod(periodPage?.entries.length ?? 0)} disabled={periodLoading}>{t('timeline-show-more')}</Button>
           {/if}
         {/if}
       </section>

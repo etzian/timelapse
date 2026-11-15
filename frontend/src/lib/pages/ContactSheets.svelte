@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { untrack } from 'svelte';
   import { Badge, Banner, Button, Card, EmptyState, Input, PageHeader, SectionLabel, Select, Skeleton, Stat, StatGrid, Toggle } from '@etzianco/ui';
 
   import {
@@ -18,7 +19,7 @@
   import { formatDate, formatNumber, t } from '../i18n';
   import { errorText } from '../i18n/errors';
   import { getThumbnail, listContactSheets, listExports, listSamplingRuns, previewContactSheet } from '../ipc/app';
-  import type { ExportRecord, Orientation, PageSize, RunSummary, SheetLayout, SheetPreview, SheetSource } from '../ipc/app';
+  import type { ExportRecord, Orientation, PageSize, RunSummary, SheetLayout, SheetPreview, SheetRecord, SheetSource } from '../ipc/app';
   import type { IpcError } from '../ipc/invoke';
   import { project } from '../stores/project.svelte';
   import { runContactSheet, sheetJob, stopContactSheet } from '../stores/contactSheet.svelte';
@@ -51,12 +52,18 @@
   // The running sheet lives in a store, so it survives leaving this page.
   const job = $derived(sheetJob.state);
   const mine = $derived(job.root === root);
-  const running = $derived(job.running);
+  /** A sheet is being made, for this project or another one (one at a time). */
+  const busy = $derived(job.running);
+  const running = $derived(mine && job.running);
+  const otherRunning = $derived(!mine && job.running);
   const cancelling = $derived(job.cancelling);
   const progress = $derived(mine ? job.progress : null);
   const result = $derived(mine ? job.result : null);
   const error = $derived(mine && job.error ? errorText(job.error) : '');
-  const history = $derived(mine ? job.history : null);
+  /** This project's sheets, kept here: the job store may be busy with another project. */
+  let history = $state<SheetRecord[] | null>(null);
+  /** Bumped to ask for a fresh preview (after the source changed under a generation). */
+  let previewNonce = $state(0);
 
   const layout = $derived<SheetLayout>(
     clampLayout({
@@ -85,7 +92,7 @@
     }
   });
 
-  const canGenerate = $derived(!!source && !!preview && preview.photos > 0 && !preview.too_many && !running && !previewing);
+  const canGenerate = $derived(!!source && !!preview && preview.photos > 0 && !preview.too_many && !busy && !previewing);
 
   const kindOptions = $derived(SOURCE_KINDS.map((k) => ({ value: k, label: t(`sheets-source-${k}`) })));
   const runOptions = $derived((runs ?? []).map((r) => ({ value: String(r.id), label: t('export-run-option', { id: r.id, count: r.selected_count }) })));
@@ -122,11 +129,11 @@
       if (forRoot !== root) return;
       runs = r;
       exports = e;
-      if (sheetJob.state.root === forRoot || !sheetJob.state.running) {
+      history = h;
+      if (sheetJob.state.root !== forRoot && !sheetJob.state.running) {
         // Another project's finished result is not shown under this one.
-        if (sheetJob.state.root !== forRoot) sheetJob.dismiss();
+        sheetJob.dismiss();
         sheetJob.state.root = forRoot;
-        sheetJob.history = h;
       }
       if (!runId && r.length > 0) runId = String(r[0].id);
       const done = e.filter((x) => x.status === 'completed');
@@ -140,11 +147,31 @@
     if (!root) return;
     runs = null;
     exports = null;
+    history = null;
+    thumbs = {};
     runId = '';
     exportId = '';
     const requested = sheetJob.take();
     if (requested) apply(requested);
     void load();
+  });
+
+  // When a sheet ends (here or for another project), this project's history is re-read.
+  $effect(() => {
+    void job.result;
+    void job.error;
+    const forRoot = root;
+    if (!forRoot || job.running || runs === null) return;
+    listContactSheets(forRoot)
+      .then((h) => {
+        if (forRoot === root) history = h;
+      })
+      .catch(() => {});
+    // The source changed under the generation: show the preview it has now.
+    const reason = (job.error?.args as { reason?: string } | undefined)?.reason;
+    if (untrack(() => mine) && job.error?.kind === 'contact-sheet' && reason === 'source-changed') {
+      untrack(() => (previewNonce += 1));
+    }
   });
 
   // The preview follows the source and layout; a newer request wins over an older one.
@@ -153,6 +180,7 @@
     const s = source;
     const l = layout;
     const forRoot = root;
+    void previewNonce;
     if (!forRoot || !s || runs === null) {
       preview = null;
       previewError = '';
@@ -195,7 +223,7 @@
 
   function generate(): void {
     if (!source || !preview || !canGenerate) return;
-    void runContactSheet(root, source, layout, sheetLabels(source, preview.photos, formatBound));
+    void runContactSheet(root, source, layout, sheetLabels(source, preview.photos, formatBound), preview.photos);
   }
 
   const pct = (v: number, of: number) => `${(v / of) * 100}%`;
@@ -317,6 +345,9 @@
           </Button>
         {/if}
       </div>
+      {#if otherRunning}
+        <p class="app-sheets__note" aria-live="polite">{t('sheets-other-running')}</p>
+      {/if}
       {#if running && progress}
         <div class="app-sheets__progress">
           <progress max={Math.max(progress.total, 1)} value={progress.done} aria-label={t('sheets-generating')}></progress>
@@ -332,7 +363,7 @@
         <Banner
           tone="success"
           title={t('sheets-done-title')}
-          text={t('sheets-done', { pages: result.pages, photos: formatNumber(result.photos), size: formatBytes(result.file_size ?? 0) })}
+          text={t('sheets-done', { pages: result.pages, count: result.photos, photos: formatNumber(result.photos), size: formatBytes(result.file_size ?? 0) })}
           ondismiss={() => sheetJob.dismiss()}
           dismissLabel={t('clean-dismiss')}
         >
@@ -360,7 +391,7 @@
               </span>
               <span class="app-sheets__note">
                 {formatDate(h.created_at * 1000, { dateStyle: 'medium', timeStyle: 'short' })}
-                · {t('sheets-history-line', { pages: h.pages, photos: formatNumber(h.photos) })}
+                · {t('sheets-history-line', { pages: h.pages, count: h.photos, photos: formatNumber(h.photos) })}
                 {#if h.file_size}· {formatBytes(h.file_size)}{/if}
                 {#if h.status === 'failed' || h.status === 'interrupted'}· {sheetFailureText(h.failure ?? h.status)}{/if}
               </span>

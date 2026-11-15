@@ -93,7 +93,7 @@ impl Fixture {
     }
 
     fn sheet(&self, source: &Source, layout: &Layout, labels: &Labels) -> (SheetRecord, Vec<u8>) {
-        let r = generate(self.root(), source, layout, labels, 0, |_| {}).unwrap();
+        let r = generate(self.root(), source, layout, labels, None, 0, |_| {}).unwrap();
         assert_eq!(r.status, "completed", "{r:?}");
         let bytes = fs::read(&r.output_path).unwrap();
         (r, bytes)
@@ -275,21 +275,29 @@ fn cancel_empty_and_busy_leave_nothing_behind() {
     let f = Fixture::new("cancel");
     let token = 4242;
     cancel(token);
-    let r =
-        generate(f.root(), &Source::All, &Layout::default(), &labels_en(), token, |_| {}).unwrap();
+    let r = generate(f.root(), &Source::All, &Layout::default(), &labels_en(), None, token, |_| {})
+        .unwrap();
     cancel(0);
     assert_eq!(r.status, "cancelled");
     assert!(!Path::new(&r.output_path).exists());
     assert_eq!(fs::read_dir(sheets_dir(f.root())).unwrap().count(), 0, "no partial file");
 
     assert!(matches!(
-        generate(f.root(), &Source::Quarantined, &Layout::default(), &labels_en(), 0, |_| {}),
+        generate(f.root(), &Source::Quarantined, &Layout::default(), &labels_en(), None, 0, |_| {}),
         Err(Error::ContactSheet { reason: "empty" })
     ));
 
+    // The count shown (and printed) must still be the count of the source.
+    assert!(matches!(
+        generate(f.root(), &Source::All, &Layout::default(), &labels_en(), Some(6), 0, |_| {}),
+        Err(Error::ContactSheet { reason: "source-changed" })
+    ));
+    let ok = generate(f.root(), &Source::All, &Layout::default(), &labels_en(), Some(7), 0, |_| {});
+    assert_eq!(ok.unwrap().status, "completed");
+
     let _held = try_lock().unwrap();
     assert!(matches!(
-        generate(f.root(), &Source::All, &Layout::default(), &labels_en(), 0, |_| {}),
+        generate(f.root(), &Source::All, &Layout::default(), &labels_en(), None, 0, |_| {}),
         Err(Error::ContactSheet { reason: "busy" })
     ));
 }

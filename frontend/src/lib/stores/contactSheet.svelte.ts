@@ -3,7 +3,7 @@
  * does not lose it (progress, Cancel, result), and the source another page asked for.
  * Held in memory only.
  */
-import { cancelContactSheet, listContactSheets, startContactSheet } from '../ipc/app';
+import { cancelContactSheet, startContactSheet } from '../ipc/app';
 import type { SheetLabels, SheetLayout, SheetProgress, SheetRecord, SheetSource } from '../ipc/app';
 import type { IpcError } from '../ipc/invoke';
 import { nav } from './nav.svelte';
@@ -16,7 +16,6 @@ interface SheetState {
   progress: SheetProgress | null;
   result: SheetRecord | null;
   error: IpcError | null;
-  history: SheetRecord[] | null;
   /** A source chosen elsewhere (timeline, cleaning, sampling, export), taken by the page. */
   requested: SheetSource | null;
 }
@@ -29,16 +28,12 @@ let state = $state<SheetState>({
   progress: null,
   result: null,
   error: null,
-  history: null,
   requested: null
 });
 
 export const sheetJob = {
   get state(): SheetState {
     return state;
-  },
-  set history(h: SheetRecord[] | null) {
-    state.history = h;
   },
   dismiss(): void {
     state.result = null;
@@ -60,17 +55,23 @@ export function openContactSheet(source: SheetSource): void {
 
 let lastToken = 0;
 
-export async function runContactSheet(root: string, source: SheetSource, layout: SheetLayout, labels: SheetLabels): Promise<void> {
+/** `expected` is the photo count shown and printed; the core refuses if the source changed. */
+export async function runContactSheet(
+  root: string,
+  source: SheetSource,
+  layout: SheetLayout,
+  labels: SheetLabels,
+  expected: number
+): Promise<void> {
   if (state.running) return;
   lastToken = Math.max(lastToken + 1, Date.now());
   const token = lastToken;
   state = { ...state, root, token, running: true, cancelling: false, progress: null, result: null, error: null };
   try {
-    const rec = await startContactSheet(root, source, layout, labels, token, (p) => {
+    const rec = await startContactSheet(root, source, layout, labels, expected, token, (p) => {
       if (state.token === token) state.progress = p;
     });
     if (state.token === token) state.result = rec;
-    if (state.root === root) state.history = await listContactSheets(root);
   } catch (err) {
     if (state.token === token) state.error = err as IpcError;
   } finally {

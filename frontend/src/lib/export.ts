@@ -29,7 +29,8 @@ export const EXPORT_FAILURES = [
   'image-unreadable',
   'write-failed',
   'interrupted',
-  'unknown-export'
+  'unknown-export',
+  'record-write-failed'
 ] as const;
 
 export function exportFailureText(kind: string | null): string {

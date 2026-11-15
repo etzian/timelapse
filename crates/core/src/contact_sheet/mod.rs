@@ -171,12 +171,16 @@ impl Drop for Cleanup<'_> {
     }
 }
 
-/// Generate a sheet of `source`. `token` identifies it for [`cancel`].
+/// Generate a sheet of `source`. `token` identifies it for [`cancel`]. `expected` is the
+/// photo count the caller showed (and printed in `labels`): a source that changed since
+/// is refused (`source-changed`) rather than printed with a wrong count.
+#[allow(clippy::too_many_arguments)]
 pub fn generate(
     root: &Path,
     source: &Source,
     layout: &Layout,
     labels: &Labels,
+    expected: Option<usize>,
     token: u64,
     mut on_progress: impl FnMut(SheetProgress),
 ) -> Result<SheetRecord> {
@@ -190,6 +194,9 @@ pub fn generate(
     }
     if items.len() > MAX_PHOTOS {
         return Err(fail("too-many"));
+    }
+    if expected.is_some_and(|n| n != items.len()) {
+        return Err(fail("source-changed"));
     }
     let pages = layout.pages(items.len());
     let dir = sheets_dir(root);
@@ -206,8 +213,13 @@ pub fn generate(
             store::end(&conn, id, "failed", Some("output-exists"))?;
             return store::get(&conn, id)?.ok_or(Error::StoreTransaction);
         }
-        Err(_) => {
-            store::end(&conn, id, "failed", Some("output-exists"))?;
+        Err(e) => {
+            let reason = if e.kind() == std::io::ErrorKind::AlreadyExists {
+                "output-exists"
+            } else {
+                "write-failed"
+            };
+            store::end(&conn, id, "failed", Some(reason))?;
             return store::get(&conn, id)?.ok_or(Error::StoreTransaction);
         }
     };
@@ -219,7 +231,12 @@ pub fn generate(
         Ok(unreadable) => match fs::rename(&part, &output) {
             Ok(()) => {
                 let size = fs::metadata(&output).map(|m| m.len()).unwrap_or(0);
-                store::complete(&conn, id, unreadable, size)?;
+                // A sheet the database does not record as complete is not kept: the row
+                // never stays `running` next to a finished file.
+                if store::complete(&conn, id, unreadable, size).is_err() {
+                    let _ = fs::remove_file(&output);
+                    store::end(&conn, id, "failed", Some("write-failed"))?;
+                }
             }
             Err(_) => {
                 let _ = fs::remove_file(&part);

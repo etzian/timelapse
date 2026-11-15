@@ -361,6 +361,7 @@ error-export = { $reason ->
     [write-failed] La vidéo n’a pas pu être écrite dans le dossier d’exportation du projet (disque plein ou non accessible en écriture).
     [interrupted] L’application s’est fermée pendant la création de cette vidéo.
     [unknown-export] Cette vidéo n’existe plus.
+    [record-write-failed] Le registre n’a pas pu être enregistré dans le dossier des exportations du projet (disque plein ou protégé en écriture).
    *[other] La vidéo n’a pas pu être créée.
 }
 error-consolidation = { $reason ->
@@ -565,20 +566,27 @@ sheets-generate = Créer la planche contact
 sheets-generating = Création…
 sheets-done-title = Planche contact créée
 sheets-done = { $pages ->
-    [one] { $pages } page, { $photos } photographies, { $size }.
-   *[other] { $pages } pages, { $photos } photographies, { $size }.
-}
+    [one] { $pages } page
+   *[other] { $pages } pages
+}, { $count ->
+    [one] { $photos } photographie
+   *[other] { $photos } photographies
+}, { $size }.
 sheets-unreadable = { $count ->
     [one] { $count } photographie n’a pas pu être lue; son emplacement est indiqué sur la planche.
    *[other] { $count } photographies n’ont pas pu être lues; leurs emplacements sont indiqués sur la planche.
 }
+sheets-other-running = La planche contact d’un autre projet est en cours de création; vous pourrez créer celle-ci quand elle sera terminée.
 sheets-cancelled = La planche contact a été annulée; le fichier partiel a été supprimé.
 sheets-history-title = Planches contact créées
 sheets-history-empty-title = Aucune planche contact pour l’instant
 sheets-history-empty-description = Les planches que vous créez sont listées ici, avec leur fichier.
 sheets-history-line = { $pages ->
-    [one] { $pages } page, { $photos } photographies
-   *[other] { $pages } pages, { $photos } photographies
+    [one] { $pages } page
+   *[other] { $pages } pages
+}, { $count ->
+    [one] { $photos } photographie
+   *[other] { $photos } photographies
 }
 sheets-status-running = En cours
 sheets-status-completed = Créée
@@ -635,6 +643,7 @@ error-contact-sheet = { $reason ->
     [too-many] Une planche contact peut afficher au plus 100 000 photographies; choisissez-en moins.
     [invalid-period] Choisissez un début et une fin; la fin doit suivre le début.
     [unknown-export] Cette vidéo n’existe plus.
+    [source-changed] Les photographies ont changé depuis l’aperçu (par exemple un statut a changé). Vérifiez l’aperçu, puis créez la planche de nouveau.
     [write-failed] La planche contact n’a pas pu être enregistrée dans le dossier du projet (disque plein ou protégé en écriture).
     [output-exists] Un fichier de ce nom existe déjà; rien n’a été écrasé.
     [interrupted] L’application s’est fermée pendant la création de cette planche contact.

@@ -60,6 +60,14 @@ describe('contact sheet helpers', () => {
     expect(en.unreadable).not.toBe(fr.unreadable);
   });
 
+  it('agrees pages and photographs separately', () => {
+    setLocale('en');
+    expect(t('sheets-done', { pages: 1, count: 1, photos: '1', size: '2 kB' })).toBe('1 page, 1 photograph, 2 kB.');
+    expect(t('sheets-history-line', { pages: 2, count: 30, photos: '30' })).toBe('2 pages, 30 photographs');
+    setLocale('fr-CA');
+    expect(t('sheets-done', { pages: 1, count: 1, photos: '1', size: '2 ko' })).toBe('1 page, 1 photographie, 2 ko.');
+  });
+
   it('turns a bucket into the period it covers, in UTC', () => {
     expect(bucketPeriod('2024-01-15T10', 'hour')).toEqual({ from: '2024-01-15T10:00', to: '2024-01-15T11:00' });
     expect(bucketPeriod('2024-01-31', 'day')).toEqual({ from: '2024-01-31T00:00', to: '2024-02-01T00:00' });

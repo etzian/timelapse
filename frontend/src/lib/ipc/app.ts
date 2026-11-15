@@ -663,18 +663,19 @@ const SHEET_TIMEOUT_MS = 6 * 60 * 60_000;
 export const previewContactSheet = (root: string, source: SheetSource, layout: SheetLayout) =>
   invoke<SheetPreview>('preview_contact_sheet', { root, source, layout }, 120_000);
 
-/** `token` identifies this sheet for `cancelContactSheet` (any non-zero safe integer). */
+/** `expected` is the photo count printed in `labels` (refused as `source-changed` otherwise); `token` identifies this sheet for `cancelContactSheet`. */
 export function startContactSheet(
   root: string,
   source: SheetSource,
   layout: SheetLayout,
   labels: SheetLabels,
+  expected: number | null,
   token: number,
   onProgress: (p: SheetProgress) => void
 ): Promise<SheetRecord> {
   const channel = new Channel<SheetProgress>();
   channel.onmessage = onProgress;
-  return invoke<SheetRecord>('start_contact_sheet', { root, source, layout, labels, token, onProgress: channel }, SHEET_TIMEOUT_MS);
+  return invoke<SheetRecord>('start_contact_sheet', { root, source, layout, labels, expected, token, onProgress: channel }, SHEET_TIMEOUT_MS);
 }
 
 export const cancelContactSheet = (token: number) => invoke<void>('cancel_contact_sheet', { token });
