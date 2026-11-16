@@ -2,6 +2,7 @@
   import { flushSync, tick, untrack } from 'svelte';
   import { AppShell, Sidebar, TabBar, Toast } from '@etzianco/ui';
 
+  import NextStep from './lib/components/NextStep.svelte';
   import Adjust from './lib/pages/Adjust.svelte';
   import Cleaning from './lib/pages/Cleaning.svelte';
   import ContactSheets from './lib/pages/ContactSheets.svelte';
@@ -14,7 +15,7 @@
   import { installMenu } from './lib/menuNative';
   import type { MenuAction } from './lib/menu';
   import { NAV_ORDER, nav } from './lib/stores/nav.svelte';
-  import { JOB_IDS, JOB_PAGE, NO_JOBS, endedJobs, startedJobs, stepStates } from './lib/pipeline';
+  import { JOB_IDS, JOB_PAGE, STEP_IDS, NO_JOBS, endedJobs, startedJobs, stepStates } from './lib/pipeline';
   import type { Running, StepId, StepState } from './lib/pipeline';
   import { STORAGE_KEYS } from './lib/storageKeys';
   import { pipeline } from './lib/stores/pipeline.svelte';
@@ -112,10 +113,16 @@
     { id: 'app', label: t('nav-group-app'), items: [navItem('settings')] }
   ]);
   const tabs = $derived(NAV_ORDER.map((id) => ({ id, label: t(`nav-${id}`) })));
+  const showNext = $derived(!!project.root && (STEP_IDS as readonly string[]).includes(shown));
   const activeHref = $derived(`#${active}`);
 </script>
 
-<AppShell mode="auto">
+{#snippet topbar()}
+  <!-- One fixed place for the way forward, on every workflow page. -->
+  <div class="app-topbar"><NextStep step={shown as StepId} /></div>
+{/snippet}
+
+<AppShell mode="auto" header={showNext ? topbar : undefined}>
   {#snippet sidebar()}
     <Sidebar brand={t('app-name')} {groups} active={activeHref} storageKey={STORAGE_KEYS.sidebar}>
       {#snippet footer()}

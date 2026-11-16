@@ -1,6 +1,5 @@
 <script lang="ts">
   import Flipbook from '../components/Flipbook.svelte';
-  import NextStep from '../components/NextStep.svelte';
   import { runLabel } from '../selectionLabel';
   import { Badge, Banner, Button, Card, EmptyState, Input, PageHeader, SectionLabel, Select, Skeleton, Stat, StatGrid, Tabs, Toggle } from '@etzianco/ui';
 
@@ -435,7 +434,6 @@
       {/if}
     </Card>
   {/if}
-  <NextStep step="sampling" />
 </div>
 
 <style>

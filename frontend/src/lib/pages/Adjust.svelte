@@ -1,6 +1,5 @@
 <script lang="ts">
   import Flipbook from '../components/Flipbook.svelte';
-  import NextStep from '../components/NextStep.svelte';
   import Progress from '../components/Progress.svelte';
   import Wipe from '../components/Wipe.svelte';
   import { LOOP_MAX, loopWindow } from '../flipbook';
@@ -452,7 +451,6 @@
       {/if}
     </Card>
   {/if}
-  <NextStep step="adjust" />
 </div>
 
 <style>

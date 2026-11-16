@@ -43,10 +43,32 @@ body {
   margin: 0;
 }
 
-/* The content area scrolls; reserve the scrollbar's lane on both edges so the padding
-   around the cards is equal left and right. */
+/* The shell is the only thing that scrolls: the page itself never does, and the
+   content area never scrolls sideways (a wide child must not cut the cards' right edge). */
+html,
+body,
+#app {
+  height: 100%;
+  overflow: hidden;
+}
+.ez-shell {
+  height: 100%;
+}
 .ez-shell__content {
-  scrollbar-gutter: stable both-edges;
+  overflow-x: hidden;
+}
+.app-page > * {
+  min-width: 0;
+}
+
+.app-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  height: 100%;
+  padding: 0 var(--ez-space-lg);
+  background: var(--ez-color-surface);
+  border-bottom: 1px solid var(--ez-color-border-soft);
 }
 
 .app-page {

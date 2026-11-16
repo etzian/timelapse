@@ -1,5 +1,4 @@
 <script lang="ts">
-  import NextStep from '../components/NextStep.svelte';
   import { onMount, tick } from 'svelte';
   import { Button, Card, PageHeader } from '@etzianco/ui';
   import { getCurrentWebview } from '@tauri-apps/api/webview';
@@ -206,8 +205,6 @@
     <ProjectSteps {root} version={scanVersion} />
   {/if}
 
-  <!-- Above the report and the file list, so the way forward is visible without scrolling. -->
-  <NextStep step="home" />
 
   {#if report}
     <Card class="app-home__report">

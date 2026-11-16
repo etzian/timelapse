@@ -1,6 +1,5 @@
 <script lang="ts">
   import Inspector from '../components/Inspector.svelte';
-  import NextStep from '../components/NextStep.svelte';
   import Progress from '../components/Progress.svelte';
   import { Badge, Banner, Button, Card, EmptyState, Input, Modal, PageHeader, SectionLabel, Skeleton, Stat, StatGrid, Tabs, Toggle, toast } from '@etzianco/ui';
   import { tick } from 'svelte';
@@ -687,7 +686,6 @@
       {/if}
     </Card>
   {/if}
-  <NextStep step="cleaning" />
 </div>
 
 <Modal open={confirmOpen} title={t('clean-confirm-title')} onclose={() => (confirmOpen = false)}>

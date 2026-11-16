@@ -1,7 +1,6 @@
 <script lang="ts">
   import ExportActions from '../components/ExportActions.svelte';
   import Flipbook from '../components/Flipbook.svelte';
-  import NextStep from '../components/NextStep.svelte';
   import Progress from '../components/Progress.svelte';
   import { runLabel, runLabelWithId } from '../selectionLabel';
   import { Badge, Banner, Button, Card, EmptyState, PageHeader, SectionLabel, Select, Skeleton, Stat, StatGrid } from '@etzianco/ui';
@@ -467,7 +466,6 @@
       {/if}
     </Card>
   {/if}
-  <NextStep step="export" />
 </div>
 
 <style>
