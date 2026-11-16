@@ -4,6 +4,36 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and the project uses [Semantic Versioning](https://semver.org/).
 
+## [0.2.0] — 2026-11-16
+
+### Added
+- **ux:** P1 ADR-027 and baseline debts
+- **ux:** P2 project store and continuity
+- **ux:** P3 Home as the project overview
+- **ux:** P4 pipeline navigation
+- **ux:** P5 next step and named selections
+- **ux:** P6 flipbook
+- **ux:** P7 flipbook in Adjust and Export, before/after wipe
+- **ux:** P8 fast triage
+- **ux:** P9 presets and plain-language summaries
+- **ux:** P10 open and reveal commands
+- **ux:** P11 progress and the export finish
+- **ux:** P12 motion, native menu and shortcuts
+- **ux:** P13 copy pass in en and fr-CA
+- **shell:** Size the first window to the screen
+
+### Fixed
+- **outputs:** Open the project database read-only and allow only known file types
+- **ui:** Apply the P14 review findings on accessibility and erase
+- **ui:** Move Next above the file list, drop the double scrollbar, even the card padding
+- **ui:** Fixed top-right Next, single scroll area, no sideways overflow
+
+### Documentation
+- **plan:** Block P4 on the unpublished @etzianco/ui 2.6 Sidebar groups
+- **legal:** Record the sidebar fold state in the data map
+- **review:** Record the P14 review pass
+- Close the UX milestone
+
 ## [0.1.0] — 2026-11-15
 
 ### Added

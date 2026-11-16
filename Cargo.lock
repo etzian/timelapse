@@ -3982,7 +3982,7 @@ dependencies = [
 
 [[package]]
 name = "timelapse-core"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "image",
  "kamadak-exif",
@@ -4000,7 +4000,7 @@ dependencies = [
 
 [[package]]
 name = "timelapse-tauri"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "serde",
  "serde_json",
