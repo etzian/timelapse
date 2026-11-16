@@ -646,6 +646,29 @@ async fn reveal_output(
     with_output(app, root, kind, id, |app, path| app.opener().reveal_item_in_dir(path)).await
 }
 
+/// The fixed size in `tauri.conf.json` is only a fallback. On the first launch (no saved
+/// window state yet) the window takes 80 % of the screen it opens on, never below its
+/// minimum; afterwards the window-state plugin restores what the user chose.
+#[cfg(desktop)]
+fn fit_first_window(app: &tauri::App) {
+    use tauri::Manager as _;
+    let saved = app
+        .path()
+        .app_config_dir()
+        .map(|d| d.join(tauri_plugin_window_state::DEFAULT_FILENAME).exists())
+        .unwrap_or(true);
+    if saved {
+        return;
+    }
+    let Some(window) = app.get_webview_window("main") else { return };
+    let Ok(Some(monitor)) = window.current_monitor() else { return };
+    let scale = monitor.scale_factor();
+    let width = (f64::from(monitor.size().width) / scale * 0.8).max(520.0);
+    let height = (f64::from(monitor.size().height) / scale * 0.8).max(560.0);
+    let _ = window.set_size(tauri::LogicalSize::new(width, height));
+    let _ = window.center();
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     // Dialog is used by the frontend for folder picking on every platform; the
@@ -666,6 +689,12 @@ pub fn run() {
     );
 
     builder
+        .setup(|app| {
+            #[cfg(desktop)]
+            fit_first_window(app);
+            let _ = app;
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             app_info,
             import_folder,
