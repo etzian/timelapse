@@ -38,6 +38,15 @@
    @etzianco/ui sets the font on .ez-modal__body. */
 body {
   font-family: var(--ez-font-base);
+  /* .ez-shell is exactly 100vh: the browser's default 8px margin made the page itself
+     scroll next to the shell's own content scroll (two vertical scrollbars). */
+  margin: 0;
+}
+
+/* The content area scrolls; reserve the scrollbar's lane on both edges so the padding
+   around the cards is equal left and right. */
+.ez-shell__content {
+  scrollbar-gutter: stable both-edges;
 }
 
 .app-page {

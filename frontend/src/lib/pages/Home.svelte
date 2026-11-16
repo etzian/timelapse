@@ -206,6 +206,9 @@
     <ProjectSteps {root} version={scanVersion} />
   {/if}
 
+  <!-- Above the report and the file list, so the way forward is visible without scrolling. -->
+  <NextStep step="home" />
+
   {#if report}
     <Card class="app-home__report">
       <p class="app-home__summary">{t('home-summary', { new: report.new_rows, unchanged: report.unchanged })}</p>
@@ -303,7 +306,6 @@
       </ul>
     </Card>
   {/if}
-  <NextStep step="home" />
 </div>
 
 <style>
